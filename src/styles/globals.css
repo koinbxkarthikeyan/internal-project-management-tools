@@ -1,0 +1,212 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Theme tokens. Light is the default; `.dark` on <html> switches to dark. */
+:root {
+  --background: #f6f7fb;
+  --foreground: #0f1226;
+  --surface: #ffffff;
+  --border: #e4e7ef;
+  --muted: #5b6178;
+  --hover: #eef0f8;
+  --accent: #425df3; /* logo blue */
+  --accent-foreground: #ffffff;
+  --accent-soft: #e8ecff;
+  /* Scrollbars: derived from the theme's muted text colour, so they adapt to light and dark. */
+  --scrollbar-thumb: color-mix(in srgb, var(--muted) 55%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--accent) 80%, transparent);
+  /* Makes native controls (date/time pickers, select lists, scrollbars) follow the theme. */
+  color-scheme: light;
+}
+
+.dark {
+  --background: #0b0d1a;
+  --foreground: #eceffd;
+  --surface: #11142a;
+  --border: #23274a;
+  --muted: #9aa1c4;
+  --hover: #1a1e3d;
+  --accent: #00c5f6; /* logo cyan */
+  --accent-foreground: #061024;
+  --accent-soft: #10284a;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-hover: var(--hover);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* ------------------------------------------------------------------ */
+/* Motion system: one easing curve and three durations app-wide.       */
+/* Entry animations use `backwards` fill so no lingering transform      */
+/* (which would break fixed-position menus inside animated parents).   */
+/* ------------------------------------------------------------------ */
+:root {
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 150ms;
+  --dur-base: 250ms;
+  --dur-slow: 320ms;
+}
+
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+}
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+@keyframes row-out {
+  from { opacity: 1; max-height: 14rem; }
+  to { opacity: 0; max-height: 0; padding-block: 0; transform: translateX(16px); }
+}
+@keyframes menu-in {
+  from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+}
+@keyframes menu-out {
+  to { opacity: 0; transform: scale(0.96) translateY(-4px); }
+}
+@keyframes drawer-in {
+  from { transform: translateX(100%); }
+}
+@keyframes drawer-out {
+  to { transform: translateX(100%); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+@keyframes fade-out {
+  to { opacity: 0; }
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-12px) scale(0.98); }
+}
+@keyframes toast-out {
+  to { opacity: 0; transform: translateY(-8px) scale(0.98); }
+}
+@keyframes grow-x {
+  from { transform: scaleX(0); }
+}
+@keyframes indicator-in {
+  from { transform: scaleY(0); opacity: 0; }
+}
+
+.anim-page-in { animation: page-in var(--dur-slow) var(--ease) backwards; }
+.anim-fade-up {
+  animation: fade-up var(--dur-slow) var(--ease) backwards;
+  animation-delay: calc(var(--i, 0) * 50ms);
+}
+.anim-row-in {
+  animation: row-in var(--dur-base) var(--ease) backwards;
+  animation-delay: calc(var(--i, 0) * 25ms);
+}
+.anim-row-out {
+  overflow: hidden;
+  pointer-events: none;
+  animation: row-out 220ms var(--ease) forwards;
+}
+.anim-menu-in { animation: menu-in var(--dur-fast) var(--ease) backwards; }
+.anim-menu-out { animation: menu-out 120ms var(--ease) forwards; }
+.anim-toast-in { animation: toast-in var(--dur-base) var(--ease) backwards; }
+.anim-toast-out { animation: toast-out 200ms var(--ease) forwards; }
+.anim-grow-x { transform-origin: left; animation: grow-x 600ms var(--ease) backwards; animation-delay: 150ms; }
+.anim-indicator { transform-origin: center; animation: indicator-in var(--dur-base) var(--ease) backwards; }
+
+/* Side panel (native <dialog>) */
+.drawer { animation: drawer-in var(--dur-base) var(--ease) backwards; }
+.drawer::backdrop { animation: fade-in var(--dur-base) ease backwards; }
+.drawer[data-closing] { animation: drawer-out 220ms var(--ease) forwards; }
+.drawer[data-closing]::backdrop { animation: fade-out 220ms ease forwards; }
+
+/* Shared interactive feedback */
+@layer base {
+  button:not(:disabled),
+  a {
+    transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+    transition-duration: var(--dur-fast);
+    transition-timing-function: var(--ease);
+  }
+  button:not(:disabled):active {
+    transform: scale(0.97);
+  }
+  input, select, textarea {
+    transition: border-color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+  }
+}
+
+/* Theme switch: no element transitions while the colours change, so the whole page flips in one frame
+   (ThemeToggle adds this class for a moment). */
+.theme-switching,
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Scrollbars: the page scrollbar is 10px wide; every internal one     */
+/* (sidebar, tables, cards, side panels, lists) is a thinner 5px.      */
+/* The track is invisible; thumb colours follow the theme.             */
+/* ------------------------------------------------------------------ */
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+html::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 9999px;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+*::-webkit-scrollbar-thumb:hover,
+*::-webkit-scrollbar-thumb:active {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+/* Browsers without the WebKit scrollbar pseudo-elements (Firefox) get the standard thin scrollbar in the same colours. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+  html {
+    scrollbar-width: auto;
+  }
+}
