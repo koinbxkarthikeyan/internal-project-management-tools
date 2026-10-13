@@ -8,6 +8,8 @@ type WorkEntriesListProps = {
   title: string;
   entries: readonly WorkEntry[];
   showPerson: boolean;
+  /** Your hours in every sprint, one by one (earlier sprints included), for the line under the title. */
+  sprintTotals?: readonly { name: string; hours: number }[];
   onChange: (entry: WorkEntry) => void;
   /** Called when the user clicks remove; the page asks for confirmation before deleting. */
   onRemove: (entry: WorkEntry) => void;
@@ -17,7 +19,7 @@ const tag = "rounded-md border border-border px-1.5 py-0.5 text-[11px] text-mute
 const textButton =
   "rounded-md px-1.5 py-0.5 text-xs text-muted transition-colors hover:bg-hover hover:text-accent focus-visible:outline-2 focus-visible:outline-accent";
 
-export default function WorkEntriesList({ title, entries, showPerson, onChange, onRemove }: WorkEntriesListProps) {
+export default function WorkEntriesList({ title, entries, showPerson, sprintTotals, onChange, onRemove }: WorkEntriesListProps) {
   const total = entries.reduce((sum, e) => sum + e.hours, 0);
 
   return (
@@ -28,6 +30,12 @@ export default function WorkEntriesList({ title, entries, showPerson, onChange, 
           {entries.length} · {formatHours(total)}
         </span>
       </div>
+
+      {sprintTotals && sprintTotals.length > 0 && (
+        <p className="mt-1 font-mono text-[11px] text-muted" title="Your logged hours per sprint">
+          {sprintTotals.map((s) => `${s.name}: ${formatHours(s.hours)}`).join(" | ")} | <span className="font-semibold text-foreground">Total: {formatHours(sprintTotals.reduce((sum, s) => sum + s.hours, 0))}</span>
+        </p>
+      )}
 
       {entries.length === 0 ? (
         <EmptyState compact title="Nothing added yet" description="What you add will be listed here with its dates and hours." />

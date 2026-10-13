@@ -54,17 +54,31 @@ export async function getMyItems(): Promise<BacklogItemData[]> {
 }
 
 /** One task with its activity and what the signed-in user may do with it (`canLeadEdit`, `readOnly`). */
-export async function getItem(id: string): Promise<BacklogItemData> {
+export async function getItem(id: string, options: { force?: boolean } = {}): Promise<BacklogItemData> {
   const apiId = apiIdForCode(id);
   if (apiId == null) throw new Error(`Task ${id} isn't loaded`);
+  const cached = detail.get(apiId);
+  if (!options.force && cached && (cached.promise || Date.now() - cached.at < DETAIL_FRESH_MS)) return cached.promise ?? Promise.resolve(cached.item as BacklogItemData);
   return fetchItem(apiId);
 }
 
-async function fetchItem(apiId: number): Promise<BacklogItemData> {
-  const { data } = await apiClient.get<Rec>(`/items/${apiId}`);
-  const item = itemFromApi(data);
-  rememberItem(item);
-  return item;
+// Opening the same task again (panel, history view) reuses what was just read, and calls made at the same moment share
+// one request. A save refreshes the entry; a delete drops it.
+const DETAIL_FRESH_MS = 30_000;
+const detail = new Map<number, { at: number; item?: BacklogItemData; promise?: Promise<BacklogItemData> }>();
+
+function fetchItem(apiId: number): Promise<BacklogItemData> {
+  const promise = apiClient.get<Rec>(`/items/${apiId}`).then(({ data }) => {
+    const item = itemFromApi(data);
+    rememberItem(item);
+    detail.set(apiId, { at: Date.now(), item });
+    return item;
+  }, (err) => {
+    detail.delete(apiId);
+    throw err;
+  });
+  detail.set(apiId, { at: Date.now(), promise });
+  return promise;
 }
 
 /** Create-and-update bodies use ids, so names are turned back into ids here. Only the fields given are sent. */
@@ -80,7 +94,9 @@ function bodyFrom(input: ItemPatch): Rec {
   if (input.completed !== undefined) body.completedAt = input.completed || null;
   if (input.owner !== undefined && input.owner !== "Unassigned") {
     const ownerId = ownerIdByName(input.owner);
-    if (ownerId !== undefined) body.ownerId = ownerId;
+    // Not sent as a guess: the owner has to be an owner record on the backend, otherwise the old owner would stay.
+    if (ownerId === undefined) throw new Error(`${input.owner} has no owner record on the backend yet, so they can't be set as the owner.`);
+    body.ownerId = ownerId;
   }
   if (input.sprint !== undefined) body.sprintId = input.sprint === "Unplanned" ? null : (sprintIdByName(input.sprint) ?? null);
   if (input.podId !== undefined || input.sprint === "Unplanned") body.podId = input.podId ? Number(input.podId) : null;
@@ -138,4 +154,5 @@ export async function deleteItem(id: string): Promise<void> {
   const apiId = apiIdForCode(id);
   if (apiId == null) throw new Error(`Task ${id} isn't loaded`);
   await apiClient.delete(`/items/${apiId}`);
+  detail.delete(apiId);
 }

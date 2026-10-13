@@ -14,12 +14,15 @@ function ownerFrom(raw: unknown): Owner {
   };
 }
 
-/** All owners, with the built-in "Unassigned" last (tasks without an owner show under it). */
+/** The owner records with the built-in "Unassigned" last (tasks without an owner show under it). Owners are not users. */
+export const withUnassigned = (owners: readonly Owner[]): Owner[] => [...owners, UNASSIGNED];
+
+/** The backend's owner records (`/owners`): their ids are what a task's `ownerId` refers to. */
 export async function getOwners(): Promise<Owner[]> {
   const { data } = await apiClient.get<unknown>("/owners");
   const owners = listFrom(data, "owners").map(ownerFrom);
   directory.owners = owners;
-  return [...owners, UNASSIGNED];
+  return owners;
 }
 
 export async function createOwner(input: OwnerInput): Promise<Owner> {

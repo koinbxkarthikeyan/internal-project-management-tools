@@ -1,6 +1,5 @@
 import { apiClient } from "@/lib/apiClient";
 import { accessToApi, roleToApi, teamToApi, toAppUser, type ApiUser } from "@/lib/auth/userMapper";
-import type { UserTeam } from "@/constants/auth";
 import type { AccessStatus, AppUser, AssignableRole } from "@/types/auth";
 
 /** Everyone, for the pickers (assignees, lead, who's logging). Any signed-in user may call it. */
@@ -15,7 +14,7 @@ export async function getUsers(): Promise<AppUser[]> {
   return data.map(toAppUser);
 }
 
-export type NewUser = { name: string; email: string; role: AssignableRole; status: AccessStatus; team?: UserTeam; password?: string };
+export type NewUser = { name: string; email: string; role: AssignableRole; status: AccessStatus; team?: string; password?: string };
 
 export async function createUser(input: NewUser): Promise<AppUser> {
   const { data } = await apiClient.post<ApiUser>("/users", {
@@ -29,7 +28,7 @@ export async function createUser(input: NewUser): Promise<AppUser> {
   return toAppUser(data);
 }
 
-export type UserPatch = { name?: string; email?: string; role?: AssignableRole; status?: AccessStatus; team?: UserTeam | null; password?: string };
+export type UserPatch = { name?: string; email?: string; role?: AssignableRole; status?: AccessStatus; team?: string | null; password?: string };
 
 export async function updateUser(id: string, patch: UserPatch): Promise<AppUser> {
   const { data } = await apiClient.patch<ApiUser>(`/users/${encodeURIComponent(id)}`, {

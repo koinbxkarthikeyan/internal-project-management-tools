@@ -41,8 +41,14 @@ export const priorityFromApi = (v: unknown) => from(PRIORITY, v, "Not set");
 export const priorityToApi = (v: Priority) => to(PRIORITY, v) ?? "NOT_SET";
 export const typeFromApi = (v: unknown): ItemType | undefined => (v == null ? undefined : from(TYPE, v, "Task"));
 export const typeToApi = (v: ItemType | undefined) => (v ? to(TYPE, v) : undefined) ?? "TASK";
-export const kindFromApi = (v: unknown) => from(KIND, v, "Backend");
-export const kindToApi = (v: WorkKind) => to(KIND, v) ?? "BACKEND";
+export const kindFromApi = (v: unknown): WorkKind => from(KIND, v, "Backend");
+// Only the kinds the backend accepts are ever sent, in its capitals. Anything else (e.g. a team name) is refused here
+// instead of being sent as, or turned into, something else.
+export const kindToApi = (v: WorkKind): string => {
+  const api = to(KIND, v);
+  if (!api) throw new Error(`"${v}" isn't a kind of work the server accepts. Choose Backend, Frontend, Mobile, Testing or Design.`);
+  return api;
+};
 
 // ---------- directory ----------
 
@@ -60,6 +66,10 @@ export const userIdByName = (name: string) => {
   const found = usersStore.read().find((u) => u.name.toLowerCase() === name.trim().toLowerCase());
   return found ? Number(found.id) : undefined;
 };
+/**
+ * A task's `ownerId` is the id of an owner record (the backend's `/owners`), not of a user, so a chosen person is turned
+ * into the owner record with the same name. `undefined` means that person has no owner record.
+ */
 export const ownerIdByName = (name: string) => {
   const found = directory.owners.find((o) => o.name.toLowerCase() === name.trim().toLowerCase());
   return found ? Number(found.id) : undefined;
@@ -92,6 +102,12 @@ export function itemFromApi(raw: Rec, codeById?: ReadonlyMap<number, string>): B
     ? list(raw.assignees).map((a) => relName(a, undefined, userName)).filter((n): n is string => !!n)
     : list(raw.assigneeIds).map((id) => userName(id)).filter((n): n is string => !!n);
 
+  // The people as user ids too, so "mine" can be decided by id and not by a name that might be spelled differently.
+  const leadUserId = rec(raw.lead)?.id ?? raw.leadId;
+  const assigneeUserIds = list(raw.assignees).length
+    ? list(raw.assignees).flatMap((a) => rec(a)?.userId ?? rec(rec(a)?.user)?.id ?? rec(a)?.id ?? (typeof a === "number" ? a : []))
+    : list(raw.assigneeIds);
+
   const carriedId = raw.carriedFromId ?? rec(raw.carriedFrom)?.id;
   const carriedFrom = text(rec(raw.carriedFrom)?.code) ?? (carriedId != null ? codeById?.get(Number(carriedId)) : undefined);
 
@@ -111,9 +127,12 @@ export function itemFromApi(raw: Rec, codeById?: ReadonlyMap<number, string>): B
     ...(text(raw.notes) ? { notes: text(raw.notes) } : {}),
     ...(assigneeNames.length ? { assignees: assigneeNames.join(", ") } : {}),
     ...(lead ? { lead } : {}),
+    ...(leadUserId != null ? { leadId: String(leadUserId) } : {}),
+    ...(assigneeUserIds.length ? { assigneeIds: assigneeUserIds.map(String) } : {}),
     ...(raw.leadDeadline ? { leadDeadline: day(raw.leadDeadline) } : {}),
     ...(typeFromApi(raw.type) ? { type: typeFromApi(raw.type) } : {}),
-    ...(raw.createdAt ? { created: day(raw.createdAt) } : {}),
+    ...(raw.createdAt ? { created: day(raw.createdAt), createdAt: String(raw.createdAt) } : {}),
+    ...(raw.updatedAt ? { updatedAt: String(raw.updatedAt) } : {}),
     ...(raw.completedAt ? { completed: day(raw.completedAt) } : {}),
     ...(carriedFrom ? { carriedFrom } : {}),
     ...(typeof raw.canLeadEdit === "boolean" ? { canLeadEdit: raw.canLeadEdit } : {}),
@@ -121,7 +140,10 @@ export function itemFromApi(raw: Rec, codeById?: ReadonlyMap<number, string>): B
     activity: list(raw.activity).flatMap((a) => {
       const entry = rec(a);
       const message = text(entry?.text) ?? text(entry?.message) ?? text(entry?.action) ?? text(entry?.description);
-      return message ? [{ date: day(entry?.date ?? entry?.createdAt ?? entry?.at), text: message }] : [];
+      const when = entry?.createdAt ?? entry?.at ?? entry?.timestamp ?? entry?.date;
+      // Keep the full timestamp only if it really carries a time; a plain date stays a plain date.
+      const at = typeof when === "string" && /T\d{2}:\d{2}/.test(when) && !Number.isNaN(Date.parse(when)) ? when : undefined;
+      return message ? [{ date: day(when), ...(at ? { at } : {}), text: message }] : [];
     }),
   };
 }
@@ -186,6 +208,7 @@ export function entryFromApi(raw: Rec, fallback: Partial<WorkEntry> = {}): WorkE
     id: String(raw.id),
     sprintId: String(raw.sprintId ?? rec(raw.sprint)?.id ?? fallback.sprintId ?? ""),
     person,
+    ...((rec(raw.user)?.id ?? raw.userId ?? fallback.personId) != null ? { personId: String(rec(raw.user)?.id ?? raw.userId ?? fallback.personId) } : {}),
     pod: label.pod,
     ...(label.podId ? { podId: label.podId } : {}),
     kind: raw.kind != null ? kindFromApi(raw.kind) : (fallback.kind ?? "Backend"),

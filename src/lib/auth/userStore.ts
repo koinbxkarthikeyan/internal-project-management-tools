@@ -16,11 +16,34 @@ export { normalizeEmail };
 
 export const findUserByEmail = (email: string) => usersStore.read().find((u) => u.email === normalizeEmail(email));
 
-/** Reloads the user list from the backend. A failed reload keeps what is already cached. */
-export async function refreshUsers(): Promise<void> {
-  try {
-    usersStore.write(await getUserOptions());
-  } catch {
-    // The pickers keep showing the last list.
-  }
+/** Uses a user list another call already read (the Users page reads `/users`), so the pickers don't ask again. */
+export function primeUsers(list: AppUser[]): void {
+  usersStore.write(list);
+  loadedAt = Date.now();
+}
+
+const FRESH_MS = 30_000;
+let loadedAt = 0;
+let inflight: Promise<void> | null = null;
+
+/**
+ * Reloads the user list from the backend. Several callers at once share one request, and a list read in the last few
+ * seconds is reused; pass `force` after a change to the users so the new list is read at once. A failed reload keeps
+ * what is already cached.
+ */
+export function refreshUsers(force = false): Promise<void> {
+  if (!force && usersStore.read().length > 0 && Date.now() - loadedAt < FRESH_MS) return Promise.resolve();
+  if (inflight) return inflight;
+  inflight = getUserOptions()
+    .then((list) => {
+      usersStore.write(list);
+      loadedAt = Date.now();
+    })
+    .catch(() => {
+      // The pickers keep showing the last list.
+    })
+    .finally(() => {
+      inflight = null;
+    });
+  return inflight;
 }

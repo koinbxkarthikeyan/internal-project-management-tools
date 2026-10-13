@@ -9,11 +9,13 @@ export type AuthStatus = "loading" | "signedIn" | "signedOut";
 export type Auth = {
   status: AuthStatus;
   user: AppUser | null;
-  /** Admin or Super Admin with access Enabled: can manage users. */
+  /** Admin or Super Admin with access Enabled: can create users and owners and manage users. */
   isAdmin: boolean;
   isSuperAdmin: boolean;
-  /** Registered but access Disabled: may only use "What are you working on? > My sprint / My Task". */
+  /** A normal User or a Disabled Admin: may only use "What are you working on? > My sprint / My Task" and Settings. */
   restricted: boolean;
+  /** A Disabled normal User: signed in, but may only open Settings (and Sign out). A Disabled Admin works as a normal User instead. */
+  settingsOnly: boolean;
 };
 
 /**
@@ -26,12 +28,15 @@ export function useAuth(): Auth {
 
   const user = session?.user ?? null;
   const status: AuthStatus = session === undefined ? "loading" : user ? "signedIn" : "signedOut";
-  const restricted = !!user && user.status === "Disabled";
+  const accountDisabled = !!user && user.status === "Disabled";
+  const settingsOnly = accountDisabled && user?.role === "User";
+  const restricted = !!user && (user.role === "User" || (user.role === "Admin" && accountDisabled));
   return {
     status,
     user,
     restricted,
-    isAdmin: !!user && !restricted && (user.role === "Admin" || user.role === "Super Admin"),
+    settingsOnly,
+    isAdmin: !!user && (user.role === "Super Admin" || (user.role === "Admin" && !accountDisabled)),
     isSuperAdmin: !!user && user.role === "Super Admin",
   };
 }

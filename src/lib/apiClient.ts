@@ -8,6 +8,12 @@ if (!baseURL) {
   throw new Error("NEXT_PUBLIC_API_URL is not set. Add it to .env (see .env.example).");
 }
 
+// Passwords travel in request bodies (sign-in, create user, change / reset password), so outside local development
+// the address must be https://.
+if (process.env.NODE_ENV === "production" && baseURL.startsWith("http://")) {
+  console.warn("NEXT_PUBLIC_API_URL uses http://. Use https:// in production so passwords are encrypted in transit.");
+}
+
 /** The single Axios instance every service uses. It sends the saved access token with each request. */
 export const apiClient = axios.create({
   baseURL,

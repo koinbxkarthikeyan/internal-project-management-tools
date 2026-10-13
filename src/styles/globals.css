@@ -210,3 +210,10 @@ html::-webkit-scrollbar {
     scrollbar-width: auto;
   }
 }
+
+/* A required field that was left empty (marked by the form check) gets a red border until it is filled in. */
+input[data-missing],
+select[data-missing],
+textarea[data-missing] {
+  border-color: #ef4444 !important;
+}

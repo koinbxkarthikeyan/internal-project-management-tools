@@ -20,14 +20,14 @@ type Step =
 
 export default function LoginPage() {
   const router = useRouter();
-  const { status, restricted } = useAuth();
+  const { status, restricted, settingsOnly } = useAuth();
   const [step, setStep] = useState<Step>({ kind: "email", email: "" });
 
   // Once signed in (just now, or already), go to Overview.
   useEffect(() => {
     // Enabled users land on Overview; users with access Disabled can only use My sprint.
-    if (status === "signedIn") router.replace(restricted ? WORK_HREF : DEFAULT_REDIRECT);
-  }, [status, restricted, router]);
+    if (status === "signedIn") router.replace(settingsOnly ? "/settings" : restricted ? WORK_HREF : DEFAULT_REDIRECT);
+  }, [status, restricted, settingsOnly, router]);
 
   if (status === "loading" || status === "signedIn") {
     return (

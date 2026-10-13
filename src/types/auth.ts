@@ -1,4 +1,3 @@
-import type { UserTeam } from "@/constants/auth";
 export type AccessStatus = "Enabled" | "Disabled";
 export type UserRole = "Super Admin" | "Admin" | "User";
 /** Roles that can be given to someone. "Super Admin" is held by exactly one person and can't be assigned. */
@@ -10,7 +9,9 @@ export type AppUser = {
   email: string;
   role: UserRole;
   status: AccessStatus;
-  team?: UserTeam;
+  team?: string;
+  /** The account must set its own password before using the app (only if the backend reports it). */
+  mustChangePassword?: boolean;
   createdAt: string;
   lastLoginAt?: string;
 };

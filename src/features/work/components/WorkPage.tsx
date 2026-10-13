@@ -7,17 +7,16 @@ import PageSkeleton from "@/components/layout/PageSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
 import { useQueryState } from "@/hooks/useQueryState";
 import { useToast } from "@/components/ui/Toast";
-import { FOCUS_HOURS_PER_DAY, SPRINT_TASKS_POD, UNPLANNED_POD, isPseudoPod } from "@/constants/work";
+import { FOCUS_HOURS_PER_DAY, WORK_KINDS, SPRINT_TASKS_POD, UNPLANNED_POD, isPseudoPod } from "@/constants/work";
 import ConfirmDeleteDrawer from "@/features/backlog/components/ConfirmDeleteDrawer";
-import { SelectField } from "@/components/ui/FormControls";
-import { USER_TEAMS } from "@/constants/auth";
+import { Field, SelectField } from "@/components/ui/FormControls";
 import { refreshUsers } from "@/lib/auth/userStore";
 import { useUsers } from "@/features/users/hooks/useUsers";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useBacklog } from "@/features/backlog/context/BacklogContext";
 import { todayISO } from "@/features/backlog/utils";
 import type { BacklogItemData } from "@/types/backlog";
-import type { Pod, WorkEntry, WorkEntryInput } from "@/types/work";
+import type { Pod, WorkEntry, WorkEntryInput, WorkKind } from "@/types/work";
 import { useWorkData } from "../hooks/useWorkData";
 import { formatDay, plannedHours, workingDays } from "../utils";
 import EveryoneView from "./EveryoneView";
@@ -55,6 +54,11 @@ export default function WorkPage() {
     void refreshUsers();
   }, []);
   const myTeam = users.find((u) => u.id === user?.id)?.team ?? user?.team ?? "";
+  // The kind of work: the supported kind that matches the person's Team when there is one, otherwise none until one is chosen; it can be changed in
+  // the form at any time. The Team itself (e.g. Marketing) is never sent as the kind; it stays on the profile.
+  const [kindPick, setKindPick] = useState<WorkKind | null>(null);
+  const kindFromTeam = WORK_KINDS.find((k) => k.toLowerCase() === myTeam.trim().toLowerCase());
+  const kind: WorkKind | null = kindPick ?? kindFromTeam ?? null;
   // Hours currently in the form, so the bar follows what is being entered.
   const [draftHours, setDraftHours] = useState<number | null>(null);
   const [selection, setSelection] = useState<TaskSelection | null>(null);
@@ -129,6 +133,9 @@ export default function WorkPage() {
   const expected = perPerson;
   // What the whole sprint plans for one person: worked hours beyond this show as the red part of the bar.
   const sprintLimit = chosen.reduce((sum, s) => sum + plannedHours(s.start, s.end), 0);
+  // My hours in every sprint (earlier ones included), each logged entry counted once.
+  const myAll = [...new Map(work.entries.filter((e) => (e.personId ? e.personId === user?.id : e.person === person)).map((e) => [e.id, e])).values()];
+  const myTotals = datedSprints.map((s) => ({ name: s.name, hours: myAll.filter((e) => e.sprintId === s.id).reduce((sum, e) => sum + e.hours, 0) }));
   const savedHours = scoped.reduce((sum, e) => sum + e.hours, 0);
 
   // The form logs against the sprint of the ticked tasks, or the first chosen sprint until something is ticked.
@@ -173,6 +180,7 @@ export default function WorkPage() {
     setPicked(ids);
     // Ticked tasks from a sprint that was just unticked no longer apply.
     if (selection && !ids.includes(selection.sprintId)) setSelection(null);
+    if (editing) setKindPick(null);
     setEditing(null);
     setFormKey((k) => k + 1);
   }
@@ -200,6 +208,7 @@ export default function WorkPage() {
     const ok = editing ? await work.updateEntry(editing.id, input) : await work.addEntry(input);
     if (ok) {
       toast.show(editing ? "Changes saved" : "Added to your sprint");
+      if (editing) setKindPick(null); // back to the kind that matches the Team
       setEditing(null);
       setSelection(null);
       setFormKey((k) => k + 1);
@@ -219,6 +228,7 @@ export default function WorkPage() {
 
   function startEditing(entry: WorkEntry) {
     setEditing(entry);
+    setKindPick(entry.kind); // the entry's own kind, which can be changed
     // Re-tick the tasks of this entry (the ones that still exist), and make sure its sprint is shown.
     const itemIds = (entry.itemIds ?? []).filter((id) => items.some((i) => i.id === id));
     const podId = entry.podId ?? (itemIds.length ? UNPLANNED_POD.id : undefined);
@@ -251,6 +261,9 @@ export default function WorkPage() {
           people={[...new Set(users.map((u) => u.name))]}
           pods={poolPods}
           tasks={items.filter((i) => chosenSet.has(chosen.find((s) => s.name === i.sprint)?.id ?? "") || (i.sprint === "Unplanned" && chosen.some((s) => s.status === "Active")))}
+          allTasks={[...items, ...hiddenItems]}
+          allEntries={work.entries}
+          allSprints={sprints}
           podNames={Object.fromEntries(allPods.map((p) => [p.id, p.name]))}
           details={Object.fromEntries(users.map((u) => [u.name, u.role]))}
           perPerson={perPerson}
@@ -268,8 +281,10 @@ export default function WorkPage() {
               options={user ? [{ value: user.name, label: `${user.name} (${user.email})` }] : []}
               placeholder="Choose your name"
             />
-            {/* The Team is the one saved on the user by an Admin; it can't be changed from here. */}
-            <SelectField label="Team" disabled value={myTeam} onChange={() => {}} options={USER_TEAMS} placeholder="No team assigned" />
+            {/* The person's own Team, as saved on their profile (it is not changed here). */}
+            <Field label="Team">
+              <p className="flex h-10 items-center rounded-xl border border-border bg-background px-3 text-sm">{myTeam || "Not set"}</p>
+            </Field>
           </section>
 
           <section className={`${card} flex flex-col gap-5`}>
@@ -292,6 +307,7 @@ export default function WorkPage() {
               entries={work.entries.filter((e) => e.person === person)}
               allTasks={[...items, ...hiddenItems]}
               allSprints={sprints}
+              everyoneEntries={work.entries}
               onToggle={toggleTask}
             />
           </section>
@@ -307,15 +323,17 @@ export default function WorkPage() {
               editing={editing}
               today={today}
               closed={formSprint.status === "Closed"}
+              kind={kind}
+              onKindChange={setKindPick}
               onHoursChange={setDraftHours}
               onRemoveTask={(t) => toggleTask({ id: selection?.sprintId ?? "" }, selectedPod ?? ({ id: selection?.podId ?? "", name: "" } as Pod), t)}
               onSubmit={submit}
-              onCancelEdit={() => (setEditing(null), setSelection(null), setFormKey((k) => k + 1))}
+              onCancelEdit={() => (setEditing(null), setKindPick(null), setSelection(null), setFormKey((k) => k + 1))}
             />
           </section>
 
           <section className={card}>
-            <WorkEntriesList title="Your sprint so far" entries={scoped} showPerson={false} onChange={startEditing} onRemove={setRemoving} />
+            <WorkEntriesList title="Your sprint so far" entries={scoped} sprintTotals={myTotals} showPerson={false} onChange={startEditing} onRemove={setRemoving} />
           </section>
         </>
       )}

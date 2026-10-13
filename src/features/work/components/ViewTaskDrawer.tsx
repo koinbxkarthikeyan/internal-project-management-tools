@@ -9,7 +9,7 @@ import AssigneeField, { cleanAssignees } from "@/features/backlog/components/Ass
 import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
 import BacklogDrawer from "@/features/backlog/components/BacklogDrawer";
 import { useBacklog } from "@/features/backlog/context/BacklogContext";
-import { formatDeadline } from "@/features/backlog/utils";
+import { formatActivityTime, formatDeadline } from "@/features/backlog/utils";
 import * as backlogService from "@/services/backlogService";
 import type { BacklogItemData, Status } from "@/types/backlog";
 
@@ -19,8 +19,10 @@ type Row = { label: string; value: React.ReactNode };
  * Details of a task. For everyone it is read-only (nothing to delete), except that the task's Lead can also manage
  * the Assigned Users and set the Lead Deadline here.
  */
-export default function ViewTaskDrawer({ item, onClose }: { item: BacklogItemData; onClose: () => void }) {
-  const { allPods, leadUpdateItem } = useBacklog();
+export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly = false }: { item: BacklogItemData; onClose: () => void; /** Details only: no editing controls, even for the task's Lead. */ viewOnly?: boolean }) {
+  const { allPods, sprints, leadUpdateItem } = useBacklog();
+  // A task of a closed sprint is history: details only, no status / assignee / deadline changes.
+  const sprintClosed = sprints.some((s) => s.name === item.sprint && s.status === "Closed");
   const { user } = useAuth();
   const toast = useToast();
   // The task's detail (activity, and whether I may change it) comes from the backend when the panel opens.
@@ -37,7 +39,7 @@ export default function ViewTaskDrawer({ item, onClose }: { item: BacklogItemDat
   }, [item.id]);
   const activity = detail?.activity?.length ? detail.activity : item.activity;
   const byName = !!item.lead && user?.name.toLowerCase() === item.lead.toLowerCase();
-  const isLead = !(detail?.readOnly ?? item.readOnly) && (detail?.canLeadEdit ?? item.canLeadEdit ?? byName);
+  const isLead = !forceViewOnly && !sprintClosed && !(detail?.readOnly ?? item.readOnly) && (detail?.canLeadEdit ?? item.canLeadEdit ?? byName);
   const [assigned, setAssigned] = useState(item.assignees ?? "");
   const [leadDeadline, setLeadDeadline] = useState(item.leadDeadline ?? "");
   const [status, setStatus] = useState<Status>(item.status);
@@ -138,7 +140,7 @@ export default function ViewTaskDrawer({ item, onClose }: { item: BacklogItemDat
             {activity.map((a, i) => (
               <li key={i} className="flex justify-between gap-3 px-3 py-2">
                 <span className="min-w-0 break-words">{a.text}</span>
-                <span className="shrink-0 text-xs text-muted">{formatDeadline(a.date)}</span>
+                <span className="shrink-0 text-xs text-muted">{formatActivityTime(a)}</span>
               </li>
             ))}
           </ul>

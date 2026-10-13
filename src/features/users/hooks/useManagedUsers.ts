@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getErrorMessage } from "@/lib/apiClient";
-import { refreshUsers } from "@/lib/auth/userStore";
+import { primeUsers } from "@/lib/auth/userStore";
 import * as userService from "@/services/userService";
 import type { AppUser } from "@/types/auth";
 
@@ -17,6 +17,7 @@ export function useManagedUsers(enabled: boolean) {
   const load = useCallback(() => userService.getUsers().then(
     (list) => {
       setUsers(list);
+      primeUsers(list); // the pickers use the same list, so they needn't ask again
       setStatus("ready");
     },
     (err) => {
@@ -32,6 +33,7 @@ export function useManagedUsers(enabled: boolean) {
       (list) => {
         if (cancelled) return;
         setUsers(list);
+        primeUsers(list);
         setStatus("ready");
       },
       (err) => {
@@ -45,9 +47,9 @@ export function useManagedUsers(enabled: boolean) {
     };
   }, [enabled]);
 
-  /** Re-reads the list after a change (also refreshes the pickers' copy). */
+  /** Re-reads the list after a change (the pickers' copy is updated from the same read). */
   const reload = useCallback(async () => {
-    await Promise.all([load(), refreshUsers()]);
+    await load();
   }, [load]);
 
   const retry = useCallback(() => {

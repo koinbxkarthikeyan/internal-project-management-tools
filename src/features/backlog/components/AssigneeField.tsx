@@ -2,7 +2,11 @@
 
 import { useId, useState } from "react";
 import { Field, controlClass } from "@/components/ui/FormControls";
+import { createPortal } from "react-dom";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import UserFormDrawer from "@/features/users/components/UserFormDrawer";
 import { useUsers } from "@/features/users/hooks/useUsers";
+import { refreshUsers } from "@/lib/auth/userStore";
 
 type AssigneeFieldProps = {
   /** Names separated by commas. */
@@ -36,6 +40,8 @@ export const cleanAssignees = (value: string, exclude?: string) =>
  */
 export default function AssigneeField({ value, onChange, placeholder, exclude }: AssigneeFieldProps) {
   const users = useUsers();
+  const { isAdmin } = useAuth();
+  const [adding, setAdding] = useState(false);
   const listId = useId();
   const [open, setOpen] = useState(false);
 
@@ -110,8 +116,30 @@ export default function AssigneeField({ value, onChange, placeholder, exclude }:
               </li>
             );
           })}
+          {isAdmin && (
+            <li role="option" aria-selected={false}>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => (setOpen(false), setAdding(true))}
+                className="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-medium text-accent hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
+              >
+                + Add Team Member
+              </button>
+            </li>
+          )}
         </ul>
       )}
+      {adding &&
+        createPortal(
+          <UserFormDrawer
+            ownerMode
+            onClose={() => setAdding(false)}
+            onSaved={() => refreshUsers(true)}
+            onCreated={(u) => toggle(u.name)}
+          />,
+          document.body,
+        )}
     </div>
   );
 }

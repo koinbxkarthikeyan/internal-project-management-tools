@@ -3,6 +3,8 @@ import * as authApi from "@/services/authApi";
 import type { AppUser } from "@/types/auth";
 import { validateEmail } from "./emailRules";
 import { clearSession, setSession } from "./sessionStore";
+import { useBacklogStore } from "@/stores/backlogStore";
+import { useWorkStore } from "@/stores/workStore";
 import { refreshUsers } from "./userStore";
 
 export { validateEmail };
@@ -66,7 +68,7 @@ function failure(err: unknown): CompleteLoginResult {
 
 async function finish(login: authApi.Login): Promise<CompleteLoginResult> {
   setSession({ token: login.token, user: login.user });
-  await refreshUsers();
+  await refreshUsers(true);
   return { ok: true, user: login.user };
 }
 
@@ -91,4 +93,7 @@ export async function completePasswordLogin(email: string, password: string): Pr
 /** Signing out is local: the token is dropped (the backend has no sign-out call). */
 export function signOut() {
   clearSession();
+  // Nothing of this user is kept in the shared data.
+  useBacklogStore.setState({ scope: "", status: "loading", items: [], owners: [], sprints: [], pods: [], loadedAt: 0 });
+  useWorkStore.setState({ scope: "", status: "loading", entries: [], loadedAt: 0 });
 }

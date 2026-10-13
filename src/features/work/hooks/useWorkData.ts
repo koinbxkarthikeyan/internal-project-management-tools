@@ -1,52 +1,38 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { getErrorMessage } from "@/lib/apiClient";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import * as workService from "@/services/workService";
-import type { WorkEntry, WorkEntryInput } from "@/types/work";
+import { useWorkStore } from "@/stores/workStore";
+import type { WorkEntryInput } from "@/types/work";
 
-type Status = "loading" | "ready" | "error";
-
-const loadAll = () => workService.getWorkEntries().then((entries) => ({ entries }));
-
-/** Loads work entries from the API and exposes their create / update / delete calls (PODs live in the shared backlog state). */
+/** Reads the shared work entries (src/stores/workStore.ts) and exposes their create / update / delete calls (PODs live in the shared backlog state). */
 export function useWorkData() {
   const toast = useToast();
-  const [status, setStatus] = useState<Status>("loading");
-  const [error, setError] = useState("");
-  const [entries, setEntries] = useState<WorkEntry[]>([]);
-  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const { user } = useAuth();
+  const userId = user?.id ?? "";
+  const status = useWorkStore((st) => st.status);
+  const error = useWorkStore((st) => st.error);
+  const entries = useWorkStore((st) => st.entries);
+  const updatedAt = useWorkStore((st) => st.updatedAt);
+  const { setEntries, load } = useWorkStore.getState();
 
-  const apply = useCallback((data: { entries: WorkEntry[] }) => {
-    setEntries(data.entries);
-    setUpdatedAt(new Date());
-    setStatus("ready");
-  }, []);
-
-  const fail = useCallback((err: unknown) => {
-    setError(getErrorMessage(err));
-    setStatus("error");
-  }, []);
-
+  // Mounting My Sprint again reuses the entries while they are fresh; the first load shows the skeleton.
   useEffect(() => {
-    let cancelled = false;
-    loadAll().then(
-      (data) => !cancelled && apply(data),
-      (err) => !cancelled && fail(err),
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [apply, fail]);
+    load(userId).catch(() => undefined);
+  }, [userId, load]);
 
   const reload = useCallback(() => {
-    setStatus("loading");
-    loadAll().then(apply, fail);
-  }, [apply, fail]);
+    load(userId, { force: true }).catch(() => undefined);
+  }, [userId, load]);
 
   /** Re-fetches in the background without showing the loading skeleton. */
-  const refresh = useCallback(() => loadAll().then(apply, (err) => toast.show(getErrorMessage(err), "danger")), [apply, toast]);
+  const refresh = useCallback(
+    () => load(userId, { force: true, quiet: true }).catch((err) => toast.show(getErrorMessage(err), "danger")),
+    [userId, load, toast],
+  );
 
   const report = (err: unknown) => toast.show(getErrorMessage(err), "danger");
 

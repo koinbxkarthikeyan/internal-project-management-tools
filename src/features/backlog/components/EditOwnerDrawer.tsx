@@ -17,6 +17,7 @@ export default function EditOwnerDrawer({ owner, onClose }: EditOwnerDrawerProps
     <OwnerFormDrawer
       heading="Edit owner"
       submitLabel="Save owner"
+      showRole={false} // same two fields as Create owner (Name, Team); the saved role is kept as it is
       initialName={owner}
       initialRole={ownerRecords.find((o) => o.name === owner)?.role}
       initialTeam={ownerRecords.find((o) => o.name === owner)?.team}

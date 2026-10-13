@@ -10,8 +10,9 @@ const rows = (v: unknown): Rec[] => list(v).flatMap((r) => (rec(r) ? [rec(r)!] :
 /** The signed-in user's own time logs in one sprint (`/work-entries/my-sprint`). Closed sprints come back read-only. */
 async function myEntries(sprintId: string): Promise<WorkEntry[]> {
   const me = sessionStore.read()?.user.name ?? "";
+  const meId = sessionStore.read()?.user.id;
   const { data } = await apiClient.get<unknown>("/work-entries/my-sprint", { params: { sprintId: Number(sprintId) } });
-  return rows(rec(data)?.entries).map((r) => entryFromApi(r, { sprintId, person: me }));
+  return rows(rec(data)?.entries).map((r) => entryFromApi(r, { sprintId, person: me, ...(meId ? { personId: meId } : {}) }));
 }
 
 /**
@@ -23,7 +24,8 @@ async function teamEntries(sprintId: string): Promise<WorkEntry[]> {
   return rows(rec(data)?.byPerson).flatMap((group) => {
     const who = rec(group.person) ?? rec(group.user);
     const person = typeof who?.name === "string" ? who.name : String(group.name ?? group.label ?? group.person ?? "");
-    return rows(group.entries ?? group.logs ?? group.timeLogs).map((r) => entryFromApi(r, { sprintId, person }));
+    const personId = who?.id ?? group.userId;
+    return rows(group.entries ?? group.logs ?? group.timeLogs).map((r) => entryFromApi(r, { sprintId, person, ...(personId != null ? { personId: String(personId) } : {}) }));
   });
 }
 
@@ -32,12 +34,21 @@ async function teamEntries(sprintId: string): Promise<WorkEntry[]> {
  * Sprints are read one by one, because the backend scopes these calls to a sprint. A sprint that can't be read
  * (for example a team view the user may not open) is skipped rather than failing the page.
  */
+// A closed sprint can't change any more, so what was read for it is kept (per signed-in user) and not asked for again.
+const closedCache = new Map<string, WorkEntry[]>();
+
 export async function getWorkEntries(): Promise<WorkEntry[]> {
-  const sprintIds = directory.sprints.map((s) => s.id);
+  const me = sessionStore.read()?.user.id ?? "";
   const perSprint = await Promise.all(
-    sprintIds.map(async (id) => {
-      const [mine, team] = await Promise.all([myEntries(id).catch(() => []), teamEntries(id).catch(() => [])]);
-      return [...team, ...mine];
+    directory.sprints.map(async ({ id, status }) => {
+      const key = `${me}:${id}`;
+      const kept = status === "Closed" ? closedCache.get(key) : undefined;
+      if (kept) return kept;
+      const [mine, team] = await Promise.all([myEntries(id).catch(() => null), teamEntries(id).catch(() => null)]);
+      const entries = [...(team ?? []), ...(mine ?? [])];
+      // Only a complete read of a closed sprint is kept; a failed call is tried again next time.
+      if (status === "Closed" && mine && team) closedCache.set(key, entries);
+      return entries;
     }),
   );
   const seen = new Set<string>();

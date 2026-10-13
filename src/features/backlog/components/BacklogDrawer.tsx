@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useToast } from "@/components/ui/Toast";
+import { checkRequiredFields, clearFilled } from "@/lib/formValidation";
 
 type BacklogDrawerProps = {
   /** Left side of the header. */
@@ -24,6 +26,7 @@ export default function BacklogDrawer({ heading, submitLabel, onSubmit, onClose,
   const [expanded, setExpanded] = useState(false);
   const [closing, setClosing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   // Plays the slide-out, then closes the native dialog (which triggers onClose / unmount).
   const requestClose = useCallback(() => {
@@ -38,7 +41,11 @@ export default function BacklogDrawer({ heading, submitLabel, onSubmit, onClose,
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    // A panel opened from inside another panel's form (e.g. Add Owner in a backlog form) must not submit or close its parent.
+    e.stopPropagation();
     if (saving) return;
+    // Required fields first: if any is empty the panel stays open and says which ones.
+    if (!viewOnly && !checkRequiredFields(e.currentTarget as HTMLFormElement, toast.show)) return;
     setSaving(true);
     const result = await onSubmit();
     setSaving(false);
@@ -49,18 +56,32 @@ export default function BacklogDrawer({ heading, submitLabel, onSubmit, onClose,
   return (
     <dialog
       ref={ref}
-      onClose={onClose}
+      // React passes a dialog's "close" and "cancel" events up to the panel it is nested in (Add Owner inside a backlog
+      // form), so each panel only reacts to its own.
+      onClose={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
       onCancel={(e) => {
         // Escape: animate out instead of closing instantly.
         e.preventDefault();
-        requestClose();
+        if (e.target === e.currentTarget) requestClose();
       }}
       data-closing={closing || undefined}
       onClick={(e) => e.target === ref.current && requestClose()}
       aria-label="Backlog item"
       className={`drawer fixed inset-y-0 right-0 m-0 ml-auto h-dvh max-h-dvh w-full ${compact ? "max-w-md" : expanded ? "max-w-none" : "max-w-3xl"} border-l border-border bg-surface p-0 text-foreground shadow-2xl backdrop:bg-black/50`}
     >
-      <form onSubmit={handleSubmit} className="flex h-full flex-col">
+      <form
+        noValidate
+        onSubmit={handleSubmit}
+        // A field that was marked missing loses its red mark once it has a value.
+        onInput={(e) => clearFilled(e.currentTarget)}
+        onClickCapture={(e) => {
+          const form = e.currentTarget;
+          requestAnimationFrame(() => clearFilled(form));
+        }}
+        className="flex h-full flex-col"
+      >
         <header className="flex items-center justify-between gap-3 border-b border-border px-6 py-4">
           <div className="min-w-0 text-sm font-semibold">{heading}</div>
           <div className="flex items-center gap-1">

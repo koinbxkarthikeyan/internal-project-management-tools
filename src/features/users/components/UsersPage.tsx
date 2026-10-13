@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import ActionsMenu from "@/components/ui/ActionsMenu";
@@ -27,11 +27,15 @@ const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "sh
 /** Registered users (Admin-managed), loaded from and saved to the backend. */
 export default function UsersPage() {
   const { user: me, isAdmin, isSuperAdmin } = useAuth();
-  const { status, error, users, reload, retry } = useManagedUsers(isAdmin);
+  const { status, error, users: allUsers, reload, retry } = useManagedUsers(isAdmin);
+  // The Super Admin account is listed only for the signed-in Super Admin; for everyone else the list is filtered (records are untouched).
+  const users = isSuperAdmin ? allUsers : allUsers.filter((u) => u.role !== "Super Admin");
   const toast = useToast();
   const [editing, setEditing] = useState<AppUser | null>(null);
   const [deleting, setDeleting] = useState<AppUser | null>(null);
   const [adding, setAdding] = useState(false);
+  // Accounts whose Enable / Disable is being saved, so a double click can't send it twice.
+  const toggling = useRef(new Set<string>());
 
   if (!isAdmin) {
     return (
@@ -73,7 +77,7 @@ export default function UsersPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Users"
-        description="Only registered users can sign in, and nobody can sign up. Users with access Enabled can use the whole application; users with access Disabled can only open What are you working on? → My sprint and My Task."
+        description="Only registered users can sign in, and nobody can sign up. Enabled Admins can use the whole application and add team members; only the Super Admin can edit, delete or disable other accounts. Users and Disabled Admins can only open My sprint, My Task and Settings; a Disabled User can only open Settings."
         actions={
           <button
             type="button"
@@ -81,20 +85,19 @@ export default function UsersPage() {
             className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accent-foreground shadow-sm hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <PlusIcon />
-            Add user
+            Add Team Member
           </button>
         }
       />
 
       <section className="overflow-x-auto rounded-2xl border border-border bg-surface">
-        <table className="w-full min-w-[40rem] text-sm">
+        <table className="w-full min-w-[34rem] text-sm">
           <caption className="sr-only">Users and their access status</caption>
           <thead>
             <tr className="border-b border-border bg-background/60 text-xs font-medium uppercase tracking-wide text-muted">
               <th scope="col" className="px-4 py-2.5 text-left">Name</th>
               <th scope="col" className="px-4 py-2.5 text-left">Email</th>
               <th scope="col" className="px-4 py-2.5 text-left">Team</th>
-              <th scope="col" className="px-4 py-2.5 text-left">Role</th>
               <th scope="col" className="px-4 py-2.5 text-left">Access Status</th>
               <th scope="col" className="px-4 py-2.5 text-left">Last sign-in</th>
               <th scope="col" className="px-4 py-2.5 text-right">Actions</th>
@@ -120,7 +123,6 @@ export default function UsersPage() {
                   </th>
                   <td className="px-4 py-3 text-muted">{u.email}</td>
                   <td className="px-4 py-3 text-muted">{u.team ?? "–"}</td>
-                  <td className="px-4 py-3 text-muted">{u.role}</td>
                   <td className="px-4 py-3">
                     <span className={`${pill} ${style.pill}`}>
                       <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} aria-hidden="true" />
@@ -132,24 +134,29 @@ export default function UsersPage() {
                     <div className="flex justify-end text-muted">
                       {u.role === "Super Admin" && !isSuperAdmin ? (
                         <span className="px-2 text-xs" title="Only the Super Admin can change this account">Protected</span>
+                      ) : !isSuperAdmin && !isSelf ? (
+                        // An Admin can add users but not edit or delete other users; that is for the Super Admin.
+                        <span className="px-2 text-xs" title="Only the Super Admin can edit or delete other users">–</span>
                       ) : (
                         <ActionsMenu
                           label={`Actions for ${u.name}`}
                           actions={[
                             { key: "edit", label: "Edit", icon: <EditIcon />, onSelect: () => setEditing(u) },
-                            // What can be done to a user depends on their role: a Super Admin can only be edited; an Admin can
-                            // also be disabled / enabled and deleted; a normal User can be edited and deleted (no access controls).
+                            // What can be done to a user depends on their role: a Super Admin can only be edited; only the Super Admin can disable / enable an Admin;
+                            // Admins and normal Users can be edited and deleted.
                             // Your own access can't be switched off or deleted while you're signed in.
                             ...(isSelf || u.role === "Super Admin"
                               ? []
                               : [
-                                  ...(u.role === "Admin"
+                                  ...(u.role === "Admin" && isSuperAdmin
                                     ? [
                                   {
                                     key: "toggle",
                                     label: u.status === "Enabled" ? "Disable access" : "Enable access",
                                     icon: u.status === "Enabled" ? <EyeOffIcon /> : <EyeIcon />,
                                     onSelect: async () => {
+                                      if (toggling.current.has(u.id)) return;
+                                      toggling.current.add(u.id);
                                       const next = u.status === "Enabled" ? "Disabled" : "Enabled";
                                       try {
                                         await userService.setUserAccess(u.id, next);
@@ -160,6 +167,8 @@ export default function UsersPage() {
                                         );
                                       } catch (err) {
                                         toast.show(getErrorMessage(err), "danger");
+                                      } finally {
+                                        toggling.current.delete(u.id);
                                       }
                                     },
                                   },
@@ -178,12 +187,12 @@ export default function UsersPage() {
           </tbody>
         </table>
         {users.length === 0 && (
-          <EmptyState compact title="No users yet" description="Use Add user to register the first user." />
+          <EmptyState compact title="No users yet" description="Use Add Team Member to register the first one." />
         )}
       </section>
 
-      {adding && <UserFormDrawer onSaved={reload} onClose={() => setAdding(false)} />}
-      {editing && <UserFormDrawer key={editing.id} user={editing} isSelf={editing.id === me?.id} onSaved={reload} onClose={() => setEditing(null)} />}
+      {adding && <UserFormDrawer canSetStatus={isSuperAdmin} onSaved={reload} onClose={() => setAdding(false)} />}
+      {editing && <UserFormDrawer key={editing.id} user={editing} canSetStatus={isSuperAdmin} isSelf={editing.id === me?.id} onSaved={reload} onClose={() => setEditing(null)} />}
       {deleting && (
         <ConfirmDeleteDrawer
           key={deleting.id}

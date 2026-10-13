@@ -1,3 +1,4 @@
+/** The kinds of work the backend accepts (sent as BACKEND, FRONTEND, MOBILE, TESTING, DESIGN). */
 export type WorkKind = "Backend" | "Frontend" | "Mobile" | "Testing" | "Design";
 
 /** A block of work someone logged against a sprint. */
@@ -6,6 +7,8 @@ export type WorkEntry = {
   sprintId: string;
   /** Owner name of the person who logged it. */
   person: string;
+  /** User id of that person, when the backend or the call that returned the entry says whose it is. */
+  personId?: string;
   /** POD name when logged (kept for display). */
   pod: string;
   podId?: string;

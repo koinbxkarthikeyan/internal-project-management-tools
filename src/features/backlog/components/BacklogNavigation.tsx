@@ -62,6 +62,7 @@ export default function BacklogNavigation({ between }: BacklogNavigationProps) {
   const pathname = usePathname();
   const { status, items } = useBacklog();
   const { isAdmin } = useAuth();
+  const workspaceItems = NAV_ITEMS.filter((item) => item.href === "/users" && isAdmin);
   const completed = items.filter((i) => i.status === "Completed").length;
   // Counts appear once the data has loaded.
   const counts: Partial<Record<BacklogNavId, number>> =
@@ -108,12 +109,14 @@ export default function BacklogNavigation({ between }: BacklogNavigationProps) {
 
       {between}
 
+      {/* Only Users is listed here (Admins only); Dashboard, Projects and Settings keep their pages but have no menu item. */}
+      {workspaceItems.length > 0 && (
       <div>
         <p className="mb-2 px-3 text-xs font-medium uppercase tracking-wide text-muted">
           Workspace
         </p>
         <ul className="flex flex-col gap-1">
-          {NAV_ITEMS.filter((item) => item.href !== "/backlog" && (item.href !== "/users" || isAdmin)).map(({ href, label }) => {
+          {workspaceItems.map(({ href, label }) => {
             const Icon = WORKSPACE_ICONS[href];
             const active = isActive(pathname, href);
             return (
@@ -132,6 +135,7 @@ export default function BacklogNavigation({ between }: BacklogNavigationProps) {
           })}
         </ul>
       </div>
+      )}
     </nav>
   );
 }

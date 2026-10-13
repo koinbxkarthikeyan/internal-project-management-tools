@@ -11,6 +11,27 @@ export function formatDeadline(iso: string) {
   return dateFormat.format(new Date(`${iso}T00:00:00Z`));
 }
 
+const activityFormat = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+});
+
+/**
+ * "12 Oct 2026, 10:35 AM" for an activity entry, in the viewer's time zone. When the backend sent only a date there is
+ * no time to show, so just the date is returned (a time is never made up).
+ */
+export function formatActivityTime(entry: { date: string; at?: string }): string {
+  if (entry.at) {
+    const d = new Date(entry.at);
+    if (!Number.isNaN(d.getTime())) return activityFormat.format(d).replace(/\b(am|pm)\b/, (m) => m.toUpperCase());
+  }
+  return entry.date ? formatDeadline(entry.date) : "";
+}
+
 const shortDateFormat = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",

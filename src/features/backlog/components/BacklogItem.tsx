@@ -1,10 +1,13 @@
 "use client";
 
-import type { CSSProperties, KeyboardEvent, MouseEvent } from "react";
+import { useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from "react";
 import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
 import type { BacklogItemData } from "@/types/backlog";
 import { formatDeadline, initials } from "../utils";
 import { useBacklog } from "../context/BacklogContext";
+import ActionsMenu from "@/components/ui/ActionsMenu";
+import { EyeIcon } from "@/components/ui/icons";
+import TaskHistoryModal from "@/features/work/components/TaskHistoryModal";
 import RowActionsMenu from "./RowActionsMenu";
 import { ROW_GRID } from "./rowGrid";
 
@@ -27,10 +30,14 @@ type BacklogItemProps = {
 };
 
 export default function BacklogItem({ item, actions, leaving = false, index = 0 }: BacklogItemProps) {
-  const { allPods } = useBacklog();
+  const { allPods, sprints, items, hiddenItems } = useBacklog();
+  // A task of a closed sprint is read-only: a click (or the menu) opens View instead of Edit, and Hide / Delete are not offered.
+  const closed = sprints.some((s) => s.name === item.sprint && s.status === "Closed");
+  const [viewing, setViewing] = useState(false);
   const pod = item.podId ? allPods.find((p) => p.id === item.podId)?.name : undefined;
   // A visible row opens the Edit panel when clicked anywhere (the ⋯ menu keeps its own clicks). Hidden rows don't.
-  const openable = !!actions && !item.hidden;
+  const openable = !!actions && (closed || !item.hidden);
+  const open = () => (closed ? setViewing(true) : actions?.onEdit(item));
 
   return (
     <li
@@ -38,16 +45,16 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
       {...(openable
         ? {
             onClick: (e: MouseEvent<HTMLLIElement>) => {
-              if (!(e.target as HTMLElement).closest("[data-row-actions]")) actions.onEdit(item);
+              if (!(e.target as HTMLElement).closest("[data-row-actions]")) open();
             },
             onKeyDown: (e: KeyboardEvent<HTMLLIElement>) => {
               if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
                 e.preventDefault();
-                actions.onEdit(item);
+                open();
               }
             },
             tabIndex: 0,
-            "aria-label": `Edit ${item.id}: ${item.title}`,
+            "aria-label": `${closed ? "View" : "Edit"} ${item.id}: ${item.title}`,
           }
         : {})}
       className={`flex flex-col gap-3 px-4 py-3.5 transition-colors duration-150 hover:bg-hover ${
@@ -92,15 +99,16 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
 
       {actions ? (
         <div data-row-actions className="flex items-center justify-end text-muted">
-          <RowActionsMenu
-            item={item}
-            onToggleHidden={() => actions.onToggleHidden(item)}
-            onDelete={() => actions.onDelete(item)}
-          />
+          {closed ? (
+            <ActionsMenu label={`Actions for ${item.id}`} actions={[{ key: "view", label: "View", icon: <EyeIcon />, onSelect: () => setViewing(true) }]} />
+          ) : (
+            <RowActionsMenu item={item} onToggleHidden={() => actions.onToggleHidden(item)} onDelete={() => actions.onDelete(item)} />
+          )}
         </div>
       ) : (
         <div />
       )}
+      {viewing && <TaskHistoryModal item={item} allTasks={[...items, ...hiddenItems]} allSprints={sprints} onClose={() => setViewing(false)} />}
     </li>
   );
 }

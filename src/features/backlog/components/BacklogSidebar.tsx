@@ -10,7 +10,7 @@ import CreateBacklogButton from "./CreateBacklogButton";
 
 export default function BacklogSidebar() {
   const { status, items, sprints } = useBacklog();
-  const { restricted } = useAuth();
+  const { restricted, settingsOnly } = useAuth();
 
   let summary = "Loading…";
   if (status === "ready") {
@@ -27,7 +27,16 @@ export default function BacklogSidebar() {
     summary = "Couldn't load data";
   }
 
-  // Access Disabled: the sidebar offers only "What are you working on? > My sprint".
+  // A Disabled normal User: only Settings and Sign out (both live in the sign-out block).
+  if (settingsOnly) {
+    return (
+      <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 pb-5 pt-4">
+        <SignOutBlock />
+      </div>
+    );
+  }
+
+  // A normal User: the sidebar offers only "What are you working on? > My sprint / My Task" (and Settings below).
   if (restricted) {
     return (
       <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 pb-5 pt-4">

@@ -3,21 +3,24 @@
 import { useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
+import { PlusIcon } from "@/components/ui/icons";
 import ActionsMenu from "@/components/ui/ActionsMenu";
-import { EditIcon, PlusIcon, TrashIcon } from "@/components/ui/icons";
+import { EditIcon, TrashIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/Toast";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import ConfirmDeleteDrawer from "./ConfirmDeleteDrawer";
+import CreateOwnerDrawer from "./CreateOwnerDrawer";
+import EditOwnerDrawer from "./EditOwnerDrawer";
 import { useBacklog } from "../context/BacklogContext";
 import { initials } from "../utils";
 import { describeOwner } from "../ownerGroups";
-import CreateOwnerDrawer from "./CreateOwnerDrawer";
-import ConfirmDeleteDrawer from "./ConfirmDeleteDrawer";
-import EditOwnerDrawer from "./EditOwnerDrawer";
 
 export default function OwnersSprintsPage() {
   const { items, owners, ownerRecords, sprintNames, deleteOwner } = useBacklog();
+  const { isAdmin } = useAuth();
   const toast = useToast();
+  const [adding, setAdding] = useState(false);
   const [editingOwner, setEditingOwner] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
   const [deletingOwner, setDeletingOwner] = useState<string | null>(null);
   const count = (owner: string, sprint?: string) =>
     items.filter((i) => i.owner === owner && (!sprint || i.sprint === sprint)).length;
@@ -27,15 +30,18 @@ export default function OwnersSprintsPage() {
       <PageHeader
         title="Owners & sprints"
         description={`How work is distributed across ${owners.length} owners and ${sprintNames.length} sprints.`}
+        // Owners are their own records, separate from users; only Admins manage them.
         actions={
-          <button
-            type="button"
-            onClick={() => setCreating(true)}
-            className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accent-foreground shadow-sm hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            <PlusIcon />
-            Create Owner
-          </button>
+          isAdmin ? (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accent-foreground shadow-sm hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              <PlusIcon />
+              Create Owner
+            </button>
+          ) : undefined
         }
       />
       <section className="overflow-x-auto rounded-2xl border border-border bg-surface">
@@ -48,7 +54,7 @@ export default function OwnersSprintsPage() {
                 <th key={s} scope="col" className="px-4 py-2.5 text-center">{s}</th>
               ))}
               <th scope="col" className="px-4 py-2.5 text-center">Total</th>
-              <th scope="col" className="px-4 py-2.5 text-right">Actions</th>
+              {isAdmin && <th scope="col" className="px-4 py-2.5 text-right">Actions</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -78,25 +84,21 @@ export default function OwnersSprintsPage() {
                   </td>
                 ))}
                 <td className="px-4 py-3 text-center font-medium tabular-nums">{count(owner)}</td>
-                <td className="px-4 py-3">
-                  {owner !== "Unassigned" && (
-                    <div className="flex justify-end text-muted">
-                      <ActionsMenu
-                        label={`Actions for ${owner}`}
-                        actions={[
-                          { key: "edit", label: "Edit", icon: <EditIcon />, onSelect: () => setEditingOwner(owner) },
-                          {
-                            key: "delete",
-                            label: "Delete",
-                            icon: <TrashIcon />,
-                            danger: true,
-                            onSelect: () => setDeletingOwner(owner),
-                          },
-                        ]}
-                      />
-                    </div>
-                  )}
-                </td>
+                {isAdmin && (
+                  <td className="px-4 py-3">
+                    {owner !== "Unassigned" && (
+                      <div className="flex justify-end text-muted">
+                        <ActionsMenu
+                          label={`Actions for ${owner}`}
+                          actions={[
+                            { key: "edit", label: "Edit", icon: <EditIcon />, onSelect: () => setEditingOwner(owner) },
+                            { key: "delete", label: "Delete", icon: <TrashIcon />, danger: true, onSelect: () => setDeletingOwner(owner) },
+                          ]}
+                        />
+                      </div>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -105,29 +107,25 @@ export default function OwnersSprintsPage() {
           <EmptyState compact title="No owners yet" description="Use Create Owner to add the first owner." />
         )}
       </section>
-      {creating && <CreateOwnerDrawer showRole={false} onClose={() => setCreating(false)} />}
+      {adding && <CreateOwnerDrawer showRole={false} onClose={() => setAdding(false)} />}
+      {editingOwner && <EditOwnerDrawer key={editingOwner} owner={editingOwner} onClose={() => setEditingOwner(null)} />}
       {deletingOwner && (
         <ConfirmDeleteDrawer
           key={deletingOwner}
           title="Delete owner"
           name={deletingOwner}
-          consequence={`Their ${count(deletingOwner)} ${count(deletingOwner) === 1 ? "item" : "items"} will be moved to Unassigned.`}
+          consequence={`Their ${count(deletingOwner)} ${count(deletingOwner) === 1 ? "item" : "items"} will be moved to Unassigned (the items themselves are kept).`}
           onClose={() => setDeletingOwner(null)}
           onConfirm={async () => {
             const owner = deletingOwner;
             const moved = await deleteOwner(owner);
             if (moved === null) return false;
             toast.show(
-              moved > 0
-                ? `Owner ${owner} deleted; ${moved} ${moved === 1 ? "item" : "items"} moved to Unassigned`
-                : `Owner ${owner} deleted`,
+              moved > 0 ? `Owner ${owner} deleted; ${moved} ${moved === 1 ? "item" : "items"} moved to Unassigned` : `Owner ${owner} deleted`,
               "danger",
             );
           }}
         />
-      )}
-      {editingOwner && (
-        <EditOwnerDrawer key={editingOwner} owner={editingOwner} onClose={() => setEditingOwner(null)} />
       )}
     </div>
   );

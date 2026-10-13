@@ -9,12 +9,16 @@ type SprintItemsTableProps = {
   items: readonly BacklogItemData[];
   /** Opens the full details panel for a row. */
   onOpen: (item: BacklogItemData) => void;
+  /** Opens the read-only history view for a row (the View button). */
+  onView?: (item: BacklogItemData) => void;
+  /** A closed sprint: a row click opens the read-only view, not the edit panel. */
+  readOnly?: boolean;
 };
 
 const head = "px-4 py-2.5 text-left";
 
 /** The tasks of one sprint as a table (ID, Title, Type, Priority, Status, Owner, Deadline). Click a row to open it. */
-export default function SprintItemsTable({ items, onOpen }: SprintItemsTableProps) {
+export default function SprintItemsTable({ items, onOpen, onView, readOnly = false }: SprintItemsTableProps) {
   function handleKeyDown(e: KeyboardEvent<HTMLTableRowElement>, item: BacklogItemData) {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
@@ -36,6 +40,7 @@ export default function SprintItemsTable({ items, onOpen }: SprintItemsTableProp
             <th scope="col" className={head}>Status</th>
             <th scope="col" className={head}>Owner</th>
             <th scope="col" className={head}>Deadline</th>
+            {onView && <th scope="col" className={`${head} text-right`}>Action</th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
@@ -45,7 +50,7 @@ export default function SprintItemsTable({ items, onOpen }: SprintItemsTableProp
               tabIndex={0}
               onClick={() => onOpen(item)}
               onKeyDown={(e) => handleKeyDown(e, item)}
-              aria-label={`Edit ${item.id}: ${item.title}`}
+              aria-label={`${readOnly ? "View" : "Edit"} ${item.id}: ${item.title}`}
               className="cursor-pointer transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
             >
               <td className="whitespace-nowrap px-4 py-3 text-xs text-muted">{item.id}</td>
@@ -68,6 +73,20 @@ export default function SprintItemsTable({ items, onOpen }: SprintItemsTableProp
               <td className="whitespace-nowrap px-4 py-3 text-muted">
                 <time dateTime={item.deadline}>{formatDeadline(item.deadline)}</time>
               </td>
+              {onView && (
+                <td className="whitespace-nowrap px-4 py-3 text-right">
+                  {/* Stops the row's own click, which opens the edit panel. */}
+                  <button
+                    type="button"
+                    onClick={(e) => (e.stopPropagation(), onView(item))}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    aria-label={`View ${item.id}: ${item.title}`}
+                    className="rounded-md px-2 py-1 text-xs font-medium text-accent hover:underline focus-visible:outline-2 focus-visible:outline-accent"
+                  >
+                    View
+                  </button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

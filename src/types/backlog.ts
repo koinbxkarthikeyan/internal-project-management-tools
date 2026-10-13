@@ -5,6 +5,8 @@ export type Status = "Open" | "In progress" | "Blocked" | "On hold" | "Completed
 export type ActivityEntry = {
   /** ISO date (YYYY-MM-DD). */
   date: string;
+  /** The full timestamp from the backend (ISO 8601 with a time), when it sent one. */
+  at?: string;
   text: string;
 };
 
@@ -55,6 +57,9 @@ export type BacklogItemData = {
   assignees?: string;
   /** The one registered user (by name) who leads this task. */
   lead?: string;
+  /** User ids of the Lead and of the Assigned Users (from the backend), used to decide whose task this is. */
+  leadId?: string;
+  assigneeIds?: string[];
   /** ISO date (YYYY-MM-DD) set by the Lead. Separate from `deadline` (the expected deadline), which it never changes. */
   leadDeadline?: string;
   /** Id of the task this one was copied from when its sprint closed unfinished (the original stays in the old sprint). */
@@ -62,6 +67,9 @@ export type BacklogItemData = {
   blockedReason?: string;
   /** ISO date (YYYY-MM-DD). */
   created?: string;
+  /** Full timestamps from the backend, when it sent them (the date-only `created` is kept for the screens that use it). */
+  createdAt?: string;
+  updatedAt?: string;
   /** ISO date (YYYY-MM-DD), or empty when not completed. */
   completed?: string;
   activity?: ActivityEntry[];

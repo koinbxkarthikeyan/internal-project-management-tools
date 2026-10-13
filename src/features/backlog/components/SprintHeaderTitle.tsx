@@ -73,19 +73,24 @@ export default function SprintHeaderTitle({ sprint, onEdit, onDelete, onClose, o
               Start sprint
             </button>
           )}
-          <button type="button" onClick={() => onEdit(sprint)} aria-label={`Edit ${sprint.name}`} className={`${action} hover:text-accent`}>
-            <EditIcon width={14} height={14} />
-            Edit
-          </button>
-          <button
-            type="button"
-            onClick={() => onDelete(sprint)}
-            aria-label={`Delete ${sprint.name}`}
-            className={`${action} hover:text-red-600 dark:hover:text-red-300`}
-          >
-            <TrashIcon width={14} height={14} />
-            Delete
-          </button>
+          {/* A closed sprint is history: it is viewed, not edited or deleted. */}
+          {sprint.status !== "Closed" && (
+            <>
+              <button type="button" onClick={() => onEdit(sprint)} aria-label={`Edit ${sprint.name}`} className={`${action} hover:text-accent`}>
+                <EditIcon width={14} height={14} />
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(sprint)}
+                aria-label={`Delete ${sprint.name}`}
+                className={`${action} hover:text-red-600 dark:hover:text-red-300`}
+              >
+                <TrashIcon width={14} height={14} />
+                Delete
+              </button>
+            </>
+          )}
         </>
       )}
     </div>

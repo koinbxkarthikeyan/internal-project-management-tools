@@ -65,6 +65,8 @@ export default function EditBacklogDrawer({ item, onSave, onClose }: EditBacklog
       onSubmit={submit}
       onClose={onClose}
     >
+      {/* Full width on its own row, like in Create backlog (not squeezed into the three-column grid below). */}
+      <OwnerSelect value={draft.owner} onChange={(v) => set("owner", v)} placeholder="Choose owner" />
       <TextField label="Title" required value={draft.title} onChange={(v) => set("title", v)} />
       <TextAreaField label="Description" rows={5} value={draft.description ?? ""} onChange={(v) => set("description", v)} />
 
@@ -75,9 +77,6 @@ export default function EditBacklogDrawer({ item, onSave, onClose }: EditBacklog
         <SelectField label="Priority" value={draft.priority} onChange={(v) => set("priority", v as Priority)} options={PRIORITIES} />
         <TextField label="Expected deadline" type="date" value={draft.deadline} onChange={(v) => set("deadline", v)} />
         <LeadSelect value={draft.lead ?? ""} onChange={(v) => setDraft((d) => ({ ...d, lead: v, assignees: cleanAssignees(d.assignees ?? "", v), ...(v !== (d.lead ?? "") ? { leadDeadline: "" } : {}) }))} />
-        {/* Set by the Lead from My Task; shown here (read-only) only once it has been set. */}
-        {draft.leadDeadline && <TextField label="Lead Deadline" type="date" disabled value={draft.leadDeadline} onChange={() => {}} />}
-        <OwnerSelect value={draft.owner} onChange={(v) => set("owner", v)} placeholder="Choose owner" />
       </div>
 
       {needsReason && (

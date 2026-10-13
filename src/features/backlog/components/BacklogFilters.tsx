@@ -1,3 +1,4 @@
+import { SearchableSelect } from "@/components/ui/FormControls";
 import BacklogSearch from "./BacklogSearch";
 
 export type FilterState = {
@@ -57,20 +58,16 @@ export default function BacklogFilters({ filters, onChange, options }: BacklogFi
         onChange={(query) => onChange({ ...filters, query })}
       />
       {SELECTS.map(({ key, label }) => (
-        <select
+        <SearchableSelect
           key={key}
-          aria-label={`Filter by ${label.toLowerCase()}`}
+          ariaLabel={`Filter by ${label.toLowerCase()}`}
           value={filters[key]}
-          onChange={(e) => onChange({ ...filters, [key]: e.target.value })}
-          className="h-9 min-w-0 flex-1 basis-32 rounded-lg border border-border bg-surface px-2.5 text-xs focus-visible:outline-2 focus-visible:outline-accent sm:flex-none"
-        >
-          <option value="">{label}: All</option>
-          {options[key].map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => onChange({ ...filters, [key]: v })}
+          options={options[key]}
+          placeholder={`${label}: All`}
+          inputClassName="h-9 text-xs"
+          className="min-w-0 flex-1 basis-32 sm:flex-none sm:basis-40"
+        />
       ))}
       {DATES.map(({ key, label }) => (
         <label

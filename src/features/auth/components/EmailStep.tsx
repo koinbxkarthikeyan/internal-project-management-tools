@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Field, controlClass } from "@/components/ui/FormControls";
+import { EmailInput } from "@/components/ui/EmailInput";
+import { Field } from "@/components/ui/FormControls";
 import { ALLOWED_EMAIL_DOMAIN } from "@/constants/auth";
 import { startLogin, type DeniedReason, type StartLoginResult } from "@/lib/auth/authService";
 
@@ -23,6 +24,7 @@ export default function EmailStep({ initialEmail = "", onSent, onDenied }: Email
     setSending(true);
     setError("");
     const result = await startLogin(email);
+    if (result.ok) setEmail(result.email);
     setSending(false);
     if (result.ok) onSent(result);
     else if (result.denied && onDenied) onDenied(email, result.denied);
@@ -32,18 +34,14 @@ export default function EmailStep({ initialEmail = "", onSent, onDenied }: Email
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
       <Field label="Work email" required>
-        <input
-          type="email"
-          name="email"
-          autoComplete="email"
+        <EmailInput
           autoFocus
-          inputMode="email"
           value={email}
-          onChange={(e) => (setEmail(e.target.value), setError(""))}
-          placeholder={`you@${ALLOWED_EMAIL_DOMAIN}`}
-          aria-invalid={!!error || undefined}
+          onChange={(v) => (setEmail(v), setError(""))}
+          invalid={!!error}
           aria-describedby="email-help"
-          className={`${controlClass} h-11 ${error ? "border-red-500" : ""}`}
+          className={`h-11 ${error ? "border-red-500" : ""}`}
+          placeholder={`you@${ALLOWED_EMAIL_DOMAIN}`}
         />
       </Field>
       {error ? (

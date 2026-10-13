@@ -3,6 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useWorkStore } from "@/stores/workStore";
+import { useBacklogStore } from "@/stores/backlogStore";
 import { getErrorCode, getErrorMessage, getErrorStatus } from "@/lib/apiClient";
 import * as backlogService from "@/services/backlogService";
 import * as ownerService from "@/services/ownerService";
@@ -80,70 +82,48 @@ type BacklogContextValue = {
   closeCreate: () => void;
 };
 
-type LoadedData = { items: BacklogItemData[]; owners: Owner[]; sprints: Sprint[]; pods: Pod[] };
+const EMPTY_ITEMS: BacklogItemData[] = [];
+const EMPTY_OWNERS: Owner[] = [];
+const EMPTY_SPRINTS: Sprint[] = [];
+const EMPTY_PODS: Pod[] = [];
 
-/**
- * Loads everything the screens share. Owners, sprints and PODs come first so the task list can name them. A user whose
- * access is Disabled may only read their own tasks (`/items/mine`), sprints and PODs, so for them the owner list is
- * left empty if the backend refuses it.
- */
-async function loadAll(restricted: boolean): Promise<LoadedData> {
-  const soft = <T,>(request: Promise<T>, fallback: T) => (restricted ? request.catch(() => fallback) : request);
-  const [owners, sprints, pods] = await Promise.all([
-    soft(ownerService.getOwners(), [] as Owner[]),
-    sprintService.getSprints(),
-    soft(podService.getPods(), [] as Pod[]),
-  ]);
-  const items = await (restricted ? backlogService.getMyItems() : backlogService.getItems());
-  return { items, owners, sprints, pods };
-}
+/** Tasks whose save is in flight. */
+const savingItems = new Set<string>();
 
 const BacklogContext = createContext<BacklogContextValue | null>(null);
 
 export function BacklogProvider({ children }: { children: ReactNode }) {
   const toast = useToast();
-  const { restricted } = useAuth();
-  const [status, setStatus] = useState<LoadStatus>("loading");
-  const [error, setError] = useState("");
-  const [all, setAll] = useState<BacklogItemData[]>([]);
-  const [ownerList, setOwnerList] = useState<Owner[]>([]);
-  const [rawSprints, setSprints] = useState<Sprint[]>([]);
-  const [allPods, setPods] = useState<Pod[]>([]);
+  const { restricted, settingsOnly, user } = useAuth();
+  // The shared copy of the data lives in the store (src/stores/backlogStore.ts); this provider reads it and saves into it.
+  const scopeKey = `${user?.id ?? ""}:${restricted}:${settingsOnly}`;
+  // Data that was loaded for someone else (or another access level) is never shown: until this user's load starts, it is "loading".
+  const mine = useBacklogStore((st) => st.scope === scopeKey);
+  const storeStatus = useBacklogStore((st) => st.status);
+  const status = mine ? storeStatus : "loading";
+  const error = useBacklogStore((st) => st.error);
+  const all = useBacklogStore((st) => (st.scope === scopeKey ? st.items : EMPTY_ITEMS));
+  const apiOwners = useBacklogStore((st) => (st.scope === scopeKey ? st.owners : EMPTY_OWNERS));
+  const rawSprints = useBacklogStore((st) => (st.scope === scopeKey ? st.sprints : EMPTY_SPRINTS));
+  const allPods = useBacklogStore((st) => (st.scope === scopeKey ? st.pods : EMPTY_PODS));
+  const { setItems: setAll, setOwners: setOwnerList, setSprints, setPods, load, refreshParts, syncSprints } = useBacklogStore.getState();
+  const ctx = useMemo(() => ({ userId: user?.id ?? "", restricted, skip: settingsOnly }), [user?.id, restricted, settingsOnly]);
   const [createOpen, setCreateOpen] = useState(false);
 
-  const applyData = useCallback((data: LoadedData) => {
-    setAll(data.items);
-    setOwnerList(data.owners);
-    setSprints(data.sprints);
-    setPods(data.pods);
-    setStatus("ready");
-  }, []);
+  // Owners are their own records (not users); "Unassigned" is added last.
+  const ownerList = useMemo(() => ownerService.withUnassigned(apiOwners), [apiOwners]);
 
-  const applyFailure = useCallback((err: unknown) => {
-    setError(getErrorMessage(err));
-    setStatus("error");
-  }, []);
-
-  // Initial load.
+  // Initial load. Mounting again (or another component asking) reuses the data while it is fresh.
   useEffect(() => {
-    let cancelled = false;
-    loadAll(restricted).then(
-      (data) => !cancelled && applyData(data),
-      (err) => !cancelled && applyFailure(err),
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [applyData, applyFailure, restricted]);
+    void load(ctx);
+  }, [ctx, load]);
 
-  const refresh = useCallback(() => loadAll(restricted).then(applyData, applyFailure), [applyData, applyFailure, restricted]);
-
-  // A sprint closes by itself when its end date passes, so pick that up while the page stays open: every few
-  // minutes and whenever the tab comes back into view. A failed check is ignored (the page keeps what it has).
+  // A sprint closes by itself when its end date passes, so check the sprints now and then (every few minutes, and when the
+  // tab comes back into view). Only if they changed are the tasks read again.
   useEffect(() => {
     if (status !== "ready") return;
     const check = () => {
-      if (document.visibilityState === "visible") void loadAll(restricted).then(applyData, () => undefined);
+      if (document.visibilityState === "visible") void syncSprints(ctx);
     };
     const id = setInterval(check, 5 * 60 * 1000);
     document.addEventListener("visibilitychange", check);
@@ -151,12 +131,9 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
       clearInterval(id);
       document.removeEventListener("visibilitychange", check);
     };
-  }, [status, applyData, restricted]);
+  }, [status, ctx, syncSprints]);
 
-  const reload = useCallback(() => {
-    setStatus("loading");
-    void refresh();
-  }, [refresh]);
+  const reload = useCallback(() => void load(ctx, { force: true }), [ctx, load]);
 
   const value = useMemo<BacklogContextValue>(() => {
     const fail = (err: unknown) => toast.show(getErrorMessage(err), "danger");
@@ -168,7 +145,18 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
     }));
     const maxId = all.reduce((m, i) => Math.max(m, Number(i.id.replace(/\D/g, "")) || 0), 0);
 
+    // A task of a closed sprint is history: it can be viewed but not changed, hidden or deleted.
+    const lockedBySprint = (id: string) => {
+      const sprint = all.find((i) => i.id === id)?.sprint;
+      const closed = !!sprint && rawSprints.some((s) => s.name === sprint && s.status === "Closed");
+      if (closed) toast.show(`${sprint} is closed, so its tasks can only be viewed.`, "danger");
+      return closed;
+    };
+
     const updateItem = async (id: string, patch: ItemPatch) => {
+      if (lockedBySprint(id)) return false;
+      if (savingItems.has(id)) return false; // already being saved: a repeated click must not send it twice
+      savingItems.add(id);
       try {
         const saved = await backlogService.updateItem(id, patch);
         setAll((prev) => prev.map((i) => (i.id === id ? saved : i)));
@@ -176,6 +164,8 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         fail(err);
         return false;
+      } finally {
+        savingItems.delete(id);
       }
     };
 
@@ -199,6 +189,7 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
       },
       updateItem,
       leadUpdateItem: async (id, patch) => {
+        if (lockedBySprint(id)) return false;
         try {
           const saved = await backlogService.updateItemAsLead(id, patch);
           setAll((prev) => prev.map((i) => (i.id === id ? saved : i)));
@@ -209,6 +200,7 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
         }
       },
       deleteItem: async (id) => {
+        if (lockedBySprint(id)) return false;
         try {
           await backlogService.deleteItem(id);
           setAll((prev) => prev.filter((i) => i.id !== id));
@@ -230,16 +222,12 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
         if (existing) return existing;
         try {
           const created = await ownerService.createOwner({ name, role, team });
-          // Keep "Unassigned" last, matching the API's ordering.
-          setOwnerList((prev) => {
-            const at = prev.findIndex((o) => o.name === "Unassigned");
-            return at === -1 ? [...prev, created] : [...prev.slice(0, at), created, ...prev.slice(at)];
-          });
+          setOwnerList((prev) => [...prev, created]);
           return created.name;
         } catch (err) {
           if (getErrorStatus(err) === 409) {
             // Created elsewhere in the meantime; refresh and use the existing owner.
-            void refresh();
+            void refreshParts(["owners"], ctx);
             return name;
           }
           fail(err);
@@ -306,7 +294,7 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
           return created;
         } catch (err) {
           if (getErrorStatus(err) === 409) {
-            void refresh();
+            void refreshParts(["pods"], ctx);
             return null;
           }
           fail(err);
@@ -350,8 +338,9 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
         try {
           const saved = await sprintService.updateSprint(current.id, { status: "Closed" });
           setSprints((prev) => prev.map((s) => (s.id === saved.id ? saved : s)));
-          // Closing leaves the next sprint Paused and copies the unfinished tasks into it, so reload everything.
-          await refresh();
+          // Closing leaves the next sprint Paused and copies the unfinished tasks into it: re-read just those two lists.
+          await refreshParts(["sprints", "items"], ctx);
+          useWorkStore.setState({ loadedAt: 0 }); // a sprint closed: the time logs are read again next time
           return true;
         } catch (err) {
           fail(err);
@@ -363,7 +352,7 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
         if (!target) return false;
         try {
           await sprintService.startSprint(target.id);
-          await refresh();
+          await refreshParts(["sprints"], ctx);
           return true;
         } catch (err) {
           fail(err);
@@ -378,7 +367,8 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
             return at === -1 ? [...prev, created] : [...prev.slice(0, at), created, ...prev.slice(at)];
           });
           // The backend fixes the end date (start + 2 weeks) and may carry tasks over: take its version.
-          void refresh();
+          void refreshParts(["sprints", "items"], ctx);
+          useWorkStore.setState({ loadedAt: 0 });
           return "ok";
         } catch (err) {
           if (getErrorCode(err) === "sprint_running") return "running";
@@ -395,7 +385,7 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
           setSprints((prev) => prev.filter((s) => s.id !== current.id));
           const moved = all.filter((i) => i.sprint === name).length;
           setAll((prev) => prev.map((i) => (i.sprint === name ? { ...i, sprint: "Unplanned", podId: undefined } : i)));
-          void refresh();
+          useWorkStore.setState({ loadedAt: 0 }); // the sprint's time logs are gone
           return moved;
         } catch (err) {
           fail(err);
@@ -412,8 +402,8 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
           if (saved.name !== currentName) {
             setAll((prev) => prev.map((i) => (i.sprint === currentName ? { ...i, sprint: saved.name } : i)));
           }
-          // Tasks whose POD was removed from the sprint lose it on the server: pick that up.
-          void refresh();
+          // A new start date moves the end date, which the backend works out: take its version of the sprints.
+          if (next.start && next.start !== current.start) void refreshParts(["sprints"], ctx);
           return "ok";
         } catch (err) {
           const code = getErrorStatus(err);
@@ -428,7 +418,7 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
       openCreate: () => setCreateOpen(true),
       closeCreate: () => setCreateOpen(false),
     };
-  }, [status, error, reload, all, ownerList, rawSprints, allPods, createOpen, toast, refresh]);
+  }, [status, error, reload, all, ownerList, rawSprints, allPods, createOpen, toast, ctx, refreshParts, setAll, setPods, setSprints, setOwnerList]);
 
   return <BacklogContext.Provider value={value}>{children}</BacklogContext.Provider>;
 }

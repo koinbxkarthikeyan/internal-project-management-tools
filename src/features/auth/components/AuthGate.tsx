@@ -7,9 +7,10 @@ import { MY_TASK_HREF, WORK_HREF } from "@/constants/work";
 import { sessionStore } from "@/lib/auth/sessionStore";
 import { refreshUsers } from "@/lib/auth/userStore";
 import { getMe } from "@/services/authApi";
+import ChangePasswordRequired from "./ChangePasswordRequired";
 import { useAuth } from "../hooks/useAuth";
 
-const isWorkPath = (pathname: string) => [WORK_HREF, MY_TASK_HREF].some((href) => pathname === href || pathname.startsWith(`${href}/`));
+const isWorkPath = (pathname: string) => [WORK_HREF, MY_TASK_HREF, "/settings"].some((href) => pathname === href || pathname.startsWith(`${href}/`));
 
 /**
  * Keeps the whole app behind the login:
@@ -19,32 +20,46 @@ const isWorkPath = (pathname: string) => [WORK_HREF, MY_TASK_HREF].some((href) =
  * - signed in with access Enabled: everything permitted is available.
  */
 export default function AuthGate({ children }: { children: ReactNode }) {
-  const { status, restricted } = useAuth();
+  const { status, restricted, settingsOnly, user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const blocked = restricted && !isWorkPath(pathname);
+  // A normal User may only open My sprint, My Task and Settings; a Disabled account may not be in the app at all.
+  const onSettings = pathname === "/settings" || pathname.startsWith("/settings/");
+  const blocked = settingsOnly ? !onSettings : restricted && !isWorkPath(pathname);
 
-  // Once signed in: refresh who I am (role / access may have changed) and the user list for the pickers.
+  // Once signed in: refresh who I am (role / access may have changed) and the user list for the pickers. It is checked again
+  // whenever the tab comes back into view (at most once a minute), so a change made by an administrator takes effect.
   useEffect(() => {
     if (status !== "signedIn") return;
     let cancelled = false;
-    getMe().then(
-      (me) => {
-        const current = sessionStore.read();
-        if (!cancelled && current && JSON.stringify(current.user) !== JSON.stringify(me)) sessionStore.write({ token: current.token, user: me });
-      },
-      () => undefined, // a 401 already signed the user out (see apiClient); other errors keep the saved login
-    );
+    let last = 0;
+    const sync = () => {
+      last = Date.now();
+      getMe().then(
+        (me) => {
+          if (cancelled) return;
+          const current = sessionStore.read();
+          if (current && JSON.stringify(current.user) !== JSON.stringify(me)) sessionStore.write({ token: current.token, user: me });
+        },
+        () => undefined, // a 401 already signed the user out (see apiClient); other errors keep the saved login
+      );
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && Date.now() - last > 60_000) sync();
+    };
+    sync();
     void refreshUsers();
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [status]);
 
   useEffect(() => {
     if (status === "signedOut") router.replace(LOGIN_PATH);
-    else if (status === "signedIn" && blocked) router.replace(WORK_HREF);
-  }, [status, blocked, router]);
+    else if (status === "signedIn" && blocked) router.replace(settingsOnly ? "/settings" : WORK_HREF);
+  }, [status, blocked, settingsOnly, router]);
 
   if (status !== "signedIn" || blocked) {
     return (
@@ -53,5 +68,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       </div>
     );
   }
+  // The backend asked this account to choose its own password: nothing else is reachable until it has.
+  if (user?.mustChangePassword) return <ChangePasswordRequired />;
   return <>{children}</>;
 }

@@ -2,6 +2,8 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { TextAreaField, TextField } from "@/components/ui/FormControls";
+import { useToast } from "@/components/ui/Toast";
+import { checkRequiredFields, clearFilled } from "@/lib/formValidation";
 import { CloseIcon } from "@/components/ui/icons";
 import { FOCUS_HOURS_PER_DAY, HOUR_PRESETS, WORK_KINDS, isPseudoPod } from "@/constants/work";
 import type { BacklogItemData, Sprint } from "@/types/backlog";
@@ -27,15 +29,23 @@ type WorkFormProps = {
   onRemoveTask: (item: BacklogItemData) => void;
   onSubmit: (input: WorkEntryInput) => Promise<boolean>;
   onCancelEdit: () => void;
+  /** The person has no Team yet: it is picked at the top of the page first. */
+  /** The kind of work for the entry, chosen in the form (it starts as the kind that matches the person's Team). */
+  kind: WorkKind | null;
+  onKindChange: (kind: WorkKind) => void;
 };
 
 const chip =
   "rounded-full border border-border px-3 py-1 text-xs text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50";
 
+const KIND_REQUIRED = "Choose the kind of work.";
+
 const clamp = (d: string, min: string, max: string) => (d < min ? min : d > max ? max : d);
 
-export default function WorkForm({ sprint, pod, tasks, person, editing, today, closed = false, onHoursChange, onRemoveTask, onSubmit, onCancelEdit }: WorkFormProps) {
-  const [kind, setKind] = useState<WorkKind>(editing?.kind ?? WORK_KINDS[0]);
+export default function WorkForm({ sprint, pod, tasks, person, editing, today, closed = false, onHoursChange, onRemoveTask, onSubmit, onCancelEdit, kind: pickedKind, onKindChange }: WorkFormProps) {
+  const toast = useToast();
+  // An entry being changed keeps its own kind unless it is changed here; a new one uses the chosen kind.
+  const kind = pickedKind;
   const [from, setFrom] = useState(editing?.from ?? sprint.start);
   // Hours can only be logged up to today; days still to come are not offered.
   const lastLoggable = clamp(today, sprint.start, sprint.end);
@@ -72,9 +82,11 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
   const legacy = !!editing && !editing.itemIds?.length;
   const hasTasks = tasks.length > 0;
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (saving) return;
+    if (!checkRequiredFields(e.currentTarget, toast.show)) return;
+    if (!kind) return setError(KIND_REQUIRED);
     if (closed) return setError(`${sprint.name} is closed, so time can't be logged against it.`);
     if (!person) return setError("Pick your name first.");
     if (!hasTasks && !legacy) return setError("Tick at least one task above.");
@@ -104,7 +116,7 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form noValidate onSubmit={handleSubmit} onInput={(e) => clearFilled(e.currentTarget)} className="flex flex-col gap-4">
       <div>
         <p className="mb-1.5 text-xs font-medium text-muted">
           Tasks <span className="text-red-500">*</span>
@@ -142,14 +154,25 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
       </div>
 
       <fieldset>
-        <legend className="mb-1.5 text-xs font-medium text-muted">Kind of work</legend>
-        <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background p-1 sm:grid-cols-5">
+        <legend className="mb-1.5 text-xs font-medium text-muted">
+          Kind of work
+          <span aria-hidden="true" className="text-red-500">
+            {" "}
+            *
+          </span>
+        </legend>
+        <div
+          role="group"
+          aria-label="Kind of work"
+          aria-invalid={(!kind && error === KIND_REQUIRED) || undefined}
+          className={`grid grid-cols-2 gap-1 rounded-xl border bg-background p-1 sm:grid-cols-5 ${!kind && error === KIND_REQUIRED ? "border-red-500" : "border-border"}`}
+        >
           {WORK_KINDS.map((k) => (
             <button
               key={k}
               type="button"
               aria-pressed={kind === k}
-              onClick={() => setKind(k)}
+              onClick={() => onKindChange(k)}
               className={`rounded-lg px-3 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-accent ${
                 kind === k ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-hover hover:text-foreground"
               }`}

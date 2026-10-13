@@ -11,9 +11,11 @@ export const OTP_LENGTH = 6;
  * whole app; a registered user whose access is Disabled can only open "What are you working on? > My sprint / My Task".
  * (The Super Admin is created by the backend and can't be assigned.)
  */
-/** The teams a user can belong to (the same list everywhere in user management). */
-export const USER_TEAMS = ["Backend", "Frontend", "Mobile", "Design", "Marketing", "Blockchain"] as const;
-export type UserTeam = (typeof USER_TEAMS)[number];
+/** The teams that are always offered; any other team is added by typing it in the user form (see lib/auth/teams.ts). */
+export const DEFAULT_TEAMS: readonly string[] = ["Backend", "Frontend", "Mobile", "Design", "Marketing", "Blockchain"];
+/** Pre-filled in the Add Team Member form (User and Admin); an Admin can change it before creating the account. */
+export const DEFAULT_INITIAL_PASSWORD = "Koinbx@01";
+export const TEAM_MAX_LENGTH = 50;
 
 export const USER_ROLES = ["Admin", "User"] as const;
 
