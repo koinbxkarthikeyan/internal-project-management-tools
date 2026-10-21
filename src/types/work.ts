@@ -22,6 +22,8 @@ export type WorkEntry = {
   to: string;
   hours: number;
   notes?: string;
+  /** Time that is not on a sprint task (code review, meetings…): `task` holds the description and no task is linked. */
+  otherWork?: boolean;
   createdAt: string;
 };
 

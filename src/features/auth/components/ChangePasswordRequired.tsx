@@ -5,11 +5,11 @@ import { useState, type FormEvent } from "react";
 import { PasswordField } from "@/components/ui/PasswordField";
 import { LOGIN_PATH } from "@/constants/auth";
 import { getErrorMessage } from "@/lib/apiClient";
-import { signOut } from "@/lib/auth/authService";
+import { signOut, signOutAfterPasswordChange } from "@/lib/auth/authService";
 import { checkNewPassword } from "@/lib/auth/passwordRules";
-import { sessionStore } from "@/lib/auth/sessionStore";
-import { changePassword, getMe } from "@/services/authApi";
+import { changePassword } from "@/services/authApi";
 import AuthShell from "./AuthShell";
+import { FieldError } from "@/components/ui/FieldError";
 
 /**
  * Shown instead of the app while the backend says the account must choose its own password (`mustChangePassword`).
@@ -35,10 +35,9 @@ export default function ChangePasswordRequired() {
     setError("");
     try {
       await changePassword(current, next);
-      const me = await getMe();
-      const session = sessionStore.read();
-      if (session) sessionStore.write({ token: session.token, user: me });
-      if (me.mustChangePassword) setError("The password was changed, but the server still asks for a change. Contact an administrator.");
+      signOutAfterPasswordChange();
+      router.replace(LOGIN_PATH);
+      return;
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -53,14 +52,14 @@ export default function ChangePasswordRequired() {
         <PasswordField label="New password" required value={next} onChange={(v) => (setNext(v), setError(""))} placeholder="At least 8 characters" />
         <PasswordField label="Confirm new password" required value={confirm} onChange={(v) => (setConfirm(v), setError(""))} />
         {error && (
-          <p role="alert" className="text-xs text-red-600 dark:text-red-300">
+          <FieldError>
             {error}
-          </p>
+          </FieldError>
         )}
         <button
           type="submit"
           disabled={busy}
-          className="h-11 w-full rounded-xl bg-accent px-4 text-sm font-medium text-accent-foreground shadow-sm hover:opacity-90 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="h-11 w-full btn-brand inline-flex items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           {busy ? "Please wait…" : "Change password"}
         </button>

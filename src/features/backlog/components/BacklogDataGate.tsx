@@ -21,7 +21,7 @@ export default function BacklogDataGate({ children }: { children: ReactNode }) {
         <button
           type="button"
           onClick={reload}
-          className="mt-4 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-foreground hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="mt-4 rounded-xl btn-brand px-4 py-2 text-sm font-medium font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           Try again
         </button>

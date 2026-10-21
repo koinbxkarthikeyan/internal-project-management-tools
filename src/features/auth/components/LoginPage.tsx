@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DEFAULT_REDIRECT } from "@/constants/auth";
 import { WORK_HREF } from "@/constants/work";
-import type { DeniedReason, StartLoginResult } from "@/lib/auth/authService";
+import { peekLoginHandoff, type DeniedReason, type StartLoginResult } from "@/lib/auth/authService";
 import { useAuth } from "../hooks/useAuth";
 import AccessNotGranted from "./AccessNotGranted";
 import AuthShell from "./AuthShell";
@@ -21,7 +21,12 @@ type Step =
 export default function LoginPage() {
   const router = useRouter();
   const { status, restricted, settingsOnly } = useAuth();
-  const [step, setStep] = useState<Step>({ kind: "email", email: "" });
+  // After a password change the email is already known: Admins go straight to the password, others see their email filled in.
+  const [handoff] = useState(peekLoginHandoff);
+  const [step, setStep] = useState<Step>(() =>
+    handoff?.email && handoff.withPassword ? { kind: "password", email: handoff.email } : { kind: "email", email: handoff?.email ?? "" },
+  );
+  const notice = handoff?.notice ?? "";
 
   // Once signed in (just now, or already), go to Overview.
   useEffect(() => {
@@ -44,6 +49,11 @@ export default function LoginPage() {
   if (step.kind === "password") {
     return (
       <AuthShell title="Enter your password" description="Admins sign in with their email and password.">
+        {notice && step.email === handoff?.email && (
+          <p role="status" className="mb-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
+            {notice}
+          </p>
+        )}
         <PasswordStep
           email={step.email}
           onChangeEmail={() => setStep({ kind: "email", email: step.email })}
@@ -67,6 +77,11 @@ export default function LoginPage() {
 
   return (
     <AuthShell title="Sign in" description="Enter your work email to continue.">
+      {notice && (
+        <p role="status" className="mb-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
+          {notice}
+        </p>
+      )}
       <EmailStep initialEmail={step.email} onSent={(result) => setStep(result.next === "PASSWORD" ? { kind: "password", email: result.email } : { kind: "otp", result })}
         onDenied={(email, reason) => setStep({ kind: "denied", email, reason })}
       />

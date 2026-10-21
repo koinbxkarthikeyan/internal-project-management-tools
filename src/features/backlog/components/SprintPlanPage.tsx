@@ -1,5 +1,6 @@
 "use client";
 
+import { DisabledTip } from "@/components/ui/DisabledTip";
 import { useRef, useState, type CSSProperties } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import { useQueryState } from "@/hooks/useQueryState";
@@ -27,13 +28,14 @@ export default function SprintPlanPage() {
   const toast = useToast();
   const starting = useRef(false); // a double click on Start sprint must not send it twice
   const [viewing, setViewing] = useState<BacklogItemData | null>(null);
-  const [tab, setTab] = useQueryState<"active" | "closed">("sprints", ["active", "closed"], "active");
-  // The one closed sprint that is expanded (opening another closes it; clicking it again collapses it).
-  const [openClosed, setOpenClosed] = useState<string | null>(null);
+  const [tab, setTab] = useQueryState<"active" | "unplanned-closed" | "closed">("sprints", ["active", "unplanned-closed", "closed"], "active");
+  // The one closed sprint that is expanded, by sprint id (opening another closes it; clicking it again collapses it).
+  // `undefined` means nothing has been chosen yet: the most recently closed sprint is open until the person picks.
+  const [openClosed, setOpenClosed] = useState<string | null | undefined>(undefined);
   const [editing, setEditing] = useState<BacklogItemData | null>(null);
-  const renderSprint = (sp: Sprint, index: number) => {
+  const renderSprint = (sp: Sprint, index: number, pick: (i: BacklogItemData) => boolean = () => true) => {
     const sprint = sp.name;
-    const items = allItems.filter((i) => i.sprint === sprint);
+    const items = allItems.filter((i) => i.sprint === sprint && pick(i));
     return (
       <section
         key={sprint}
@@ -73,11 +75,20 @@ export default function SprintPlanPage() {
 
   // Running (and waiting) sprints first, Unplanned next, finished sprints last with the newest closed one on top.
   const running = sprints.filter((s) => s.name !== "Unplanned" && s.status !== "Closed");
-  // The Unplanned card is shown only when it has tasks.
-  const unplanned = sprints.filter((s) => s.name === "Unplanned" && allItems.some((i) => i.sprint === "Unplanned"));
+  // Unplanned tasks: the open ones sit under the running sprint on Active Sprint, the completed ones have their own tab
+  // (the Unplanned sprint record, or a stand-in while the backend sends none).
+  // Completed unplanned tasks are listed apart from the ones still open.
+  const unplannedAll = allItems.filter((i) => i.sprint === "Unplanned");
+  const unplannedClosedCount = unplannedAll.filter((i) => i.status === "Completed").length;
+  const unplannedCount = unplannedAll.length - unplannedClosedCount;
+  const unplannedSprint: Sprint = sprints.find((s) => s.name === "Unplanned") ?? { id: "unplanned", name: "Unplanned" };
   const closed = sprints
     .filter((s) => s.name !== "Unplanned" && s.status === "Closed")
     .sort((x, y) => (y.closedAt ?? y.end ?? "").localeCompare(x.closedAt ?? x.end ?? "") || (y.start ?? "").localeCompare(x.start ?? ""));
+  // A tab that is empty is disabled, so a saved link to it falls back to Active Sprint.
+  const activeTab = (tab === "closed" && closed.length === 0) || (tab === "unplanned-closed" && unplannedClosedCount === 0) ? "active" : tab;
+
+  const expandedClosedId = openClosed === undefined ? (closed[0]?.id ?? null) : openClosed;
 
   return (
     <div className="flex flex-col gap-6">
@@ -89,16 +100,17 @@ export default function SprintPlanPage() {
             : "Items planned for each sprint, in one place."
         }
         actions={
-          <button
+<DisabledTip reason={!!activeSprint && `${activeSprint.name} is still running. Close it first; the next sprint then waits as Paused until you start it.`} className="inline-block">
+                    <button
             type="button"
             onClick={() => setCreatingSprint(true)}
             disabled={!!activeSprint}
-            title={activeSprint ? `${activeSprint.name} is still running. Closing it leaves the next sprint Paused until you start it.` : undefined}
-            className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accent-foreground shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="flex items-center gap-2 rounded-xl btn-brand px-4 py-2.5 text-sm font-medium font-semibold disabled:cursor-not-allowed  focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <PlusIcon />
             New sprint
           </button>
+          </DisabledTip>
         }
       />
       <div role="tablist" aria-label="Sprints" className="flex w-fit max-w-full flex-wrap gap-1 rounded-xl border border-border bg-surface p-1">
@@ -106,35 +118,43 @@ export default function SprintPlanPage() {
           [
             { id: "active", label: "Active Sprint", count: running.length },
             { id: "closed", label: "Closed Sprints", count: closed.length },
+            { id: "unplanned-closed", label: "Closed Unplanned Tasks", count: unplannedClosedCount },
           ] as const
         ).map((t) => {
-          const on = tab === t.id;
+          const disabled = t.count === 0 && t.id !== "active";
+          const on = activeTab === t.id;
           return (
+            <DisabledTip key={t.id} reason={disabled && (t.id === "closed" ? "No sprint has been closed yet." : "There are no closed unplanned tasks.")} className="inline-block">
             <button
-              key={t.id}
               type="button"
               role="tab"
               aria-selected={on}
+              disabled={disabled}
               onClick={() => setTab(t.id)}
               className={`flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-accent ${
-                on ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-hover hover:text-foreground"
+                on ? "bg-accent-soft font-medium text-accent" : disabled ? "cursor-not-allowed text-muted opacity-50" : "text-muted hover:bg-hover hover:text-foreground"
               }`}
             >
               {t.label}
-              <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${on ? "bg-accent text-accent-foreground" : "bg-hover text-muted"}`}>{t.count}</span>
+              <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${on ? "bg-[#425df3] font-semibold text-white dark:bg-accent dark:text-accent-foreground" : "bg-hover text-muted"}`}>{t.count}</span>
             </button>
+            </DisabledTip>
           );
         })}
       </div>
 
-      {tab === "active" ? (
+      {activeTab === "unplanned-closed" ? (
+        <section aria-label="Closed unplanned tasks" className="grid gap-4">
+          {renderSprint(unplannedSprint, 0, (i) => i.status === "Completed")}
+        </section>
+      ) : activeTab === "active" ? (
         <section aria-label="Active sprint" className="flex flex-col gap-4">
           {running.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-border px-5 py-4 text-sm text-muted">No sprint is running right now.</p>
           ) : (
             <div className="grid gap-4">{running.map((sp, i) => renderSprint(sp, i))}</div>
           )}
-          {unplanned.length > 0 && <div className="grid gap-4">{unplanned.map((sp, i) => renderSprint(sp, running.length + i))}</div>}
+          {unplannedCount > 0 && <div className="grid gap-4">{renderSprint(unplannedSprint, running.length, (i) => i.status !== "Completed")}</div>}
         </section>
       ) : (
         /* Closed sprints: one compact row each (name, dates, task count); a row opens its tasks, view only. Only one is open at a time. */
@@ -145,8 +165,8 @@ export default function SprintPlanPage() {
             <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
               {closed.map((sp) => {
                 const items = allItems.filter((i) => i.sprint === sp.name);
-                const open = openClosed === sp.name;
-                const toggle = () => setOpenClosed((prev) => (prev === sp.name ? null : sp.name));
+                const open = expandedClosedId === sp.id;
+                const toggle = () => setOpenClosed(open ? null : sp.id);
                 return (
                   <li key={sp.id}>
                     <button
@@ -240,7 +260,7 @@ export default function SprintPlanPage() {
           onClose={() => setEditing(null)}
           onSave={async (saved) => {
             if (!(await updateItem(saved.id, saved))) return false;
-            toast.show(`${saved.id} updated`);
+            toast.show(`${saved.title} updated`);
           }}
         />
       )}

@@ -5,6 +5,7 @@ import { ComboField, TextField } from "@/components/ui/FormControls";
 import { useBacklog } from "../context/BacklogContext";
 import { roleSuggestions, teamSuggestions } from "../ownerGroups";
 import BacklogDrawer from "./BacklogDrawer";
+import { FieldError } from "@/components/ui/FieldError";
 
 type OwnerFormDrawerProps = {
   heading: string;
@@ -16,6 +17,8 @@ type OwnerFormDrawerProps = {
   requireRole?: boolean;
   /** Shows the Role / Position field (default true). */
   showRole?: boolean;
+  /** Editing an existing owner: saving is off until something differs from the saved values. */
+  editing?: boolean;
   /** Return "ok" to close the panel, or an error message to keep it open. Role and team are "" when left empty. */
   onSave: (name: string, role: string, team: string) => string | Promise<string>;
   onClose: () => void;
@@ -30,6 +33,7 @@ export default function OwnerFormDrawer({
   initialTeam = "",
   requireRole = false,
   showRole = true,
+  editing = false,
   onSave,
   onClose,
 }: OwnerFormDrawerProps) {
@@ -38,6 +42,8 @@ export default function OwnerFormDrawer({
   const [role, setRole] = useState(initialRole);
   const [team, setTeam] = useState(initialTeam);
   const [error, setError] = useState("");
+
+  const unchanged = editing && name.trim() === initialName.trim() && role.trim() === initialRole.trim() && team.trim() === initialTeam.trim();
 
   async function submit() {
     const result = await onSave(name, role.trim(), team.trim());
@@ -50,7 +56,7 @@ export default function OwnerFormDrawer({
   const clear = <T,>(set: (v: T) => void) => (v: T) => (set(v), setError(""));
 
   return (
-    <BacklogDrawer heading={heading} submitLabel={submitLabel} onSubmit={submit} onClose={onClose} compact>
+    <BacklogDrawer heading={heading} submitLabel={submitLabel} onSubmit={submit} canSubmit={!unchanged} onClose={onClose} compact>
       <TextField label="Name" required value={name} onChange={clear(setName)} placeholder="e.g. Jordan Blake" />
       {showRole && (
         <ComboField
@@ -70,9 +76,9 @@ export default function OwnerFormDrawer({
         placeholder="e.g. Futures & Platform"
       />
       {error && (
-        <p role="alert" className="text-xs text-red-600 dark:text-red-300">
+        <FieldError>
           {error}
-        </p>
+        </FieldError>
       )}
     </BacklogDrawer>
   );

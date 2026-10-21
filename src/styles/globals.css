@@ -13,23 +13,41 @@
   --accent: #425df3; /* logo blue */
   --accent-foreground: #ffffff;
   --accent-soft: #e8ecff;
-  /* Scrollbars: derived from the theme's muted text colour, so they adapt to light and dark. */
-  --scrollbar-thumb: color-mix(in srgb, var(--muted) 55%, transparent);
-  --scrollbar-thumb-hover: color-mix(in srgb, var(--accent) 80%, transparent);
+  /* Form feedback: errors and the "this field is valid" state. */
+  --danger: #dc2626;
+  --danger-text: #b91c1c;
+  --success: #059669;
+  /* The one colour of the primary buttons' hover effect: grey (a mid grey on the light theme, a lighter one on dark, both keeping the white label readable). */
+  --btn-fx: #6b7280;
+  /* Brand gradient (primary buttons, card borders on the sign-in screens). */
+  --brand-from: #4152e0;
+  --brand-to: #00b8f0;
+  --brand-border-gradient: linear-gradient(135deg, #00c5f6, #425df3, #182b96, #425df3, #00c5f6); /* the sign-in card border; the scrollbar thumb reuses it on hover */
+  --shadow-card: 0 10px 30px -12px rgb(30 40 90 / 0.18);
+  /* Scrollbars: transparent track and corner; the thumb is a tinted fill with an outline, all from the theme's muted and accent colours. */
+  --scrollbar-thumb: color-mix(in srgb, var(--muted) 75%, transparent); /* solid thumb for browsers that can't draw an outline (Firefox) */
+  --scrollbar-thumb-fill: color-mix(in srgb, var(--muted) 35%, var(--background)); /* opaque, so the gradient border drawn behind it on hover never shows through */
   /* Makes native controls (date/time pickers, select lists, scrollbars) follow the theme. */
   color-scheme: light;
 }
 
 .dark {
-  --background: #0b0d1a;
+  --background: #141b2b;
   --foreground: #eceffd;
-  --surface: #11142a;
-  --border: #23274a;
-  --muted: #9aa1c4;
-  --hover: #1a1e3d;
+  --surface: #1b2438;
+  --border: #2c3856;
+  --muted: #9aa8c7;
+  --hover: #232e47;
   --accent: #00c5f6; /* logo cyan */
   --accent-foreground: #061024;
-  --accent-soft: #10284a;
+  --accent-soft: #14304f;
+  --danger: #ef4444;
+  --danger-text: #fecaca;
+  --success: #34d399;
+  --btn-fx: #9ca3af;
+  --brand-from: #3447d8;
+  --brand-to: #00a8dc;
+  --shadow-card: 0 14px 34px -14px rgb(0 0 0 / 0.55);
   color-scheme: dark;
 }
 
@@ -43,14 +61,16 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent-soft: var(--accent-soft);
-  --font-sans: var(--font-geist-sans);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --font-sans: var(--font-plex-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-plex-sans);
 }
 
 /* ------------------------------------------------------------------ */
@@ -174,30 +194,37 @@ body {
 }
 
 /* ------------------------------------------------------------------ */
-/* Scrollbars: the page scrollbar is 10px wide; every internal one     */
-/* (sidebar, tables, cards, side panels, lists) is a thinner 5px.      */
-/* The track is invisible; thumb colours follow the theme.             */
+/* Scrollbars: the page scrollbar is 6px wide; every internal one     */
+/* (sidebar, tables, cards, side panels, lists) is a thinner 4px.      */
+/* Transparent track; the thumb has a tinted fill and a gradient border.  */
 /* ------------------------------------------------------------------ */
 *::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
 }
-html::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+/* The page scrollbar: Chrome takes it from <body> while <html> has no overflow of its own, so both are listed. */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 *::-webkit-scrollbar-track,
 *::-webkit-scrollbar-corner {
   background: transparent;
 }
+/* The thumb always has the sign-in card's gradient as its border: the fill is drawn over the gradient, inside a 1px transparent border, so
+   the border is part of the 6px / 4px and nothing changes size. The fill is opaque so the gradient never shows through it. */
 *::-webkit-scrollbar-thumb {
-  background-color: var(--scrollbar-thumb);
+  border: 1px solid transparent;
   border-radius: 9999px;
-  transition: background-color var(--dur-fast) var(--ease);
+  background: linear-gradient(var(--scrollbar-thumb-fill), var(--scrollbar-thumb-fill)) padding-box, var(--brand-border-gradient) border-box;
+  background-color: var(--scrollbar-thumb-fill);
+  transition: box-shadow var(--dur-fast) var(--ease);
 }
+/* Hover (or dragging): the same border and fill, plus a faint inner glow in the accent colour. */
 *::-webkit-scrollbar-thumb:hover,
 *::-webkit-scrollbar-thumb:active {
-  background-color: var(--scrollbar-thumb-hover);
+  box-shadow: inset 0 0 3px 0 color-mix(in srgb, var(--accent) 80%, transparent);
 }
 
 /* Browsers without the WebKit scrollbar pseudo-elements (Firefox) get the standard thin scrollbar in the same colours. */
@@ -215,5 +242,172 @@ html::-webkit-scrollbar {
 input[data-missing],
 select[data-missing],
 textarea[data-missing] {
-  border-color: #ef4444 !important;
+  border-color: var(--danger) !important;
+}
+
+/* Primary action: the brand gradient. Dimmed (not recoloured) while disabled. */
+.btn-brand {
+  background-image: linear-gradient(90deg, var(--brand-from), var(--brand-to));
+  color: #fff;
+  box-shadow: 0 8px 20px -10px var(--brand-from);
+}
+.btn-brand:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-brand:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Hover effect of every primary button: two blurred grey circles (::before and ::after) rest half out of opposite corners and, on hover
+   or keyboard focus, glide in under the label, grow, and glow. They sit below the text, are clipped to the button and ignore the
+   pointer, so size, shape and clicks are unchanged. Touch screens (no hover) only get the resting look; reduced motion skips the glide. */
+.btn-brand { position: relative; isolation: isolate; overflow: hidden; }
+/* How strong the grey circles get on hover (0.5 on most buttons; softer, 0.3, on the sign-in card's Next and Sign in). */
+.auth-card .btn-brand { --btn-fx-hover: 0.3; }
+.btn-brand::before,
+.btn-brand::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  background-color: var(--btn-fx);
+  box-shadow: 0 0 1.25rem 0.25rem var(--btn-fx);
+  filter: blur(0.9rem);
+  opacity: 0.22;
+  pointer-events: none;
+  transition: top 650ms var(--ease), right 650ms var(--ease), bottom 650ms var(--ease), left 650ms var(--ease),
+    transform 650ms var(--ease), opacity 650ms var(--ease), filter 650ms var(--ease);
+}
+.btn-brand::before { top: -1.75rem; right: -1.25rem; }
+.btn-brand::after { bottom: -1.75rem; left: -1.25rem; }
+.btn-brand:focus-visible:not(:disabled)::before,
+.btn-brand:focus-visible:not(:disabled)::after { opacity: var(--btn-fx-hover, 0.5); transform: scale(1.35); filter: blur(1.1rem); }
+.btn-brand:focus-visible:not(:disabled)::before { top: 12%; right: 52%; }
+.btn-brand:focus-visible:not(:disabled)::after { bottom: 12%; left: 52%; }
+@media (hover: hover) {
+  .btn-brand:hover:not(:disabled)::before,
+  .btn-brand:hover:not(:disabled)::after { opacity: var(--btn-fx-hover, 0.5); transform: scale(1.35); filter: blur(1.1rem); }
+  .btn-brand:hover:not(:disabled)::before { top: 12%; right: 52%; }
+  .btn-brand:hover:not(:disabled)::after { bottom: 12%; left: 52%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-brand::before,
+  .btn-brand::after { transition: none !important; }
+}
+
+/* Sign-in card: a 2px gradient border (the wrapper) around a filled body. */
+.auth-card {
+  background: var(--brand-border-gradient);
+  box-shadow: 0 8px 40px -12px rgb(0 0 0 / 0.08);
+}
+.auth-card-body { background: #f8fafc; }
+.dark .auth-card-body { background: #1b2430; }
+
+/* Sign-in background marks: brightest at 56% / 56%, fading out by 72%, as on the admin sign-in. */
+.auth-bg-shape {
+  -webkit-mask-image: radial-gradient(circle at 56% 56%, #000, transparent 72%);
+  mask-image: radial-gradient(circle at 56% 56%, #000, transparent 72%);
+}
+
+/* ------------------------------------------------------------------ */
+/* Form fields: rounded, soft fill, brand-coloured hover and focus.     */
+/* ------------------------------------------------------------------ */
+.field {
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+  background-color: color-mix(in srgb, var(--surface) 70%, var(--background));
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+}
+.field:hover:not(:disabled):not([readonly]) {
+  border-color: color-mix(in srgb, var(--brand-to) 55%, var(--border));
+}
+.field:focus,
+.field:focus-visible {
+  outline: none;
+  border-color: var(--brand-to);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-to) 20%, transparent);
+}
+.field:disabled,
+.field[readonly] {
+  background-color: var(--hover);
+  cursor: not-allowed;
+}
+/* A field with a problem: red border and a soft red fill, as on the reference sign-in. */
+.field[aria-invalid="true"],
+.field.border-red-500 {
+  border-color: var(--danger);
+  background-color: color-mix(in srgb, var(--danger) 7%, var(--surface));
+}
+.field[aria-invalid="true"]:focus,
+.field.border-red-500:focus {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 20%, transparent);
+}
+/* A field whose complete value passed its check (sign-in email and password): the success colour, only ever when it isn't invalid. */
+.field[data-valid="true"]:not([aria-invalid="true"]),
+.field[data-valid="true"]:not([aria-invalid="true"]):hover:not(:disabled):not([readonly]),
+.field[data-valid="true"]:not([aria-invalid="true"]):focus {
+  border-color: var(--success);
+}
+.field[data-valid="true"]:not([aria-invalid="true"]) {
+  background-color: color-mix(in srgb, var(--success) 7%, var(--surface));
+}
+.field[data-valid="true"]:not([aria-invalid="true"]):focus {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 20%, transparent);
+}
+
+/* The one error message under a field, as on the reference: a rounded red-bordered box with an alert icon. */
+.field-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 70%, transparent);
+  border-radius: 0.875rem;
+  background-color: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  color: var(--danger-text);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+.field-error > svg { flex-shrink: 0; }
+/* The "is required" line built into every required Field: hidden until the form check marks its control. */
+.field-required-msg { display: none; }
+label:has([data-missing]) > .field-required-msg { display: flex; }
+
+/* A popover that is not open stays hidden even when a utility class (flex, block...) sets its display. */
+[popover]:not(:popover-open) { display: none; }
+
+/* Page placeholders wait 150ms before appearing, so a quick load never flashes them. */
+.skeleton-delay { animation: fade-in var(--dur-base) var(--ease) 150ms backwards; }
+
+/* Sidebar density: the whole sidebar should fit the window height without scrolling, so spacing tightens step by step on shorter windows
+   (nothing is hidden except the explanatory line under a heading on the shortest). Below that the menu scrolls on its own. */
+@media (max-height: 1040px) {
+  [data-sidebar] .sb-scroll { gap: 1.125rem; padding-top: 1rem; padding-bottom: 0.75rem; }
+  [data-sidebar] nav { gap: 1.125rem; }
+  [data-sidebar] .sb-card { padding: 0.875rem; }
+  [data-sidebar] .sb-item { padding-block: 0.4375rem; }
+  [data-sidebar] .sb-foot { padding-bottom: 1rem; }
+  [data-sidebar] .sb-block { padding-top: 0.875rem; }
+}
+@media (max-height: 920px) {
+  [data-sidebar] .sb-scroll { gap: 0.875rem; padding-top: 0.75rem; padding-bottom: 0.5rem; }
+  [data-sidebar] nav { gap: 0.875rem; }
+  [data-sidebar] .sb-card { padding: 0.75rem; }
+  [data-sidebar] .sb-item { padding-block: 0.375rem; }
+  [data-sidebar] .sb-foot { padding-bottom: 0.875rem; }
+  [data-sidebar] .sb-block { padding-top: 0.75rem; }
+}
+@media (max-height: 820px) {
+  [data-sidebar] .sb-scroll { gap: 0.5rem; padding-top: 0.5rem; }
+  [data-sidebar] nav { gap: 0.5rem; }
+  [data-sidebar] nav ul { gap: 0; }
+  [data-sidebar] .sb-card { padding: 0.5rem 0.75rem; }
+  [data-sidebar] .sb-card .mt-3 { margin-top: 0.5rem; }
+  [data-sidebar] .sb-item { padding-block: 0.3125rem; }
+  [data-sidebar] .sb-note { display: none; }
+  [data-sidebar] .sb-foot { padding-bottom: 0.625rem; }
+  [data-sidebar] .sb-block { padding-top: 0.5rem; }
+}
+@media (max-height: 730px) {
+  [data-sidebar] .sb-item { padding-block: 0.1875rem; }
+  [data-sidebar] .sb-card { padding-block: 0.375rem; }
+  [data-sidebar] .sb-block { padding-top: 0.375rem; }
 }

@@ -1,4 +1,4 @@
-type Show = (message: string, tone?: "success" | "info" | "danger", durationMs?: number) => void;
+type Show = (message: string, tone?: "success" | "info" | "warning" | "danger" | "delete", durationMs?: number) => void;
 
 const MARK = "data-missing";
 
@@ -54,7 +54,7 @@ export function checkRequiredFields(form: HTMLFormElement, show: Show): boolean 
     m.control.setAttribute("aria-invalid", "true");
   }
   const names = [...new Set(missing.map((m) => m.label).filter(Boolean))];
-  show(names.length ? `Please fill in all required fields: ${names.join(", ")}.` : "Please fill in all required fields.", "danger");
+  show(names.length ? `Please fill in all required fields: ${names.join(", ")}.` : "Please fill in all required fields.", "warning");
   const first = missing[0].control;
   first.scrollIntoView({ block: "center", behavior: "smooth" });
   first.focus({ preventScroll: true });

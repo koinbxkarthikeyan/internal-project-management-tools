@@ -2,8 +2,11 @@ import { getErrorMessage, getErrorStatus } from "@/lib/apiClient";
 import * as authApi from "@/services/authApi";
 import type { AppUser } from "@/types/auth";
 import { validateEmail } from "./emailRules";
-import { clearSession, setSession } from "./sessionStore";
+import { clearSession, sessionStore, setSession } from "./sessionStore";
 import { useBacklogStore } from "@/stores/backlogStore";
+import { useItemDetailStore } from "@/stores/itemDetailStore";
+import { useMyTasksStore } from "@/stores/myTasksStore";
+import { useUsersStore } from "@/stores/usersStore";
 import { useWorkStore } from "@/stores/workStore";
 import { refreshUsers } from "./userStore";
 
@@ -67,6 +70,7 @@ function failure(err: unknown): CompleteLoginResult {
 }
 
 async function finish(login: authApi.Login): Promise<CompleteLoginResult> {
+  handoff = null;
   setSession({ token: login.token, user: login.user });
   await refreshUsers(true);
   return { ok: true, user: login.user };
@@ -90,10 +94,37 @@ export async function completePasswordLogin(email: string, password: string): Pr
   }
 }
 
-/** Signing out is local: the token is dropped (the backend has no sign-out call). */
-export function signOut() {
-  clearSession();
-  // Nothing of this user is kept in the shared data.
+/** Drops everything loaded for the signed-in person from the shared stores. */
+export function resetSharedData() {
   useBacklogStore.setState({ scope: "", status: "loading", items: [], owners: [], sprints: [], pods: [], loadedAt: 0 });
   useWorkStore.setState({ scope: "", status: "loading", entries: [], loadedAt: 0 });
+  useUsersStore.getState().reset();
+  useItemDetailStore.getState().clear();
+  useMyTasksStore.getState().reset();
+}
+
+/** Signing out is local: the token is dropped (the backend has no sign-out call) and nothing of this user is kept in the shared data. */
+export function signOut() {
+  clearSession();
+  resetSharedData();
+}
+
+export const PASSWORD_CHANGED_NOTICE = "Password changed successfully. Please log in with your new password.";
+
+/** What the login screen shows once after a password change: a message, and the email that was just signed in (never a token). */
+export type LoginHandoff = { notice: string; email: string; withPassword: boolean };
+let handoff: LoginHandoff | null = null;
+
+/** Read by the login screen (it can mount more than once while signing out); it lives in memory, so a reload drops it, and a completed sign-in clears it. */
+export const peekLoginHandoff = (): LoginHandoff | null => handoff;
+
+/**
+ * After the backend accepted a new password: sign out like the Sign out button does (token, session and cached data are
+ * cleared) and leave a handoff for the login page. Admins sign in with a password, so the password step is offered
+ * directly for the email they were using; everyone else gets the email step with their email filled in.
+ */
+export function signOutAfterPasswordChange() {
+  const user = sessionStore.read()?.user;
+  handoff = user ? { notice: PASSWORD_CHANGED_NOTICE, email: user.email, withPassword: user.role === "Super Admin" || user.role === "Admin" } : { notice: PASSWORD_CHANGED_NOTICE, email: "", withPassword: false };
+  signOut();
 }

@@ -1,31 +1,41 @@
 "use client";
 
-import { MoonIcon, SunIcon } from "@/components/ui/icons";
+import { useEffect } from "react";
+import { MonitorIcon, MoonIcon, SunIcon } from "@/components/ui/icons";
+import { useThemeStore, type ThemePreference } from "@/stores/themeStore";
 
+const OPTIONS: { value: ThemePreference; label: string; icon: typeof SunIcon }[] = [
+  { value: "system", label: "System", icon: MonitorIcon },
+  { value: "light", label: "Light", icon: SunIcon },
+  { value: "dark", label: "Dark", icon: MoonIcon },
+];
+
+/** System / Light / Dark. The saved choice and the system listener live in the theme store. */
 export default function ThemeToggle() {
-  function toggle() {
-    const root = document.documentElement;
-    // Switch instantly: with element transitions off, every colour changes in the same frame (no slow, uneven fade).
-    root.classList.add("theme-switching");
-    const isDark = root.classList.toggle("dark");
-    void root.offsetHeight; // apply the new colours while transitions are still off
-    requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove("theme-switching")));
-    try {
-      localStorage.setItem("theme", isDark ? "dark" : "light");
-    } catch {
-      // Storage unavailable; theme still applies for this session.
-    }
-  }
+  const preference = useThemeStore((s) => s.preference);
+  useEffect(() => useThemeStore.getState().start(), []);
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-label="Toggle theme"
-      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent"
-    >
-      <SunIcon className="hidden dark:block" />
-      <MoonIcon className="dark:hidden" />
-    </button>
+    <div role="radiogroup" aria-label="Theme" className="inline-flex rounded-lg border border-border p-0.5">
+      {OPTIONS.map(({ value, label, icon: Icon }) => {
+        const on = preference === value;
+        return (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            aria-label={label}
+            title={label}
+            onClick={() => useThemeStore.getState().setPreference(value)}
+            className={`inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors focus-visible:outline-2 focus-visible:outline-accent ${
+              on ? "bg-accent-soft text-accent" : "text-muted hover:bg-hover hover:text-foreground"
+            }`}
+          >
+            <Icon width={16} height={16} />
+          </button>
+        );
+      })}
+    </div>
   );
 }

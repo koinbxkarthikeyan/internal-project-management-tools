@@ -23,11 +23,11 @@ export default function SprintItemCard({ item, onOpen }: SprintItemCardProps) {
       tabIndex={0}
       onClick={() => onOpen(item)}
       onKeyDown={handleKeyDown}
-      aria-label={`Edit ${item.id}: ${item.title}`}
+      aria-label={`Edit ${item.title}`}
       className="flex h-36 cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-background/60 transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-accent hover:shadow-md focus-visible:outline-2 focus-visible:outline-accent"
     >
       <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-2">
-        <span className="whitespace-nowrap text-xs font-medium text-muted">{item.id}</span>
+        <span />
         <StatusBadge status={item.status} />
       </div>
 

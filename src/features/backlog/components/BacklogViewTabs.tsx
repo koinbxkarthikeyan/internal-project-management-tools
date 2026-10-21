@@ -1,3 +1,4 @@
+import { DisabledTip } from "@/components/ui/DisabledTip";
 export type BacklogView = "visible" | "hidden";
 
 type BacklogViewTabsProps = {
@@ -19,12 +20,11 @@ export default function BacklogViewTabs({ view, onChange, counts }: BacklogViewT
         // An empty Hidden list can't be opened.
         const disabled = !active && counts[t.id] === 0;
         return (
-          <button
-            key={t.id}
+<DisabledTip key={t.id} reason={disabled && "There are no hidden items to show."} className="inline-block">
+                    <button
             type="button"
             aria-pressed={active}
             disabled={disabled}
-            title={disabled ? "No hidden items" : undefined}
             onClick={() => onChange(t.id)}
             className={`rounded-lg px-3 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-accent ${
               active
@@ -36,6 +36,7 @@ export default function BacklogViewTabs({ view, onChange, counts }: BacklogViewT
           >
             {t.label} <span className="tabular-nums">({counts[t.id]})</span>
           </button>
+          </DisabledTip>
         );
       })}
     </div>

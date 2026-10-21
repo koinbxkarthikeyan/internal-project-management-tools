@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { getErrorMessage } from "@/lib/apiClient";
+import { refreshUsers } from "@/lib/auth/userStore";
 import * as backlogService from "@/services/backlogService";
 import * as ownerService from "@/services/ownerService";
 import * as podService from "@/services/podService";
@@ -53,8 +54,9 @@ let inflight: { scope: string; promise: Promise<void> } | null = null;
 async function fetchParts(parts: readonly Part[], ctx: LoadContext): Promise<Partial<Pick<State, "items" | "owners" | "sprints" | "pods">>> {
   if (ctx.skip) return {};
   const out: Partial<Pick<State, "items" | "owners" | "sprints" | "pods">> = {};
-  // Owners, sprints and PODs first, so the task list can name them.
+  // Owners, sprints, PODs and the users first, so the task list can name them.
   await Promise.all([
+    parts.includes("items") && refreshUsers(),
     // Owner records are needed to save a task's owner; only a restricted user (who may not read them) goes on without.
     parts.includes("owners") &&
       ownerService.getOwners().then(

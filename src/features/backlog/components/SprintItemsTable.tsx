@@ -17,7 +17,7 @@ type SprintItemsTableProps = {
 
 const head = "px-4 py-2.5 text-left";
 
-/** The tasks of one sprint as a table (ID, Title, Type, Priority, Status, Owner, Deadline). Click a row to open it. */
+/** The tasks of one sprint as a table (Title, Type, Priority, Status, Owner, Deadline). Click a row to open it. */
 export default function SprintItemsTable({ items, onOpen, onView, readOnly = false }: SprintItemsTableProps) {
   function handleKeyDown(e: KeyboardEvent<HTMLTableRowElement>, item: BacklogItemData) {
     if (e.key === "Enter" || e.key === " ") {
@@ -33,7 +33,6 @@ export default function SprintItemsTable({ items, onOpen, onView, readOnly = fal
         <caption className="sr-only">Tasks in this sprint</caption>
         <thead className="sticky top-0 z-10 bg-surface">
           <tr className="border-b border-border bg-background/60 text-xs font-medium uppercase tracking-wide text-muted">
-            <th scope="col" className={head}>ID</th>
             <th scope="col" className={head}>Title</th>
             <th scope="col" className={head}>Type</th>
             <th scope="col" className={head}>Priority</th>
@@ -50,10 +49,9 @@ export default function SprintItemsTable({ items, onOpen, onView, readOnly = fal
               tabIndex={0}
               onClick={() => onOpen(item)}
               onKeyDown={(e) => handleKeyDown(e, item)}
-              aria-label={`${readOnly ? "View" : "Edit"} ${item.id}: ${item.title}`}
+              aria-label={`${readOnly ? "View" : "Edit"} ${item.title}`}
               className="cursor-pointer transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
             >
-              <td className="whitespace-nowrap px-4 py-3 text-xs text-muted">{item.id}</td>
               <td className="max-w-xs truncate px-4 py-3 font-medium">{item.title}</td>
               <td className="whitespace-nowrap px-4 py-3 text-muted">{item.type ?? "–"}</td>
               <td className="px-4 py-3">
@@ -80,7 +78,7 @@ export default function SprintItemsTable({ items, onOpen, onView, readOnly = fal
                     type="button"
                     onClick={(e) => (e.stopPropagation(), onView(item))}
                     onKeyDown={(e) => e.stopPropagation()}
-                    aria-label={`View ${item.id}: ${item.title}`}
+                    aria-label={`View ${item.title}`}
                     className="rounded-md px-2 py-1 text-xs font-medium text-accent hover:underline focus-visible:outline-2 focus-visible:outline-accent"
                   >
                     View

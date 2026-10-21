@@ -14,11 +14,11 @@ export default function WorkSidebarSection() {
   const on = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <section aria-labelledby="sidebar-work-heading" className="rounded-xl border border-border bg-background/60 p-4">
+    <section aria-labelledby="sidebar-work-heading" className="sb-card rounded-xl border border-border bg-background/60 p-4">
       <h2 id="sidebar-work-heading" className="text-base font-semibold">
         What are you working on?
       </h2>
-      <p className="mt-1 text-xs leading-relaxed text-muted">Log your hours against the sprint.</p>
+      <p className="sb-note mt-1 text-xs leading-relaxed text-muted">Log your hours against the sprint.</p>
       <div className="mt-3 flex flex-col gap-1">
         {[
           { href: WORK_HREF, label: "My sprint", Icon: ClockIcon },
@@ -30,7 +30,7 @@ export default function WorkSidebarSection() {
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={`group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-accent ${
+              className={`sb-item group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-accent ${
                 active ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-hover hover:text-foreground"
               }`}
             >

@@ -1,12 +1,13 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-import { usersStore } from "@/lib/auth/userStore";
+import { useMemo } from "react";
+import { resolveTeam, useTeamStore } from "@/stores/teamStore";
+import { useUsersStore } from "@/stores/usersStore";
 import type { AppUser } from "@/types/auth";
 
-const EMPTY: AppUser[] = [];
-
-/** The users for the pickers (from the backend, cached in this browser); empty on the server render. */
+/** The users for the pickers (from the shared users store); empty on the server render. Team names follow team renames. */
 export function useUsers(): AppUser[] {
-  return useSyncExternalStore(usersStore.subscribe, usersStore.read, () => EMPTY);
+  const users = useUsersStore((s) => s.options);
+  const renames = useTeamStore((s) => s.renames);
+  return useMemo(() => users.map((u) => (u.team ? { ...u, team: resolveTeam(u.team, renames) } : u)), [users, renames]);
 }

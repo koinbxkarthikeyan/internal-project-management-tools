@@ -54,7 +54,7 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
               }
             },
             tabIndex: 0,
-            "aria-label": `${closed ? "View" : "Edit"} ${item.id}: ${item.title}`,
+            "aria-label": `${closed ? "View" : "Edit"} ${item.title}`,
           }
         : {})}
       className={`flex flex-col gap-3 px-4 py-3.5 transition-colors duration-150 hover:bg-hover ${
@@ -64,7 +64,7 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
       <div className="min-w-0">
         <p className="truncate text-sm font-medium">{item.title}</p>
         <p className="mt-0.5 text-xs text-muted">
-          {item.id} · {item.comments} {item.comments === 1 ? "comment" : "comments"}
+          {item.comments} {item.comments === 1 ? "comment" : "comments"}
         </p>
       </div>
 
@@ -100,7 +100,7 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
       {actions ? (
         <div data-row-actions className="flex items-center justify-end text-muted">
           {closed ? (
-            <ActionsMenu label={`Actions for ${item.id}`} actions={[{ key: "view", label: "View", icon: <EyeIcon />, onSelect: () => setViewing(true) }]} />
+            <ActionsMenu label={`Actions for ${item.title}`} actions={[{ key: "view", label: "View", icon: <EyeIcon />, onSelect: () => setViewing(true) }]} />
           ) : (
             <RowActionsMenu item={item} onToggleHidden={() => actions.onToggleHidden(item)} onDelete={() => actions.onDelete(item)} />
           )}

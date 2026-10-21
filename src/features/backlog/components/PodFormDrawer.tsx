@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import type { Pod } from "@/types/work";
 import { useBacklog } from "../context/BacklogContext";
 import BacklogDrawer from "./BacklogDrawer";
+import { FieldError } from "@/components/ui/FieldError";
 
 type PodFormDrawerProps = {
   /** The POD being edited; omit to create one. */
@@ -39,13 +40,13 @@ export default function PodFormDrawer({ pod, onClose }: PodFormDrawerProps) {
   }
 
   return (
-    <BacklogDrawer heading={pod ? "Edit POD" : "Create POD"} submitLabel={pod ? "Save POD" : "Create POD"} onSubmit={submit} onClose={onClose} compact>
+    <BacklogDrawer heading={pod ? "Edit POD" : "Create POD"} submitLabel={pod ? "Save POD" : "Create POD"} canSubmit={!pod || clean !== pod.name} onSubmit={submit} onClose={onClose} compact>
       <TextField label="POD name" required value={name} onChange={(v) => (setName(v), setError(""))} placeholder="e.g. Futures & Platform" />
       {taken && !error && <p className="-mt-2 text-xs text-muted">A POD with this name already exists.</p>}
       {error && (
-        <p role="alert" className="text-xs text-red-600 dark:text-red-300">
+        <FieldError>
           {error}
-        </p>
+        </FieldError>
       )}
     </BacklogDrawer>
   );

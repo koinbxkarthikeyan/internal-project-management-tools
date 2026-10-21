@@ -34,8 +34,6 @@ yarn-error.log*
 .env*
 !.env.example
 
-# runtime data store: data/db.json is the single data file (created empty on first API call)
-/data/db.json
 
 # vercel
 .vercel
@@ -43,3 +41,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# project documentation
+/docs/

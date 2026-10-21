@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import {
   PRIORITIES,
-  STATUSES,
+  STATUS_OPTIONS,
 } from "@/constants/backlog-options";
 import { useBacklog } from "../context/BacklogContext";
 import type { BacklogItemData } from "@/types/backlog";
@@ -18,7 +18,7 @@ import ConfirmDeleteDrawer from "./ConfirmDeleteDrawer";
 import EditBacklogDrawer from "./EditBacklogDrawer";
 
 const STATIC_FILTER_OPTIONS = {
-  status: STATUSES,
+  status: STATUS_OPTIONS,
   priority: PRIORITIES,
 };
 
@@ -50,9 +50,9 @@ export default function BacklogPage() {
     onToggleHidden: (item) =>
       exitThen(item.id, async () => {
         if (item.hidden) {
-          if (await restoreItem(item.id)) toast.show(`${item.id} restored to All items`);
+          if (await restoreItem(item.id)) toast.show(`${item.title} restored to All items`);
         } else if (await hideItem(item.id)) {
-          toast.show(`${item.id} hidden`, "info");
+          toast.show(`${item.title} hidden`, "info");
         }
       }),
     onDelete: setDeleting,
@@ -67,7 +67,7 @@ export default function BacklogPage() {
     const q = filters.query.trim().toLowerCase();
     return inView.filter(
       (i) =>
-        (!q || i.title.toLowerCase().includes(q) || i.id.toLowerCase().includes(q) || i.owner.toLowerCase().includes(q)) &&
+        (!q || i.title.toLowerCase().includes(q) || i.owner.toLowerCase().includes(q)) &&
         (!filters.status || i.status === filters.status) &&
         (!filters.priority || i.priority === filters.priority) &&
         (!filters.owner || i.owner === filters.owner) &&
@@ -101,13 +101,13 @@ export default function BacklogPage() {
         <ConfirmDeleteDrawer
           key={deleting.id}
           title="Delete backlog item"
-          name={`${deleting.id} · ${deleting.title}`}
+          name={deleting.title}
           onClose={() => setDeleting(null)}
           onConfirm={() => {
             const target = deleting;
             // Play the row's exit animation, then delete it.
             exitThen(target.id, async () => {
-              if (await deleteItem(target.id)) toast.show(`${target.id} deleted`, "danger");
+              if (await deleteItem(target.id)) toast.show(`${target.title} deleted`, "delete");
             });
           }}
         />
@@ -119,7 +119,7 @@ export default function BacklogPage() {
           onClose={() => setEditing(null)}
           onSave={async (saved) => {
             if (!(await updateItem(saved.id, saved))) return false;
-            toast.show(`${saved.id} updated`);
+            toast.show(`${saved.title} updated`);
           }}
         />
       )}

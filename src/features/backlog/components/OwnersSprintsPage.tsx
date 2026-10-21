@@ -36,7 +36,7 @@ export default function OwnersSprintsPage() {
             <button
               type="button"
               onClick={() => setAdding(true)}
-              className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accent-foreground shadow-sm hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="flex items-center gap-2 rounded-xl btn-brand px-4 py-2.5 text-sm font-medium font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               <PlusIcon />
               Create Owner

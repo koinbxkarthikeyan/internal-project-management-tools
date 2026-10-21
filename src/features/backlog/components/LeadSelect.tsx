@@ -32,8 +32,8 @@ export default function LeadSelect({ value, onChange, className }: LeadSelectPro
         value={value}
         onChange={onChange}
         options={options}
-        placeholder="Choose lead"
-        action={isAdmin ? { label: "+ Add Team Member", onSelect: () => setAdding(true) } : undefined}
+        placeholder="Search or select a team member, or add a new team member."
+        action={isAdmin ? { label: "+ Add New Team Member", onSelect: () => setAdding(true) } : undefined}
       />
       {/* In document.body: a <form> can't sit inside the backlog form's <form>. */}
       {adding &&

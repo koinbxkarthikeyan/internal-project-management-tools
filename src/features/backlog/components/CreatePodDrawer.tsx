@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import type { Sprint } from "@/types/backlog";
 import { useBacklog } from "../context/BacklogContext";
 import BacklogDrawer from "./BacklogDrawer";
+import { FieldError } from "@/components/ui/FieldError";
 
 type CreatePodDrawerProps = {
   /** The sprint whose header the button was in: the new POD is added to it. */
@@ -40,9 +41,9 @@ export default function CreatePodDrawer({ sprint, onClose }: CreatePodDrawerProp
           : `It will be added to ${sprint.name}. A sprint can have many PODs, and tasks are created inside a POD.`}
       </p>
       {error && (
-        <p role="alert" className="text-xs text-red-600 dark:text-red-300">
+        <FieldError>
           {error}
-        </p>
+        </FieldError>
       )}
     </BacklogDrawer>
   );

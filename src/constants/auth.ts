@@ -24,8 +24,8 @@ export const DEFAULT_REDIRECT = "/overview";
 
 export const LOGIN_PATH = "/login";
 
-// localStorage keys: the login (token + user) and the cached user list for the pickers.
+// localStorage keys: the login (token + user). `users` is only the name of a cache an earlier version kept; it is removed on sign-out.
 export const STORAGE_KEYS = {
-  users: "koinbx.users",
+  users: "koinbx.users.v2",
   session: "koinbx.session",
 } as const;

@@ -1,4 +1,5 @@
 import type { Priority, Status } from "@/types/backlog";
+import { statusLabel } from "@/constants/backlog-options";
 
 const base =
   "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium";
@@ -28,7 +29,7 @@ export function StatusBadge({ status }: { status: Status }) {
   return (
     <span className={`${base} ${s.pill}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} aria-hidden="true" />
-      {status}
+      {statusLabel(status)}
     </span>
   );
 }

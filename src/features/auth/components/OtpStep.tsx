@@ -1,9 +1,11 @@
 "use client";
 
+import { DisabledTip } from "@/components/ui/DisabledTip";
 import { useEffect, useState, type FormEvent } from "react";
 import { OTP_LENGTH } from "@/constants/auth";
 import { completeLogin, resendOtp } from "@/lib/auth/authService";
 import OtpInput from "./OtpInput";
+import { FieldError } from "@/components/ui/FieldError";
 
 type OtpStepProps = {
   email: string;
@@ -91,26 +93,30 @@ export default function OtpStep({ email, initialDemoCode, initialResendAt, onCha
 
       <div aria-live="polite" className="min-h-5 text-xs">
         {error ? (
-          <p role="alert" className="text-red-600 dark:text-red-300">
+          <FieldError>
             {error}
-          </p>
+          </FieldError>
         ) : notice ? (
           <p className="text-emerald-600 dark:text-emerald-300">{notice}</p>
         ) : null}
       </div>
 
+      <DisabledTip reason={!verifying && code.length !== OTP_LENGTH && `Enter the ${OTP_LENGTH}-digit code to continue.`} className="block w-full">
       <button
         type="submit"
         disabled={verifying || code.length !== OTP_LENGTH}
-        className="h-11 w-full rounded-xl bg-accent px-4 text-sm font-medium text-accent-foreground shadow-sm hover:opacity-90 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="h-11 w-full btn-brand inline-flex items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         {verifying ? "Verifying…" : "Verify OTP"}
       </button>
+      </DisabledTip>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
+        <DisabledTip reason={!resending && !canResend && `You can ask for a new code in ${secondsLeft}s.`} className="inline-block">
         <button type="button" onClick={handleResend} disabled={!canResend} className={linkButton}>
           {resending ? "Sending…" : canResend ? "Resend OTP" : `Resend OTP in ${secondsLeft}s`}
         </button>
+        </DisabledTip>
         <button type="button" onClick={onChangeEmail} className={linkButton}>
           Change email
         </button>

@@ -46,12 +46,13 @@ export default function Sidebar({ children }: SidebarProps) {
       />
 
       <aside
+        data-sidebar
         onClick={handleClick}
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-border bg-surface transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen h-dvh w-72 flex-col border-r border-border bg-surface transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between px-5 pb-2 pt-5">
+        <div className="flex items-center justify-between px-5 pb-3 pt-5">
           <Logo />
           <div className="flex items-center gap-2">
             <ThemeToggle />

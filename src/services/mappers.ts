@@ -87,6 +87,41 @@ function relName(value: unknown, id: unknown, lookup: (id: unknown) => string | 
   return resolved == null ? undefined : lookup(resolved);
 }
 
+/** A person field as the backend may send it (object with a name, plain name, or a user id): their name, or undefined when it says nothing. */
+function personOf(value: unknown, id?: unknown): string | undefined {
+  const obj = rec(value);
+  // An object may name the person in a few ways before falling back to its id (looked up in the users).
+  const named = obj ? (text(obj.name) ?? text(obj.fullName) ?? text(obj.displayName) ?? text(obj.username)) : undefined;
+  return named ?? relName(value, id, userName) ?? (typeof value === "string" && value && Number.isNaN(Number(value)) ? value : undefined);
+}
+
+/** Keys of a record that point at a person (user, actor, author, ...By, ...), and are not times or the entry's own id. */
+const PERSON_KEY = /(user|actor|author|person|member|employee|performer|editor|updater|modifier|creator|by)(id|name)?$/i;
+const NOT_PERSON_KEY = /(^|[a-z])(at|date|time)$|^id$|^text$|^message$|^action$|^description$/i;
+
+/**
+ * The person a record (an activity entry) says did it. Any field that points at a person counts, whatever the backend calls it
+ * (`user`, `actor`, `updatedBy`, `changedBy`, `author`, `userId`, `performedByName`, ...): an object or a name gives the name,
+ * an id is looked up in the users. Only what the record contains is used; nothing is guessed.
+ */
+function personIn(entry: Rec | null): string | undefined {
+  if (!entry) return undefined;
+  for (const [key, value] of Object.entries(entry)) {
+    if (value == null || NOT_PERSON_KEY.test(key) || !PERSON_KEY.test(key)) continue;
+    const isIdKey = /id$/i.test(key) && !/by$/i.test(key);
+    const found = isIdKey ? (typeof value === "number" || typeof value === "string" ? userName(value) : undefined) : personOf(value);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/** Who last changed the task, under whichever name the backend gives that person (an object with a name, a name, or a user id). */
+function lastUpdater(raw: Rec): string | undefined {
+  const pick = (re: RegExp) => personIn(Object.fromEntries(Object.entries(raw).filter(([k]) => re.test(k))));
+  // Fields about the last change: updatedBy, lastUpdatedBy, modifiedBy, updater, their ...Id / ...Name forms (never the creator's).
+  return pick(/^(last)?(updated|modified|changed|edited)(by|user|byid|byname)?(id|name)?$|^updater/i);
+}
+
 // ---------- items ----------
 
 /** One task from the backend as the screens use it. `codeById` resolves `carriedFromId` to the original's code. */
@@ -133,6 +168,8 @@ export function itemFromApi(raw: Rec, codeById?: ReadonlyMap<number, string>): B
     ...(typeFromApi(raw.type) ? { type: typeFromApi(raw.type) } : {}),
     ...(raw.createdAt ? { created: day(raw.createdAt), createdAt: String(raw.createdAt) } : {}),
     ...(raw.updatedAt ? { updatedAt: String(raw.updatedAt) } : {}),
+    ...(personOf(raw.createdBy, raw.createdById) ? { createdBy: personOf(raw.createdBy, raw.createdById) } : {}),
+    ...(lastUpdater(raw) ? { updatedBy: lastUpdater(raw) } : {}),
     ...(raw.completedAt ? { completed: day(raw.completedAt) } : {}),
     ...(carriedFrom ? { carriedFrom } : {}),
     ...(typeof raw.canLeadEdit === "boolean" ? { canLeadEdit: raw.canLeadEdit } : {}),
@@ -143,7 +180,9 @@ export function itemFromApi(raw: Rec, codeById?: ReadonlyMap<number, string>): B
       const when = entry?.createdAt ?? entry?.at ?? entry?.timestamp ?? entry?.date;
       // Keep the full timestamp only if it really carries a time; a plain date stays a plain date.
       const at = typeof when === "string" && /T\d{2}:\d{2}/.test(when) && !Number.isNaN(Date.parse(when)) ? when : undefined;
-      return message ? [{ date: day(when), ...(at ? { at } : {}), text: message }] : [];
+      // Who did it: whichever of the backend's person fields is present (an object with a name, a name, or a user id looked up in the users).
+      const by = personIn(entry);
+      return message ? [{ date: day(when), ...(at ? { at } : {}), text: message, ...(by ? { by } : {}) }] : [];
     }),
   };
 }
@@ -192,6 +231,9 @@ export function entryLabel(tasks: BacklogItemData[]): { pod: string; podId?: str
   return { pod: parts.join(" + ") || "Sprint tasks", ...(real?.podId ? { podId: real.podId } : {}) };
 }
 
+/** How an entry that is not on a task is saved: its description leads the note. */
+export const OTHER_WORK_PREFIX = "Other work: ";
+
 /** One time log. `fallback` supplies what the backend leaves out (e.g. the response to a save echoes little). */
 export function entryFromApi(raw: Rec, fallback: Partial<WorkEntry> = {}): WorkEntry {
   const tasks: BacklogItemData[] = [];
@@ -202,6 +244,11 @@ export function entryFromApi(raw: Rec, fallback: Partial<WorkEntry> = {}): WorkE
   }
   const itemIds = tasks.length ? tasks.map((t) => t.id) : fallback.itemIds;
   const label = tasks.length ? entryLabel(tasks) : { pod: text(raw.pod) ?? text(rec(raw.pod)?.name) ?? fallback.pod ?? "Sprint tasks", podId: fallback.podId };
+  const rawNote = text(raw.note) ?? text(raw.notes);
+  const other = !tasks.length && (rawNote?.startsWith(OTHER_WORK_PREFIX) || fallback.otherWork === true);
+  const otherLines = other && rawNote?.startsWith(OTHER_WORK_PREFIX) ? rawNote.slice(OTHER_WORK_PREFIX.length).split("\n") : null;
+  const otherTask = otherLines ? otherLines[0].trim() : (fallback.task ?? "");
+  const otherNotes = otherLines ? otherLines.slice(1).join("\n").trim() : (fallback.notes ?? "");
   const person = relName(raw.person ?? raw.user, raw.userId, userName) ?? text(raw.personName) ?? fallback.person ?? "";
 
   return {
@@ -209,15 +256,15 @@ export function entryFromApi(raw: Rec, fallback: Partial<WorkEntry> = {}): WorkE
     sprintId: String(raw.sprintId ?? rec(raw.sprint)?.id ?? fallback.sprintId ?? ""),
     person,
     ...((rec(raw.user)?.id ?? raw.userId ?? fallback.personId) != null ? { personId: String(rec(raw.user)?.id ?? raw.userId ?? fallback.personId) } : {}),
-    pod: label.pod,
+    pod: other ? "Something else" : label.pod,
     ...(label.podId ? { podId: label.podId } : {}),
     kind: raw.kind != null ? kindFromApi(raw.kind) : (fallback.kind ?? "Backend"),
-    task: tasks.length ? tasks.map((t) => t.title).join(", ") : (text(raw.task) ?? fallback.task ?? ""),
-    ...(itemIds ? { itemIds } : {}),
+    task: tasks.length ? tasks.map((t) => t.title).join(", ") : other ? otherTask : (text(raw.task) ?? fallback.task ?? ""),
+    ...(other ? { otherWork: true } : itemIds ? { itemIds } : {}),
     from: day(raw.fromDate ?? raw.from) || fallback.from || "",
     to: day(raw.toDate ?? raw.to) || fallback.to || "",
     hours: Number(raw.hours ?? fallback.hours ?? 0),
-    ...((text(raw.note) ?? text(raw.notes) ?? fallback.notes) ? { notes: text(raw.note) ?? text(raw.notes) ?? fallback.notes } : {}),
+    ...((other ? otherNotes : (rawNote ?? fallback.notes)) ? { notes: other ? otherNotes : (rawNote ?? fallback.notes) } : {}),
     createdAt: text(raw.createdAt) ?? fallback.createdAt ?? "",
   };
 }

@@ -1,3 +1,4 @@
+import { DisabledTip } from "@/components/ui/DisabledTip";
 import { CheckCircleIcon, EditIcon, TrashIcon } from "@/components/ui/icons";
 import type { Sprint } from "@/types/backlog";
 import { formatDeadline } from "../utils";
@@ -61,17 +62,18 @@ export default function SprintHeaderTitle({ sprint, onEdit, onDelete, onClose, o
             </button>
           )}
           {sprint.status === "Paused" && onStart && (
+            <DisabledTip reason={!canStart && "Another sprint is still running. Close it first to start this one."} className="inline-block">
             <button
               type="button"
               onClick={() => onStart(sprint)}
               disabled={!canStart}
-              title={canStart ? undefined : "Another sprint is still running"}
               aria-label={`Start ${sprint.name}`}
               className={`${action} hover:text-accent disabled:cursor-not-allowed disabled:opacity-50`}
             >
               <CheckCircleIcon width={14} height={14} />
               Start sprint
             </button>
+            </DisabledTip>
           )}
           {/* A closed sprint is history: it is viewed, not edited or deleted. */}
           {sprint.status !== "Closed" && (

@@ -14,7 +14,7 @@ import OwnerSelect from "./OwnerSelect";
 import TaskPlacementFields, { emptyPlacement, placementToItem, type Placement } from "./TaskPlacementFields";
 
 function CreateForm() {
-  const { nextId, addItem, closeCreate } = useBacklog();
+  const { addItem, closeCreate } = useBacklog();
   const toast = useToast();
   const [created] = useState(todayISO);
   const [owner, setOwner] = useState("");
@@ -42,13 +42,13 @@ function CreateForm() {
       comments: 0,
       description,
       ...(lead ? { lead } : {}),
-      assignees: cleanAssignees(assignees, lead),
+      assignees: cleanAssignees(assignees),
       notes,
       created,
       activity: [{ date: created, text: "Created" }],
     });
     if (!saved) return false;
-    toast.show(`Created ${saved.id}`);
+    toast.show(`Created ${saved.title}`);
   }
 
   const metaItem = (label: string, value: string) => (
@@ -61,12 +61,11 @@ function CreateForm() {
   return (
     <BacklogDrawer heading="Create backlog" submitLabel="Create backlog" onSubmit={submit} onClose={closeCreate}>
       <dl className="flex gap-6 rounded-xl border border-border bg-background px-4 py-3">
-        {metaItem("Task ID", nextId)}
         {metaItem("Created", formatDeadline(created))}
         {metaItem("Status", "Backlog")}
       </dl>
 
-      <OwnerSelect required excludeUnassigned value={owner} onChange={setOwner} placeholder="Choose owner" />
+      <OwnerSelect required excludeUnassigned value={owner} onChange={setOwner} placeholder="Search or select an owner, or add a new owner." />
       <TextField label="Title" required value={title} onChange={setTitle} placeholder="Short name for the work" />
       <TextAreaField
         label="Description"
@@ -84,15 +83,11 @@ function CreateForm() {
         <LeadSelect
           className="order-5"
           value={lead}
-          onChange={(v) => {
-            setLead(v);
-            // The Lead can't also be an assignee.
-            setAssignees((a) => cleanAssignees(a, v));
-          }}
+          onChange={setLead}
         />
       </div>
 
-      <AssigneeField value={assignees} onChange={setAssignees} exclude={lead} placeholder="Optional. Add later when you plan it." />
+      <AssigneeField value={assignees} onChange={setAssignees} />
       <TextAreaField label="Notes" value={notes} onChange={setNotes} />
     </BacklogDrawer>
   );

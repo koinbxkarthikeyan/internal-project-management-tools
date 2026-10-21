@@ -1,5 +1,6 @@
 "use client";
 
+import { DisabledTip } from "@/components/ui/DisabledTip";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
@@ -9,8 +10,9 @@ import { useQueryState } from "@/hooks/useQueryState";
 import { useToast } from "@/components/ui/Toast";
 import { FOCUS_HOURS_PER_DAY, WORK_KINDS, SPRINT_TASKS_POD, UNPLANNED_POD, isPseudoPod } from "@/constants/work";
 import ConfirmDeleteDrawer from "@/features/backlog/components/ConfirmDeleteDrawer";
-import { Field, SelectField } from "@/components/ui/FormControls";
+import { Field, SearchableSelect } from "@/components/ui/FormControls";
 import { refreshUsers } from "@/lib/auth/userStore";
+import { resolveTeam, useTeamStore } from "@/stores/teamStore";
 import { useUsers } from "@/features/users/hooks/useUsers";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useBacklog } from "@/features/backlog/context/BacklogContext";
@@ -53,16 +55,20 @@ export default function WorkPage() {
   useEffect(() => {
     void refreshUsers();
   }, []);
-  const myTeam = users.find((u) => u.id === user?.id)?.team ?? user?.team ?? "";
+  const renames = useTeamStore((s) => s.renames);
+  const myTeam = users.find((u) => u.id === user?.id)?.team ?? (user?.team ? resolveTeam(user.team, renames) : "");
+  const rawTeam = user?.team ?? "";
   // The kind of work: the supported kind that matches the person's Team when there is one, otherwise none until one is chosen; it can be changed in
   // the form at any time. The Team itself (e.g. Marketing) is never sent as the kind; it stays on the profile.
   const [kindPick, setKindPick] = useState<WorkKind | null>(null);
-  const kindFromTeam = WORK_KINDS.find((k) => k.toLowerCase() === myTeam.trim().toLowerCase());
+  const kindFromTeam = WORK_KINDS.find((k) => k.toLowerCase() === (rawTeam || myTeam).trim().toLowerCase());
   const kind: WorkKind | null = kindPick ?? kindFromTeam ?? null;
   // Hours currently in the form, so the bar follows what is being entered.
   const [draftHours, setDraftHours] = useState<number | null>(null);
   const [selection, setSelection] = useState<TaskSelection | null>(null);
   const [editing, setEditing] = useState<WorkEntry | null>(null);
+  // "Other Work": time that is not on a sprint task. Ticking it clears the task ticks; ticking a task clears it.
+  const [otherWork, setOtherWork] = useState(false);
   const [removing, setRemoving] = useState<WorkEntry | null>(null);
   // Bumped after each save so the form remounts with fresh defaults.
   const [formKey, setFormKey] = useState(0);
@@ -77,7 +83,7 @@ export default function WorkPage() {
         <button
           type="button"
           onClick={work.reload}
-          className="mt-4 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-foreground hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="mt-4 rounded-xl btn-brand px-4 py-2 text-sm font-medium font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           Try again
         </button>
@@ -96,7 +102,7 @@ export default function WorkPage() {
             action={
               <Link
                 href="/sprint-plan"
-                className="inline-flex rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-foreground hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="inline-flex rounded-xl btn-brand px-4 py-2 text-sm font-medium font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 Go to Sprint plan
               </Link>
@@ -182,10 +188,19 @@ export default function WorkPage() {
     if (selection && !ids.includes(selection.sprintId)) setSelection(null);
     if (editing) setKindPick(null);
     setEditing(null);
+    setOtherWork(false);
+    setFormKey((k) => k + 1);
+  }
+
+  function toggleOtherWork(on: boolean) {
+    setOtherWork(on);
+    if (on) setSelection(null);
+    if (editing) setEditing(null);
     setFormKey((k) => k + 1);
   }
 
   function toggleTask(sprint: { id: string }, pod: Pod, item: BacklogItemData) {
+    if (otherWork) return;
     const noPodTask = (id: string) => !items.find((i) => i.id === id)?.podId;
     setSelection((prev) => {
       if (!prev || prev.sprintId !== sprint.id) {
@@ -211,6 +226,7 @@ export default function WorkPage() {
       if (editing) setKindPick(null); // back to the kind that matches the Team
       setEditing(null);
       setSelection(null);
+      setOtherWork(false);
       setFormKey((k) => k + 1);
     }
     return ok;
@@ -218,16 +234,18 @@ export default function WorkPage() {
 
   async function remove(entry: WorkEntry) {
     if (!(await work.removeEntry(entry.id))) return false;
-    toast.show("Removed from your sprint", "danger");
+    toast.show("Removed from your sprint", "delete");
     if (editing?.id === entry.id) {
       setEditing(null);
       setSelection(null);
+      setOtherWork(false);
       setFormKey((k) => k + 1);
     }
   }
 
   function startEditing(entry: WorkEntry) {
     setEditing(entry);
+    setOtherWork(!!entry.otherWork);
     setKindPick(entry.kind); // the entry's own kind, which can be changed
     // Re-tick the tasks of this entry (the ones that still exist), and make sure its sprint is shown.
     const itemIds = (entry.itemIds ?? []).filter((id) => items.some((i) => i.id === id));
@@ -242,6 +260,29 @@ export default function WorkPage() {
     chosen.length === 1
       ? `${chosen[0].name} sprint · ${formatDay(chosen[0].start)} to ${formatDay(chosen[0].end)}`
       : `${chosen.length} sprints · ${sprintNames}`;
+
+  // Other Work and a ticked task are exclusive: any ticked task locks Other Work (a closed sprint locks it too).
+  const otherWorkLocked = formSprint.status === "Closed" || (!otherWork && !!selection?.itemIds.length);
+
+  const logForm = (
+    <WorkForm
+      key={`${formSprint.id}-${formKey}`}
+      sprint={formSprint}
+      pod={mixedPod}
+      tasks={selectedTasks}
+      person={person}
+      editing={editing}
+      today={today}
+      closed={formSprint.status === "Closed"}
+      kind={kind}
+      onKindChange={setKindPick}
+      otherWork={otherWork}
+      onHoursChange={setDraftHours}
+      onRemoveTask={(t) => toggleTask({ id: selection?.sprintId ?? "" }, selectedPod ?? ({ id: selection?.podId ?? "", name: "" } as Pod), t)}
+      onSubmit={submit}
+      onCancelEdit={() => (setEditing(null), setKindPick(null), setSelection(null), setOtherWork(false), setFormKey((k) => k + 1))}
+    />
+  );
 
   return (
     <div className="flex flex-col gap-5">
@@ -273,13 +314,16 @@ export default function WorkPage() {
       ) : (
         <>
           <section className={`${card} grid gap-4 sm:grid-cols-2`}>
-            <SelectField
+            <SearchableSelect
               label="Hi — who's this?"
               required
               value={person}
               onChange={() => {}}
-              options={user ? [{ value: user.name, label: `${user.name} (${user.email})` }] : []}
-              placeholder="Choose your name"
+              options={user ? [{ value: user.name, label: user.name }] : []}
+              hideArrow
+              disabled // always the signed-in user (from the session); it is never a choice
+              inputClassName="h-10 disabled:cursor-default disabled:opacity-100! disabled:text-foreground! disabled:[-webkit-text-fill-color:var(--foreground)]" // the name stays fully readable
+              placeholder={user ? "Choose your name" : "Loading your account…"}
             />
             {/* The person's own Team, as saved on their profile (it is not changed here). */}
             <Field label="Team">
@@ -302,7 +346,7 @@ export default function WorkPage() {
           </section>
 
           <section className={card}>
-            <SprintPodTasks sprints={chosen} pods={pods} items={myTasks} selection={selection} loggedBySprint={loggedBySprint}
+            <SprintPodTasks disabled={otherWork} sprints={chosen} pods={pods} items={myTasks} selection={selection} loggedBySprint={loggedBySprint}
               person={person}
               entries={work.entries.filter((e) => e.person === person)}
               allTasks={[...items, ...hiddenItems]}
@@ -310,27 +354,28 @@ export default function WorkPage() {
               everyoneEntries={work.entries}
               onToggle={toggleTask}
             />
+            <DisabledTip reason={otherWorkLocked && (formSprint.status === "Closed" ? "This sprint is closed, so time can't be logged against it." : "Unavailable while a task is selected. Untick the selected tasks to use this.")} className="block w-fit">
+            <label className={`mt-4 flex w-fit items-center gap-3 text-sm ${otherWorkLocked ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
+              <input
+                type="checkbox"
+                checked={otherWork}
+                disabled={otherWorkLocked}
+                onChange={(e) => toggleOtherWork(e.target.checked)}
+                className="h-4 w-4 shrink-0 accent-[var(--accent)]"
+              />
+              <span className="font-medium">Something else - my own task</span>
+              <span className="text-xs text-muted">Not on any task above (code review, meetings…)</span>
+            </label>
+            </DisabledTip>
+            {otherWork && <div className="mt-4 border-t border-border pt-4">{logForm}</div>}
           </section>
 
+          {!otherWork && (
           <section className={card} aria-label="Log your time">
             <h2 className="mb-4 text-sm font-semibold">{editing ? `Changing “${editing.task}”` : "Log your time"}</h2>
-            <WorkForm
-              key={`${formSprint.id}-${formKey}`}
-              sprint={formSprint}
-              pod={mixedPod}
-              tasks={selectedTasks}
-              person={person}
-              editing={editing}
-              today={today}
-              closed={formSprint.status === "Closed"}
-              kind={kind}
-              onKindChange={setKindPick}
-              onHoursChange={setDraftHours}
-              onRemoveTask={(t) => toggleTask({ id: selection?.sprintId ?? "" }, selectedPod ?? ({ id: selection?.podId ?? "", name: "" } as Pod), t)}
-              onSubmit={submit}
-              onCancelEdit={() => (setEditing(null), setKindPick(null), setSelection(null), setFormKey((k) => k + 1))}
-            />
+            {logForm}
           </section>
+          )}
 
           <section className={card}>
             <WorkEntriesList title="Your sprint so far" entries={scoped} sprintTotals={myTotals} showPerson={false} onChange={startEditing} onRemove={setRemoving} />

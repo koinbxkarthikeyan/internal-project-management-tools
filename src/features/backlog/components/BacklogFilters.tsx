@@ -26,7 +26,7 @@ type BacklogFiltersProps = {
   filters: FilterState;
   onChange: (filters: FilterState) => void;
   options: {
-    status: readonly string[];
+    status: readonly (string | { value: string; label: string })[];
     priority: readonly string[];
     owner: readonly string[];
     sprint: readonly string[];
@@ -65,14 +65,13 @@ export default function BacklogFilters({ filters, onChange, options }: BacklogFi
           onChange={(v) => onChange({ ...filters, [key]: v })}
           options={options[key]}
           placeholder={`${label}: All`}
-          inputClassName="h-9 text-xs"
           className="min-w-0 flex-1 basis-32 sm:flex-none sm:basis-40"
         />
       ))}
       {DATES.map(({ key, label }) => (
         <label
           key={key}
-          className="flex min-w-0 flex-1 basis-36 items-center gap-1.5 text-xs text-muted sm:flex-none"
+          className="flex min-w-0 flex-1 basis-36 items-center gap-1.5 text-sm text-muted sm:flex-none"
         >
           <span className="shrink-0">{label}</span>
           <input
@@ -82,7 +81,7 @@ export default function BacklogFilters({ filters, onChange, options }: BacklogFi
             min={key === "deadlineTo" && filters.deadlineFrom ? filters.deadlineFrom : undefined}
             onChange={(e) => onChange({ ...filters, [key]: e.target.value })}
             aria-label={`Deadline ${label.toLowerCase()}`}
-            className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-surface px-2 text-xs text-foreground focus-visible:outline-2 focus-visible:outline-accent"
+            className="h-10 min-w-0 flex-1 field px-3 text-sm text-foreground"
           />
         </label>
       ))}
@@ -90,7 +89,7 @@ export default function BacklogFilters({ filters, onChange, options }: BacklogFi
         <button
           type="button"
           onClick={() => onChange(EMPTY_FILTERS)}
-          className="h-9 rounded-lg px-3 text-xs font-medium text-accent transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
+          className="h-10 rounded-lg px-3 text-sm font-medium text-accent transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
         >
           Clear
         </button>

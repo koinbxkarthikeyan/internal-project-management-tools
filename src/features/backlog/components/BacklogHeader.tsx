@@ -8,7 +8,7 @@ export default function BacklogHeader() {
       description="Track, filter and prioritise every backlog item across sprints."
       actions={
         <div className="w-full sm:w-auto">
-          <CreateBacklogButton />
+          <CreateBacklogButton gradient />
         </div>
       }
     />

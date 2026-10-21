@@ -5,7 +5,7 @@ import type { CSSProperties } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
-import { PRIORITIES, STATUSES } from "@/constants/backlog-options";
+import { PRIORITIES, STATUSES, statusLabel } from "@/constants/backlog-options";
 import { useBacklog } from "../context/BacklogContext";
 import { formatDeadline } from "../utils";
 import BacklogSummary from "./BacklogSummary";
@@ -52,7 +52,7 @@ export default function OverviewPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Breakdown
           title="By status"
-          rows={STATUSES.map((s) => ({ label: s, value: items.filter((i) => i.status === s).length }))}
+          rows={STATUSES.map((s) => ({ label: statusLabel(s), value: items.filter((i) => i.status === s).length }))}
         />
         <Breakdown
           title="By priority"
@@ -75,7 +75,7 @@ export default function OverviewPage() {
             <li key={i.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
               <div className="min-w-0 flex-1 basis-56">
                 <p className="truncate text-sm font-medium">{i.title}</p>
-                <p className="text-xs text-muted">{i.id} · {i.owner}</p>
+                <p className="text-xs text-muted">{i.owner}</p>
               </div>
               <PriorityBadge priority={i.priority} />
               <StatusBadge status={i.status} />

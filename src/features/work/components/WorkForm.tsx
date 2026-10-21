@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import { DisabledTip } from "@/components/ui/DisabledTip";
 import { TextAreaField, TextField } from "@/components/ui/FormControls";
 import { useToast } from "@/components/ui/Toast";
 import { checkRequiredFields, clearFilled } from "@/lib/formValidation";
@@ -9,6 +10,7 @@ import { FOCUS_HOURS_PER_DAY, HOUR_PRESETS, WORK_KINDS, isPseudoPod } from "@/co
 import type { BacklogItemData, Sprint } from "@/types/backlog";
 import type { Pod, WorkEntry, WorkEntryInput, WorkKind } from "@/types/work";
 import { addDays, plannedHours, workingDays } from "../utils";
+import { FieldError } from "@/components/ui/FieldError";
 
 type WorkFormProps = {
   /** The sprint the time is logged against (its dates bound From and To). */
@@ -33,16 +35,19 @@ type WorkFormProps = {
   /** The kind of work for the entry, chosen in the form (it starts as the kind that matches the person's Team). */
   kind: WorkKind | null;
   onKindChange: (kind: WorkKind) => void;
+  /** "Other Work" is ticked: the entry has a short description instead of tasks. */
+  otherWork?: boolean;
 };
 
 const chip =
   "rounded-full border border-border px-3 py-1 text-xs text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50";
 
+const NEEDS_TASK = "Select a task, or choose “Something else - my own task”, to enable this.";
 const KIND_REQUIRED = "Choose the kind of work.";
 
 const clamp = (d: string, min: string, max: string) => (d < min ? min : d > max ? max : d);
 
-export default function WorkForm({ sprint, pod, tasks, person, editing, today, closed = false, onHoursChange, onRemoveTask, onSubmit, onCancelEdit, kind: pickedKind, onKindChange }: WorkFormProps) {
+export default function WorkForm({ sprint, pod, tasks, person, editing, today, closed = false, onHoursChange, onRemoveTask, onSubmit, onCancelEdit, kind: pickedKind, onKindChange, otherWork = false }: WorkFormProps) {
   const toast = useToast();
   // An entry being changed keeps its own kind unless it is changed here; a new one uses the chosen kind.
   const kind = pickedKind;
@@ -57,6 +62,7 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
   // Set once the dates or hours are changed; until then the form holds only its defaults.
   const [changed, setChanged] = useState(false);
   const [notes, setNotes] = useState(editing?.notes ?? "");
+  const [details, setDetails] = useState(editing?.otherWork ? editing.task : "");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -79,8 +85,21 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
   const full = plannedHours(from, to);
 
   // An older entry (logged before tasks were picked from the list) keeps its task text and POD when edited.
-  const legacy = !!editing && !editing.itemIds?.length;
-  const hasTasks = tasks.length > 0;
+  const legacy = !!editing && !editing.itemIds?.length && !editing.otherWork;
+  const hasTasks = tasks.length > 0 && !otherWork;
+  // Hours can be entered once there is something to log them against: a ticked task, or Other Work.
+  const canLog = hasTasks || legacy || otherWork;
+
+  // Changing an entry: Save stays off until something differs from what was saved.
+  const sameTasks = (editing?.itemIds ?? []).join("|") === tasks.map((t) => t.id).join("|");
+  const unchanged =
+    !!editing &&
+    from === editing.from &&
+    to === editing.to &&
+    Number(hours) === editing.hours &&
+    notes.trim() === (editing.notes ?? "").trim() &&
+    kind === editing.kind &&
+    (editing.otherWork ? otherWork && details.trim() === editing.task.trim() : !otherWork && (legacy || sameTasks));
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -89,7 +108,8 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
     if (!kind) return setError(KIND_REQUIRED);
     if (closed) return setError(`${sprint.name} is closed, so time can't be logged against it.`);
     if (!person) return setError("Pick your name first.");
-    if (!hasTasks && !legacy) return setError("Tick at least one task above.");
+    if (!canLog) return setError("Tick at least one task above, or choose Something else - my own task.");
+    if (otherWork && !details.trim()) return setError("Enter the work details.");
     if (today < sprint.start) return setError(`${sprint.name} hasn't started yet, so there is nothing to log.`);
     if (to < from) return setError("To can't be before From.");
     if (to > latest) return setError("You can't log hours for days that haven't happened yet.");
@@ -100,11 +120,12 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
     const ok = await onSubmit({
       sprintId: sprint.id,
       person,
-      pod: hasTasks ? (pod?.name ?? "") : (editing?.pod ?? ""),
+      pod: otherWork ? "Something else" : hasTasks ? (pod?.name ?? "") : (editing?.pod ?? ""),
       // Unplanned tasks aren't in a POD, so no POD id is saved for them.
-      podId: hasTasks ? (isPseudoPod(pod?.id) ? undefined : pod?.id) : editing?.podId,
+      podId: otherWork ? undefined : hasTasks ? (isPseudoPod(pod?.id) ? undefined : pod?.id) : editing?.podId,
       itemIds: hasTasks ? tasks.map((t) => t.id) : undefined,
-      task: hasTasks ? tasks.map((t) => t.title).join(", ") : (editing?.task ?? ""),
+      ...(otherWork ? { otherWork: true } : {}),
+      task: otherWork ? details.trim() : hasTasks ? tasks.map((t) => t.title).join(", ") : (editing?.task ?? ""),
       kind,
       from,
       to,
@@ -117,6 +138,15 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
 
   return (
     <form noValidate onSubmit={handleSubmit} onInput={(e) => clearFilled(e.currentTarget)} className="flex flex-col gap-4">
+      {otherWork ? (
+        <TextField
+          label="Work details"
+          required
+          value={details}
+          onChange={(v) => (setDetails(v), setError(""))}
+          placeholder="Enter work details (e.g., Code Review, Meeting, Bug Investigation)"
+        />
+      ) : (
       <div>
         <p className="mb-1.5 text-xs font-medium text-muted">
           Tasks <span className="text-red-500">*</span>
@@ -152,6 +182,7 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
           </p>
         )}
       </div>
+      )}
 
       <fieldset>
         <legend className="mb-1.5 text-xs font-medium text-muted">
@@ -184,15 +215,17 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
       </fieldset>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <TextField label="From" type="date" required min={sprint.start} max={latest} value={from} onChange={(v) => setRange(v, to)} />
-        <TextField label="To" type="date" required min={from || sprint.start} max={latest} value={to} onChange={(v) => setRange(from, v)} />
+        <TextField label="From" type="date" required disabled={!canLog} disabledReason={NEEDS_TASK} min={sprint.start} max={latest} value={from} onChange={(v) => setRange(v, to)} />
+        <TextField label="To" type="date" required disabled={!canLog} disabledReason={NEEDS_TASK} min={from || sprint.start} max={latest} value={to} onChange={(v) => setRange(from, v)} />
         <TextField
           label="Hours in total"
           type="number"
           min="0"
           step="0.25"
+          disabled={!canLog}
+          disabledReason={NEEDS_TASK}
           value={hours}
-          onChange={(v) => (setHours(v), setHoursTouched(true), setChanged(true), setError(""))}
+          onChange={(v) => (setHours(v.replace(/^0+(?=\d)/, "")), setHoursTouched(true), setChanged(true), setError(""))}
         />
       </div>
       <p className="-mt-2 text-xs text-muted">
@@ -200,23 +233,33 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
       </p>
 
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className={chip} onClick={() => setRange(sprint.start, lastLoggable)}>
-          Sprint so far
-        </button>
-        <button type="button" className={chip} onClick={() => setRange(sprint.start, clamp(addDays(sprint.start, 6), sprint.start, lastLoggable))}>
-          Week 1
-        </button>
-        <button type="button" className={chip} disabled={week2Start > lastLoggable} onClick={() => setRange(week2Start, lastLoggable)}>
-          Week 2
-        </button>
-        <button type="button" className={chip} onClick={() => setRange(clampedToday, clampedToday)}>
-          Just today
-        </button>
+        <DisabledTip reason={!canLog && NEEDS_TASK} className="inline-block">
+          <button type="button" className={chip} disabled={!canLog} onClick={() => setRange(sprint.start, lastLoggable)}>
+            Sprint so far
+          </button>
+        </DisabledTip>
+        <DisabledTip reason={!canLog && NEEDS_TASK} className="inline-block">
+          <button type="button" className={chip} disabled={!canLog} onClick={() => setRange(sprint.start, clamp(addDays(sprint.start, 6), sprint.start, lastLoggable))}>
+            Week 1
+          </button>
+        </DisabledTip>
+        <DisabledTip reason={(!canLog && NEEDS_TASK) || (week2Start > lastLoggable && "Week 2 hasn't started yet.")} className="inline-block">
+          <button type="button" className={chip} disabled={!canLog || week2Start > lastLoggable} onClick={() => setRange(week2Start, lastLoggable)}>
+            Week 2
+          </button>
+        </DisabledTip>
+        <DisabledTip reason={!canLog && NEEDS_TASK} className="inline-block">
+          <button type="button" className={chip} disabled={!canLog} onClick={() => setRange(clampedToday, clampedToday)}>
+            Just today
+          </button>
+        </DisabledTip>
         <span className="mx-1 hidden h-4 w-px bg-border sm:block" aria-hidden="true" />
         {HOUR_PRESETS.map((p) => (
-          <button key={p.label} type="button" className={chip} onClick={() => setPreset(p.hours)} title={`${p.hours}h (${FOCUS_HOURS_PER_DAY}h = a day)`}>
-            {p.label}
-          </button>
+          <DisabledTip key={p.label} reason={!canLog && NEEDS_TASK} className="inline-block">
+            <button type="button" className={chip} disabled={!canLog} onClick={() => setPreset(p.hours)} title={canLog ? `${p.hours}h (${FOCUS_HOURS_PER_DAY}h = a day)` : undefined}>
+              {p.label}
+            </button>
+          </DisabledTip>
         ))}
       </div>
 
@@ -234,19 +277,21 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
       )}
 
       {error && (
-        <p role="alert" className="text-xs text-red-600 dark:text-red-300">
+        <FieldError>
           {error}
-        </p>
+        </FieldError>
       )}
 
       <div className="flex flex-col gap-2 sm:flex-row">
+        <DisabledTip reason={!saving && (closed ? `${sprint.name} is closed. Select the running sprint to log time.` : unchanged && "No changes to save.")} className="flex w-full sm:flex-1">
         <button
           type="submit"
-          disabled={saving || closed}
-          className="h-11 w-full shrink-0 rounded-xl bg-accent px-4 text-sm font-medium text-accent-foreground shadow-sm hover:opacity-90 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:w-auto sm:flex-1"
+          disabled={saving || closed || unchanged}
+          className="h-11 w-full shrink-0 rounded-xl btn-brand px-4 text-sm font-medium font-semibold  focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:w-auto sm:flex-1"
         >
           {saving ? "Saving…" : editing ? "Save changes" : "Add to my sprint"}
         </button>
+        </DisabledTip>
         {editing && (
           <button
             type="button"

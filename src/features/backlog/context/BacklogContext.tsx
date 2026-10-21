@@ -3,6 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useLiveTaskUpdates } from "../hooks/useLiveTaskUpdates";
+import { resolveTeam, useTeamStore } from "@/stores/teamStore";
 import { useWorkStore } from "@/stores/workStore";
 import { useBacklogStore } from "@/stores/backlogStore";
 import { getErrorCode, getErrorMessage, getErrorStatus } from "@/lib/apiClient";
@@ -10,7 +12,7 @@ import * as backlogService from "@/services/backlogService";
 import * as ownerService from "@/services/ownerService";
 import * as podService from "@/services/podService";
 import * as sprintService from "@/services/sprintService";
-import type { BacklogItemData, ItemPatch, NewItemInput, Owner, Sprint, SprintInput } from "@/types/backlog";
+import type { BacklogItemData, ItemPatch, NewItemInput, Owner, Sprint, SprintInput, Status } from "@/types/backlog";
 import type { Pod } from "@/types/work";
 
 type LoadStatus = "loading" | "ready" | "error";
@@ -32,6 +34,8 @@ type BacklogContextValue = {
   updateItem: (id: string, patch: ItemPatch) => Promise<boolean>;
   /** What the task's Lead may change from My Task: status, assigned users and the Lead Deadline. */
   leadUpdateItem: (id: string, patch: Pick<ItemPatch, "status" | "assignees" | "leadDeadline">) => Promise<boolean>;
+  /** My Task, normal users: a status change with the required work details (BACKEND-DEPENDENT, see backlogService.changeStatusWithDetails). */
+  changeStatusWithDetails: (id: string, status: Status, details: string) => Promise<boolean>;
   deleteItem: (id: string) => Promise<boolean>;
   hideItem: (id: string) => Promise<boolean>;
   restoreItem: (id: string) => Promise<boolean>;
@@ -111,12 +115,17 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
   const [createOpen, setCreateOpen] = useState(false);
 
   // Owners are their own records (not users); "Unassigned" is added last.
-  const ownerList = useMemo(() => ownerService.withUnassigned(apiOwners), [apiOwners]);
+  const teamRenames = useTeamStore((st) => st.renames);
+  // Owner teams follow team renames too.
+  const ownerList = useMemo(() => ownerService.withUnassigned(apiOwners.map((o) => (o.team ? { ...o, team: resolveTeam(o.team, teamRenames) } : o))), [apiOwners, teamRenames]);
 
   // Initial load. Mounting again (or another component asking) reuses the data while it is fresh.
   useEffect(() => {
     void load(ctx);
   }, [ctx, load]);
+
+  // Status changes saved by other people arrive live (only when a socket URL is configured; see src/lib/socketClient.ts).
+  useLiveTaskUpdates(status === "ready");
 
   // A sprint closes by itself when its end date passes, so check the sprints now and then (every few minutes, and when the
   // tab comes back into view). Only if they changed are the tasks read again.
@@ -192,6 +201,17 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
         if (lockedBySprint(id)) return false;
         try {
           const saved = await backlogService.updateItemAsLead(id, patch);
+          setAll((prev) => prev.map((i) => (i.id === id ? saved : i)));
+          return true;
+        } catch (err) {
+          fail(err);
+          return false;
+        }
+      },
+      changeStatusWithDetails: async (id, status, details) => {
+        if (lockedBySprint(id)) return false;
+        try {
+          const saved = await backlogService.changeStatusWithDetails(id, status, details);
           setAll((prev) => prev.map((i) => (i.id === id ? saved : i)));
           return true;
         } catch (err) {

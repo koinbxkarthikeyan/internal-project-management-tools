@@ -18,6 +18,7 @@ export default function EditSprintDrawer({ sprint, onClose }: EditSprintDrawerPr
     <SprintFormDrawer
       heading={`Edit ${sprint.name}`}
       submitLabel="Save sprint"
+      editing
       initial={{ name: sprint.name, start: sprint.start ?? "", goal: sprint.goal ?? "", podIds: sprint.podIds ?? [] }}
       onClose={onClose}
       onSave={async ({ name, start, end, goal, podIds }) => {

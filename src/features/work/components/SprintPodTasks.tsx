@@ -1,5 +1,6 @@
 "use client";
 
+import { DisabledTip } from "@/components/ui/DisabledTip";
 import { useState } from "react";
 import EmptyState from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/Badge";
@@ -34,10 +35,12 @@ type SprintPodTasksProps = {
   /** Everyone's logged entries (for the History view; `entries` above are only the signed-in person's). */
   everyoneEntries?: readonly WorkEntry[];
   onToggle: (sprint: DatedSprint, pod: Pod, item: BacklogItemData) => void;
+  /** "Other Work" is ticked: no task can be picked. */
+  disabled?: boolean;
 };
 
 /** Each selected sprint, its PODs, and under every POD the tasks you can pick from. */
-export default function SprintPodTasks({ sprints, pods, items, selection, loggedBySprint = {}, person, entries, allTasks, allSprints, everyoneEntries, onToggle }: SprintPodTasksProps) {
+export default function SprintPodTasks({ sprints, pods, items, selection, loggedBySprint = {}, person, entries, allTasks, allSprints, everyoneEntries, onToggle, disabled = false }: SprintPodTasksProps) {
   const unplanned = items.filter((i) => i.sprint === "Unplanned");
   // "Sprint 1: 0h | Sprint 2: 5h | Total: 5h" for one task: the signed-in person's hours on it in every sprint it lived in
   // (the task itself and the earlier records it was carried over from), each sprint kept apart, each entry counted once.
@@ -113,12 +116,13 @@ export default function SprintPodTasks({ sprints, pods, items, selection, logged
                     {tasks.length === 0 ? (
                       <p className="px-4 py-4 text-sm text-muted">No tasks in this POD yet. Create one with Create backlog.</p>
                     ) : (
-                      <ul className="max-h-[20.5rem] min-h-0 flex-1 divide-y divide-border overflow-y-auto">
+                      <ul className="max-h-[20.5rem] min-h-0 flex-1 divide-y divide-border overflow-y-auto pb-2">
                         {tasks.map((task) => {
-                          const locked = closed || taken(task);
+                          const locked = closed || disabled || taken(task);
                           return (
                             <li key={task.id}>
                               <div className="flex flex-wrap items-center">
+                              <DisabledTip reason={locked && (closed ? "This sprint is closed, so time can't be logged against it." : disabled ? "Unavailable because “Something else - my own task” is selected. Untick it to pick a task." : taken(task) && "You already logged this task in this sprint. Edit that entry from “Your sprint so far”.")} className="flex min-w-0 flex-1 basis-60">
                               <label
                                 className={`flex min-w-0 flex-1 basis-60 items-center gap-3 pl-4 py-2.5 text-sm transition-colors ${
                                   locked ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-hover"
@@ -139,6 +143,7 @@ export default function SprintPodTasks({ sprints, pods, items, selection, logged
                                 )}
                                 <StatusBadge status={task.status} />
                               </label>
+                              </DisabledTip>
                               {/* Outside the label, so opening the details never ticks the task. */}
                               <span className="ml-auto shrink-0 whitespace-nowrap py-2.5 pl-4 font-mono text-[11px] text-muted" title="Your hours on this task, per sprint">
                                 {(() => {

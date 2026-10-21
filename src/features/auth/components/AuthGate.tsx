@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LOGIN_PATH } from "@/constants/auth";
 import { MY_TASK_HREF, WORK_HREF } from "@/constants/work";
 import { sessionStore } from "@/lib/auth/sessionStore";
+import { resetSharedData } from "@/lib/auth/authService";
 import { refreshUsers } from "@/lib/auth/userStore";
 import { getMe } from "@/services/authApi";
 import ChangePasswordRequired from "./ChangePasswordRequired";
@@ -57,7 +58,10 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   }, [status]);
 
   useEffect(() => {
-    if (status === "signedOut") router.replace(LOGIN_PATH);
+    if (status === "signedOut") {
+      resetSharedData(); // also when the login simply expired (401), not only on Sign out
+      router.replace(LOGIN_PATH);
+    }
     else if (status === "signedIn" && blocked) router.replace(settingsOnly ? "/settings" : WORK_HREF);
   }, [status, blocked, settingsOnly, router]);
 

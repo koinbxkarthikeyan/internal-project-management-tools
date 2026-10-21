@@ -1,7 +1,7 @@
-import { apiClient } from "@/lib/apiClient";
+import { apiClient, getErrorStatus } from "@/lib/apiClient";
 import { sessionStore } from "@/lib/auth/sessionStore";
 import type { WorkEntry, WorkEntryInput, WorkEntryPatch } from "@/types/work";
-import { apiIdForCode, directory, entryFromApi, kindToApi, list, rec } from "./mappers";
+import { OTHER_WORK_PREFIX, apiIdForCode, directory, entryFromApi, kindToApi, list, rec } from "./mappers";
 
 type Rec = Record<string, unknown>;
 
@@ -44,10 +44,16 @@ export async function getWorkEntries(): Promise<WorkEntry[]> {
       const key = `${me}:${id}`;
       const kept = status === "Closed" ? closedCache.get(key) : undefined;
       if (kept) return kept;
-      const [mine, team] = await Promise.all([myEntries(id).catch(() => null), teamEntries(id).catch(() => null)]);
-      const entries = [...(team ?? []), ...(mine ?? [])];
-      // Only a complete read of a closed sprint is kept; a failed call is tried again next time.
-      if (status === "Closed" && mine && team) closedCache.set(key, entries);
+      // The person's own entries must load: a failure is an error for the page, never "no hours". The team view may be
+      // refused for some roles (403 / 404); only that is tolerated, any other failure is reported too.
+      const notAllowed = (err: unknown) => {
+        const code = getErrorStatus(err);
+        if (code === 403 || code === 404) return null;
+        throw err;
+      };
+      const [mine, team] = await Promise.all([myEntries(id), teamEntries(id).catch(notAllowed)]);
+      const entries = [...(team ?? []), ...mine];
+      if (status === "Closed" && team) closedCache.set(key, entries);
       return entries;
     }),
   );
@@ -57,7 +63,11 @@ export async function getWorkEntries(): Promise<WorkEntry[]> {
 
 function bodyFrom(input: WorkEntryPatch): Rec {
   const body: Rec = {};
-  if (input.itemIds !== undefined) body.itemIds = input.itemIds.flatMap((code) => {
+  // Other work links no task; the backend keeps only a note, so the description is saved as "Other work: …" ahead of any notes.
+  if (input.otherWork) {
+    body.itemIds = [];
+    body.note = [`${OTHER_WORK_PREFIX}${(input.task ?? "").trim()}`, input.notes?.trim()].filter(Boolean).join("\n");
+  } else if (input.itemIds !== undefined) body.itemIds = input.itemIds.flatMap((code) => {
     const id = apiIdForCode(code);
     return id === undefined ? [] : [id];
   });
@@ -65,7 +75,7 @@ function bodyFrom(input: WorkEntryPatch): Rec {
   if (input.from !== undefined) body.fromDate = input.from;
   if (input.to !== undefined) body.toDate = input.to;
   if (input.hours !== undefined) body.hours = input.hours;
-  if (input.notes !== undefined) body.note = input.notes;
+  if (input.notes !== undefined && !input.otherWork) body.note = input.notes;
   return body;
 }
 

@@ -10,22 +10,22 @@ const login = (data: TokenResponse): Login => ({ token: data.accessToken, user: 
 
 /** Step 1: tells whether this email signs in with a password (admins) or an emailed code (users). */
 export async function signIn(email: string): Promise<SignInStep> {
-  const { data } = await apiClient.post<SignInStep>("/auth/sign-in", { email });
+  const { data } = await apiClient.post<SignInStep>("/auth/sign-in", { email: email.trim().toLowerCase() });
   return data;
 }
 
 export async function signInWithPassword(email: string, password: string): Promise<Login> {
-  const { data } = await apiClient.post<TokenResponse>("/auth/sign-in/password", { email, password });
+  const { data } = await apiClient.post<TokenResponse>("/auth/sign-in/password", { email: email.trim().toLowerCase(), password });
   return login(data);
 }
 
 export async function verifyOtp(email: string, code: string): Promise<Login> {
-  const { data } = await apiClient.post<TokenResponse>("/auth/sign-in/otp/verify", { email, code });
+  const { data } = await apiClient.post<TokenResponse>("/auth/sign-in/otp/verify", { email: email.trim().toLowerCase(), code });
   return login(data);
 }
 
 export async function resendOtp(email: string): Promise<SignInStep> {
-  const { data } = await apiClient.post<SignInStep>("/auth/sign-in/otp/resend", { email });
+  const { data } = await apiClient.post<SignInStep>("/auth/sign-in/otp/resend", { email: email.trim().toLowerCase() });
   return data;
 }
 

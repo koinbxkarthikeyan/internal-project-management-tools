@@ -24,9 +24,9 @@ export default function BacklogSearch({ value, onChange }: BacklogSearchProps) {
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Search title, ID, owner…"
+        placeholder="Search title or owner…"
         aria-label="Search backlog items"
-        className="h-9 w-full rounded-lg border border-border bg-surface pl-8 pr-3 text-xs placeholder:text-muted focus-visible:outline-2 focus-visible:outline-accent"
+        className="h-10 w-full field pl-8 pr-3 text-sm placeholder:text-muted"
       />
     </div>
   );

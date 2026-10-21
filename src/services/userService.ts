@@ -16,15 +16,18 @@ export async function getUsers(): Promise<AppUser[]> {
 
 export type NewUser = { name: string; email: string; role: AssignableRole; status: AccessStatus; team?: string; password?: string };
 
+/** The request body for a new user: exactly what `createUser` sends. */
+export const newUserBody = (input: NewUser) => ({
+  name: input.name,
+  email: input.email.trim().toLowerCase(),
+  role: roleToApi(input.role),
+  accessStatus: accessToApi(input.status),
+  ...(input.team ? { team: teamToApi(input.team) } : {}),
+  ...(input.password ? { password: input.password } : {}),
+});
+
 export async function createUser(input: NewUser): Promise<AppUser> {
-  const { data } = await apiClient.post<ApiUser>("/users", {
-    name: input.name,
-    email: input.email,
-    role: roleToApi(input.role),
-    accessStatus: accessToApi(input.status),
-    ...(input.team ? { team: teamToApi(input.team) } : {}),
-    ...(input.password ? { password: input.password } : {}),
-  });
+  const { data } = await apiClient.post<ApiUser>("/users", newUserBody(input));
   return toAppUser(data);
 }
 
@@ -33,7 +36,7 @@ export type UserPatch = { name?: string; email?: string; role?: AssignableRole; 
 export async function updateUser(id: string, patch: UserPatch): Promise<AppUser> {
   const { data } = await apiClient.patch<ApiUser>(`/users/${encodeURIComponent(id)}`, {
     ...(patch.name !== undefined ? { name: patch.name } : {}),
-    ...(patch.email !== undefined ? { email: patch.email } : {}),
+    ...(patch.email !== undefined ? { email: patch.email.trim().toLowerCase() } : {}),
     ...(patch.role ? { role: roleToApi(patch.role) } : {}),
     ...(patch.status ? { accessStatus: accessToApi(patch.status) } : {}),
     ...(patch.team !== undefined ? { team: patch.team ? teamToApi(patch.team) : null } : {}),

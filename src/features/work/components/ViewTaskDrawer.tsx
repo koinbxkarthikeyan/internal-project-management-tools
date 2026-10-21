@@ -2,16 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/FormControls";
-import { STATUSES } from "@/constants/backlog-options";
+import { STATUS_OPTIONS } from "@/constants/backlog-options";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import AssigneeField, { cleanAssignees } from "@/features/backlog/components/AssigneeField";
 import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
+import ActivityTimeline from "@/features/backlog/components/ActivityTimeline";
 import BacklogDrawer from "@/features/backlog/components/BacklogDrawer";
 import { useBacklog } from "@/features/backlog/context/BacklogContext";
-import { formatActivityTime, formatDeadline } from "@/features/backlog/utils";
-import * as backlogService from "@/services/backlogService";
+import { formatDeadline } from "@/features/backlog/utils";
+import { getErrorMessage } from "@/lib/apiClient";
+import { useItemDetailStore } from "@/stores/itemDetailStore";
 import type { BacklogItemData, Status } from "@/types/backlog";
+import { FieldError } from "@/components/ui/FieldError";
 
 type Row = { label: string; value: React.ReactNode };
 
@@ -27,11 +30,13 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
   const toast = useToast();
   // The task's detail (activity, and whether I may change it) comes from the backend when the panel opens.
   const [detail, setDetail] = useState<BacklogItemData | null>(null);
+  const [detailError, setDetailError] = useState("");
   useEffect(() => {
     let cancelled = false;
-    backlogService.getItem(item.id).then(
+    useItemDetailStore.getState().get(item.id).then(
       (d) => !cancelled && setDetail(d),
-      () => undefined, // the list's copy is shown as it is
+      // The list's copy is shown, but the person is told the latest details (activity, what they may change) are missing.
+      (err) => !cancelled && setDetailError(getErrorMessage(err)),
     );
     return () => {
       cancelled = true;
@@ -47,11 +52,16 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
   const [error, setError] = useState("");
   const needsReason = status === "Blocked" || status === "On hold";
 
+  const taskChanged =
+    cleanAssignees(assigned) !== cleanAssignees(item.assignees ?? "") ||
+    leadDeadline !== (item.leadDeadline ?? "") ||
+    status !== item.status;
+
   async function save() {
     if (needsReason && !reason.trim()) return setError("Say why it is blocked or on hold."), false;
-    const saved = await leadUpdateItem(item.id, { assignees: cleanAssignees(assigned, item.lead), leadDeadline, status });
+    const saved = await leadUpdateItem(item.id, { assignees: cleanAssignees(assigned), leadDeadline, status });
     if (!saved) return false;
-    toast.show(`${item.id} updated`);
+    toast.show(`${item.title} updated`);
   }
 
   const pod = item.podId ? allPods.find((p) => p.id === item.podId)?.name : undefined;
@@ -73,7 +83,12 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
   ];
 
   return (
-    <BacklogDrawer heading={`${item.id} · Task details`} submitLabel="Save changes" onSubmit={isLead ? save : () => {}} onClose={onClose} viewOnly={!isLead}>
+    <BacklogDrawer heading="Task details" submitLabel="Save changes" onSubmit={isLead ? save : () => {}} canSubmit={taskChanged} onClose={onClose} viewOnly={!isLead}>
+      {detailError && (
+        <FieldError>
+          Couldn&apos;t load the latest details ({detailError}). What you see may be out of date.
+        </FieldError>
+      )}
       <div>
         <p className="text-xs font-medium text-muted">Title</p>
         <p className="mt-1 text-sm font-semibold">{item.title}</p>
@@ -101,7 +116,7 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
       {isLead && (
         <div className="flex flex-col gap-4 rounded-xl border border-border bg-background/60 p-4">
           <p className="text-xs text-muted">You lead this task: you can change its status, assign users and set the Lead Deadline.</p>
-          <SelectField label="Status" value={status} onChange={(v) => (setStatus(v as Status), setError(""))} options={STATUSES} />
+          <SelectField label="Status" value={status} onChange={(v) => (setStatus(v as Status), setError(""))} options={STATUS_OPTIONS} />
           {needsReason && (
             <TextAreaField
               label="Why is it blocked or on hold?"
@@ -112,12 +127,12 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
               placeholder="What's it waiting on, and who can unblock it?"
             />
           )}
-          <AssigneeField value={assigned} onChange={setAssigned} exclude={item.lead} />
+          <AssigneeField value={assigned} onChange={setAssigned} />
           <TextField label="Lead Deadline" type="date" value={leadDeadline} onChange={setLeadDeadline} />
           {error && (
-            <p role="alert" className="text-xs text-red-600 dark:text-red-300">
+            <FieldError>
               {error}
-            </p>
+            </FieldError>
           )}
         </div>
       )}
@@ -133,19 +148,7 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
           <p className="mt-1 whitespace-pre-line break-words text-sm">{item.notes}</p>
         </div>
       )}
-      {activity && activity.length > 0 && (
-        <div>
-          <p className="text-xs font-medium text-muted">Activity</p>
-          <ul className="mt-1 divide-y divide-border rounded-xl border border-border text-sm">
-            {activity.map((a, i) => (
-              <li key={i} className="flex justify-between gap-3 px-3 py-2">
-                <span className="min-w-0 break-words">{a.text}</span>
-                <span className="shrink-0 text-xs text-muted">{formatActivityTime(a)}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <ActivityTimeline compact item={detail ?? item} activity={activity} />
     </BacklogDrawer>
   );
 }

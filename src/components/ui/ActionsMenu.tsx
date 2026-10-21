@@ -14,7 +14,7 @@ export type MenuAction = {
 };
 
 type ActionsMenuProps = {
-  /** Accessible name, e.g. "Actions for BLG-101". */
+  /** Accessible name, e.g. "Actions for Fix login". */
   label: string;
   actions: MenuAction[];
 };

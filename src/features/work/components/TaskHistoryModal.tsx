@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
 import { formatActivityTime, formatDeadline, todayISO } from "@/features/backlog/utils";
+import { newestFirst, whenOrUnavailable } from "@/features/backlog/components/ActivityTimeline";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useUsers } from "@/features/users/hooks/useUsers";
 import { useWorkStore } from "@/stores/workStore";
-import * as backlogService from "@/services/backlogService";
+import { useItemDetailStore } from "@/stores/itemDetailStore";
 import type { ActivityEntry, BacklogItemData, Sprint } from "@/types/backlog";
 import type { WorkEntry } from "@/types/work";
 import { formatDay, formatHours, plannedHours } from "../utils";
@@ -75,7 +76,7 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
   // The activity of each record comes from the task detail (`/items/:id`); a record that can't be read just has none.
   useEffect(() => {
     let cancelled = false;
-    Promise.allSettled(chain.map((t) => backlogService.getItem(t.id))).then((results) => {
+    Promise.allSettled(chain.map((t) => useItemDetailStore.getState().get(t.id))).then((results) => {
       if (cancelled) return;
       const next: Record<string, ActivityEntry[]> = {};
       results.forEach((r, i) => {
@@ -114,7 +115,7 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
   };
   const link = (t: BacklogItemData) => {
     const from = t.carriedFrom ? allTasks.find((x) => x.id === t.carriedFrom) : undefined;
-    return from ? `Carried over from ${from.sprint} (${from.id}, ${from.status})` : "Created here";
+    return from ? `Carried over from ${from.sprint} (${from.status})` : "Created here";
   };
 
   return (
@@ -131,8 +132,8 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
               ["Expected deadline", item.deadline ? formatDeadline(item.deadline) : undefined],
               ["Lead Deadline", item.leadDeadline ? formatDeadline(item.leadDeadline) : undefined],
               ["Completed", item.completed ? formatDeadline(item.completed) : undefined],
-              ["Created", item.createdAt || item.created ? formatActivityTime({ date: item.created ?? "", at: /T\d{2}:\d{2}/.test(item.createdAt ?? "") ? item.createdAt : undefined }) : undefined],
-              ["Last updated", item.updatedAt ? formatActivityTime({ date: item.updatedAt.slice(0, 10), at: /T\d{2}:\d{2}/.test(item.updatedAt) ? item.updatedAt : undefined }) : undefined],
+              ["Created", whenOrUnavailable(item.created, item.createdAt)],
+              ["Last updated", whenOrUnavailable(undefined, item.updatedAt)],
             ]
               .filter(([, v]) => v)
               .map(([k, v]) => (
@@ -213,7 +214,7 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
                     <StatusBadge status={task.status} />
                   </div>
                   <p className="mt-1 text-xs text-muted">
-                    {task.id} · {link(task)}
+                    {link(task)}
                   </p>
 
                   <div className="mt-3">
@@ -268,7 +269,7 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
                       <p className="mt-1 text-sm text-muted">No activity recorded.</p>
                     ) : (
                       <ul className="mt-1 divide-y divide-border rounded-lg border border-border text-xs">
-                        {log.map((a, i) => (
+                        {newestFirst(log).map((a, i) => (
                           <li key={i} className="flex justify-between gap-3 px-3 py-1.5">
                             <span className="min-w-0 break-words">{a.text}</span>
                             <span className="shrink-0 text-muted">{formatActivityTime(a)}</span>
@@ -333,7 +334,7 @@ export function HistoryDialog({ title, label, onClose, children }: { title: stri
 export default function TaskHistoryModal(props: TaskHistoryModalProps & { onClose: () => void }) {
   const { onClose, ...body } = props;
   return (
-    <HistoryDialog title={`${props.item.id} · ${props.item.title}`} label={`${props.item.id} history`} onClose={onClose}>
+    <HistoryDialog title={props.item.title} label={`${props.item.title} history`} onClose={onClose}>
       <TaskHistoryBody {...body} />
     </HistoryDialog>
   );

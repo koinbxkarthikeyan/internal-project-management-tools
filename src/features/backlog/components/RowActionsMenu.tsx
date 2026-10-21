@@ -16,7 +16,7 @@ export default function RowActionsMenu({ item, onToggleHidden, onDelete }: RowAc
 
   return (
     <ActionsMenu
-      label={`Actions for ${item.id}`}
+      label={`Actions for ${item.title}`}
       actions={[
         { key: "hide", label: item.hidden ? "Unhide" : "Hide", icon: <HideIcon />, onSelect: onToggleHidden },
         // Delete is only offered in the Hidden tab. Editing is done by clicking the row.

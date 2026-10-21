@@ -15,15 +15,15 @@ export default function SignOutBlock() {
   if (!user) return null;
 
   return (
-    <div className="mt-auto border-t border-border pt-4">
-      <Link href="/settings" title="Settings" className="block rounded-lg px-3 py-1 hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent">
+    <div className="sb-block border-t border-border pt-5">
+      <Link href="/settings" title="Settings" className="sb-item block rounded-lg px-3 py-1 hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent">
         <p className="truncate text-sm font-medium">{user.name}</p>
         <p className="truncate text-xs text-muted">{user.email}</p>
       </Link>
       <Link
         href="/settings"
         aria-current={pathname === "/settings" ? "page" : undefined}
-        className={`mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent ${
+        className={`sb-item mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent ${
           pathname === "/settings" ? "bg-accent-soft font-medium text-accent" : "text-muted"
         }`}
       >
@@ -36,7 +36,7 @@ export default function SignOutBlock() {
           signOut();
           router.replace(LOGIN_PATH);
         }}
-        className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent"
+        className="sb-item mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent"
       >
         <LogoutIcon className="shrink-0" />
         Sign out

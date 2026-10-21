@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useId, useRef, useState } from "react";
 import type { BacklogItemData, Sprint } from "@/types/backlog";
 import type { WorkEntry } from "@/types/work";
 import { formatDay, formatHours } from "../utils";
@@ -31,15 +32,71 @@ const sum = (list: readonly WorkEntry[]) => list.reduce((total, e) => total + e.
 function Chip({ bucket, person }: { bucket: Bucket; person: string }) {
   const { tone, sprint, task, entries } = bucket;
   const total = sum(entries);
+  const id = useId();
+  const wrap = useRef<HTMLSpanElement>(null);
+  const tip = useRef<HTMLSpanElement>(null);
+  const [open, setOpen] = useState(false);
+
+  // The details card is a top-layer popover (not clipped by the scrolling task list or the card around it). It opens at the chip's right
+  // side, or its left when there is no room, and never leaves the window: near the bottom it moves up, on a narrow screen it goes above or below.
+  useEffect(() => {
+    const el = tip.current;
+    const anchor = wrap.current;
+    if (!el || !anchor || typeof el.showPopover !== "function") return;
+    if (!open) {
+      if (el.matches(":popover-open")) el.hidePopover();
+      return;
+    }
+    el.showPopover();
+    const r = anchor.getBoundingClientRect();
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    const gap = 8;
+    const fitsRight = r.right + gap + w <= window.innerWidth - gap;
+    const fitsLeft = r.left - gap - w >= gap;
+    let left: number;
+    let top: number;
+    if (fitsRight || fitsLeft) {
+      left = fitsRight ? r.right + gap : r.left - gap - w;
+      top = Math.min(Math.max(gap, r.top), window.innerHeight - h - gap);
+    } else {
+      left = Math.min(Math.max(gap, r.left), window.innerWidth - w - gap);
+      top = r.top - h - gap >= gap ? r.top - h - gap : Math.min(r.bottom + gap, Math.max(gap, window.innerHeight - h - gap));
+    }
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+    const hide = () => setOpen(false);
+    window.addEventListener("scroll", hide, true);
+    window.addEventListener("resize", hide);
+    return () => {
+      window.removeEventListener("scroll", hide, true);
+      window.removeEventListener("resize", hide);
+    };
+  }, [open]);
+
   return (
-    <span className="group relative inline-block" tabIndex={0}>
+    <span
+      ref={wrap}
+      className="relative inline-block"
+      tabIndex={0}
+      aria-describedby={id}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+      onKeyDown={(e) => e.key === "Escape" && open && setOpen(false)}
+    >
       <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${TONE[tone].chip}`}>
         <span className={`h-1.5 w-1.5 rounded-full ${TONE[tone].dot}`} aria-hidden="true" />
         {sprint.name} {tone === "current" ? "(current)" : "(previous)"} · {formatHours(total)}
       </span>
       <span
+        ref={tip}
+        id={id}
         role="tooltip"
-        className="pointer-events-none invisible absolute left-0 top-full z-30 mt-1.5 w-72 rounded-xl border border-border bg-surface p-3 text-xs opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100"
+        popover="manual"
+        className="pointer-events-none m-0 max-h-[calc(100dvh-1rem)] w-72 max-w-[calc(100vw-1rem)] overflow-auto rounded-xl border border-border bg-surface p-3 text-xs text-foreground shadow-lg"
+        style={{ position: "fixed", inset: "auto" }}
       >
         <span className="flex items-center gap-1.5 text-sm font-semibold">
           <span className={`h-2 w-2 rounded-full ${TONE[tone].dot}`} aria-hidden="true" />
@@ -47,7 +104,7 @@ function Chip({ bucket, person }: { bucket: Bucket; person: string }) {
           <span className="text-xs font-normal text-muted">{tone === "current" ? "current sprint" : "previous sprint"}</span>
         </span>
         <span className="mt-1.5 block">
-          <span className="text-muted">Task</span> {task.title} <span className="text-muted">({task.id})</span>
+          <span className="text-muted">Task</span> {task.title}
         </span>
         <span className="block">
           <span className="text-muted">User</span> {person}

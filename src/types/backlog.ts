@@ -8,6 +8,8 @@ export type ActivityEntry = {
   /** The full timestamp from the backend (ISO 8601 with a time), when it sent one. */
   at?: string;
   text: string;
+  /** Who did it, as the backend names them (never filled in by the app). */
+  by?: string;
 };
 
 /** A sprint is running (Active) until it is closed. Only one sprint can be Active at a time. A sprint that follows an early close waits as Paused until someone starts it. */
@@ -70,6 +72,9 @@ export type BacklogItemData = {
   /** Full timestamps from the backend, when it sent them (the date-only `created` is kept for the screens that use it). */
   createdAt?: string;
   updatedAt?: string;
+  /** Who created and last updated the task, when the backend says. */
+  createdBy?: string;
+  updatedBy?: string;
   /** ISO date (YYYY-MM-DD), or empty when not completed. */
   completed?: string;
   activity?: ActivityEntry[];

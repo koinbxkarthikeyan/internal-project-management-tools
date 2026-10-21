@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { DisabledTip } from "@/components/ui/DisabledTip";
 import { useToast } from "@/components/ui/Toast";
 import { checkRequiredFields, clearFilled } from "@/lib/formValidation";
 
@@ -16,12 +17,14 @@ type BacklogDrawerProps = {
   danger?: boolean;
   /** Details only: the footer has just a Close button (no submit). */
   viewOnly?: boolean;
+  /** Edit forms pass `false` until something differs from the saved data, which keeps the submit button disabled. */
+  canSubmit?: boolean;
   onClose: () => void;
   children: ReactNode;
 };
 
 /** Right-hand slide-over panel (native <dialog>) shared by the Create and Edit backlog forms. */
-export default function BacklogDrawer({ heading, submitLabel, onSubmit, onClose, compact = false, danger = false, viewOnly = false, children }: BacklogDrawerProps) {
+export default function BacklogDrawer({ heading, submitLabel, onSubmit, onClose, compact = false, danger = false, viewOnly = false, canSubmit = true, children }: BacklogDrawerProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -114,13 +117,15 @@ export default function BacklogDrawer({ heading, submitLabel, onSubmit, onClose,
             {viewOnly ? "Close" : "Cancel"}
           </button>
           {!viewOnly && (
+          <DisabledTip reason={!saving && !canSubmit && "No changes to save."} className="inline-block">
           <button
             type="submit"
-            disabled={saving}
-            className={`h-10 rounded-lg px-4 text-sm font-medium transition-opacity hover:opacity-90 ${danger ? "bg-red-600 text-white" : "bg-accent text-accent-foreground"} focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60`}
+            disabled={saving || !canSubmit}
+            className={`h-10 rounded-lg px-4 text-sm font-medium transition-opacity ${danger ? "bg-red-600 text-white" : "btn-brand font-semibold"} focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed `}
           >
             {saving ? "Saving…" : submitLabel}
           </button>
+          </DisabledTip>
           )}
         </footer>
       </form>

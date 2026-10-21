@@ -13,6 +13,7 @@ import { initials } from "@/features/backlog/utils";
 import { getErrorMessage } from "@/lib/apiClient";
 import * as userService from "@/services/userService";
 import type { AppUser } from "@/types/auth";
+import { useUsersStore } from "@/stores/usersStore";
 import { useManagedUsers } from "../hooks/useManagedUsers";
 import UserFormDrawer from "./UserFormDrawer";
 
@@ -28,6 +29,7 @@ const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "sh
 export default function UsersPage() {
   const { user: me, isAdmin, isSuperAdmin } = useAuth();
   const { status, error, users: allUsers, reload, retry } = useManagedUsers(isAdmin);
+  const { setManaged } = useUsersStore.getState();
   // The Super Admin account is listed only for the signed-in Super Admin; for everyone else the list is filtered (records are untouched).
   const users = isSuperAdmin ? allUsers : allUsers.filter((u) => u.role !== "Super Admin");
   const toast = useToast();
@@ -62,7 +64,7 @@ export default function UsersPage() {
               <button
                 type="button"
                 onClick={retry}
-                className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-foreground hover:opacity-90 focus-visible:outline-2 focus-visible:outline-accent"
+                className="rounded-xl btn-brand px-4 py-2 text-sm font-medium font-semibold focus-visible:outline-2 focus-visible:outline-accent"
               >
                 Try again
               </button>
@@ -82,7 +84,7 @@ export default function UsersPage() {
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accent-foreground shadow-sm hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="flex items-center gap-2 rounded-xl btn-brand px-4 py-2.5 text-sm font-medium font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <PlusIcon />
             Add Team Member
@@ -159,8 +161,8 @@ export default function UsersPage() {
                                       toggling.current.add(u.id);
                                       const next = u.status === "Enabled" ? "Disabled" : "Enabled";
                                       try {
-                                        await userService.setUserAccess(u.id, next);
-                                        await reload();
+                                        const saved = await userService.setUserAccess(u.id, next);
+                                        setManaged((list) => list.map((x) => (x.id === u.id ? { ...x, status: saved.status } : x)));
                                         toast.show(
                                           next === "Enabled" ? `${u.name} enabled` : `${u.name} disabled (My sprint and My Task only)`,
                                           next === "Enabled" ? "success" : "info",
@@ -207,8 +209,8 @@ export default function UsersPage() {
               toast.show(getErrorMessage(err), "danger");
               return false;
             }
-            await reload();
-            toast.show(`${deleting.name} deleted`, "danger");
+            setManaged((list) => list.filter((x) => x.id !== deleting.id));
+            toast.show(`${deleting.name} deleted`, "delete");
           }}
         />
       )}
