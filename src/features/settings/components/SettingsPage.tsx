@@ -2,13 +2,13 @@
 
 import { DisabledTip } from "@/components/ui/DisabledTip";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import { Field, TextField, controlClass } from "@/components/ui/FormControls";
 import { PasswordField } from "@/components/ui/PasswordField";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { LOGIN_PATH } from "@/constants/auth";
+import { DEFAULT_INITIAL_PASSWORD, LOGIN_PATH } from "@/constants/auth";
 import { getErrorMessage } from "@/lib/apiClient";
 import { signOutAfterPasswordChange } from "@/lib/auth/authService";
 import { MIN_PASSWORD_LENGTH, TOO_SHORT, checkNewPassword } from "@/lib/auth/passwordRules";
@@ -17,9 +17,12 @@ import { refreshUsers } from "@/lib/auth/userStore";
 import { changePassword } from "@/services/authApi";
 import { updateUser } from "@/services/userService";
 import { FieldError } from "@/components/ui/FieldError";
+import PasswordChangeNotice from "./PasswordChangeNotice";
 
+const NEEDS_NEW = `Enter your new password (at least ${MIN_PASSWORD_LENGTH} characters) first.`;
 const NEEDS_CURRENT = `Enter your current password (at least ${MIN_PASSWORD_LENGTH} characters) first.`;
 const SAME_AS_CURRENT = "New password must be different from the current password.";
+const INITIAL_REUSED = "Choose a password different from the initial password.";
 const MISMATCH = "New password and confirm password do not match.";
 const card = "flex h-full flex-col gap-4 rounded-2xl border border-border bg-surface p-5 sm:p-6";
 const cancelClass =
@@ -36,7 +39,7 @@ const Problem = ({ text }: { text: string }) =>
 
 /** The signed-in user's own settings: their name and their password. */
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, mustChangePassword: forced } = useAuth();
   const toast = useToast();
   const router = useRouter();
 
@@ -44,11 +47,18 @@ export default function SettingsPage() {
   const [nameError, setNameError] = useState("");
   const [savingName, setSavingName] = useState(false);
 
-  const [current, setCurrent] = useState("");
+  // Signed in with the shared initial password: it is known to be the current one, so the field starts with it (kept in this form only, never stored).
+  const [current, setCurrent] = useState(() => (user?.usesInitialPassword ? DEFAULT_INITIAL_PASSWORD : ""));
+  const [noticeDone, setNoticeDone] = useState(false);
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
+
+  // After the popup: the Current password field takes focus.
+  useEffect(() => {
+    if (noticeDone) document.querySelector<HTMLInputElement>('form[aria-label="Change password"] input[name="current-password"]')?.focus();
+  }, [noticeDone]);
 
   if (!user) return null;
 
@@ -80,21 +90,28 @@ export default function SettingsPage() {
 
   // Shown as soon as a confirmation is typed that differs; gone when both match.
   // The new passwords unlock once the current password has the minimum length.
-  const currentOk = current.length >= MIN_PASSWORD_LENGTH;
-  const mismatch = currentOk && !!confirm && next !== confirm;
+  // Each field unlocks the next one once it has the minimum length. Only real characters count: spaces before or after do not.
+  const enough = (v: string) => v.trim().length >= MIN_PASSWORD_LENGTH;
+  const currentOk = enough(current);
+  const unlocked = currentOk; // New password
+  const newOk = unlocked && enough(next); // Confirm new password
+  const mismatch = newOk && !!confirm && next !== confirm;
   // Too short: shown while a typed new or confirm password has fewer characters than the minimum; gone at once when it has enough.
-  const tooShort = (!!next && next.length < MIN_PASSWORD_LENGTH) || (!!confirm && confirm.length < MIN_PASSWORD_LENGTH);
+  const tooShort = (!!next && !enough(next)) || (!!confirm && !enough(confirm));
   // The new password can't be the one already in use: shown while they are identical, gone as soon as they differ.
   const sameAsCurrent = currentOk && !!next && next === current;
-  const passwordReady = currentOk && !!next && !!confirm && !mismatch && !tooShort && !sameAsCurrent;
+  // The initial password can never be chosen again.
+  const isInitial = !!next && next === DEFAULT_INITIAL_PASSWORD;
+  const passwordReady = currentOk && newOk && !!confirm && !mismatch && !tooShort && !sameAsCurrent && !isInitial;
 
   async function savePassword(e: FormEvent) {
     e.preventDefault();
     if (savingPassword) return;
     if (!currentOk) return setPasswordError(current ? NEEDS_CURRENT : "Enter your current password.");
-    const problem = checkNewPassword(next);
+    const problem = enough(next) ? checkNewPassword(next) : TOO_SHORT;
     if (problem) return setPasswordError(problem);
     if (next === current) return setPasswordError("The new password must be different from the current one.");
+    if (isInitial) return setPasswordError(INITIAL_REUSED);
     if (next !== confirm) return setPasswordError(MISMATCH);
     setSavingPassword(true);
     setPasswordError("");
@@ -116,6 +133,8 @@ export default function SettingsPage() {
   return (
     <div className="flex w-full flex-col gap-6">
       <PageHeader title="Settings" description="Manage your profile and keep your account secure." />
+
+      {forced && !noticeDone && <PasswordChangeNotice onContinue={() => setNoticeDone(true)} />}
 
       {/* Who is signed in: a summary strip across the whole width. */}
       <section aria-label="Account" className="flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-surface p-5 sm:p-6">
@@ -176,25 +195,36 @@ export default function SettingsPage() {
           <PasswordField
             label="Current password"
             required
+            name="current-password"
             autoComplete="current-password"
             value={current}
             onChange={(v) => {
               setCurrent(v);
               setPasswordError("");
               // Without the current password the new ones can't be used: they are cleared at once.
-              if (v.length < MIN_PASSWORD_LENGTH) {
+              if (!enough(v)) {
                 setNext("");
                 setConfirm("");
               }
             }}
           />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            <PasswordField label="New password" required invalid={sameAsCurrent || (!!next && next.length < MIN_PASSWORD_LENGTH)} aria-describedby={sameAsCurrent ? "password-same" : undefined} disabled={!currentOk} disabledReason={NEEDS_CURRENT} value={next} onChange={(v) => (setNext(v), setPasswordError(""))} placeholder="At least 8 characters" />
-            <PasswordField label="Confirm new password" required disabled={!currentOk} disabledReason={NEEDS_CURRENT} invalid={mismatch || (!!confirm && confirm.length < MIN_PASSWORD_LENGTH)} aria-describedby={[tooShort && "password-short", mismatch && "password-mismatch"].filter(Boolean).join(" ") || undefined} value={confirm} onChange={(v) => (setConfirm(v), setPasswordError(""))} />
+            <PasswordField label="New password" required invalid={sameAsCurrent || isInitial || (!!next && !enough(next))} aria-describedby={sameAsCurrent ? "password-same" : isInitial ? "password-initial" : undefined} disabled={!unlocked} disabledReason={NEEDS_CURRENT} value={next} onChange={(v) => {
+              setNext(v);
+              setPasswordError("");
+              // Below the minimum, the next field locks again and its entry is cleared.
+              if (!enough(v)) setConfirm("");
+            }} placeholder="At least 8 characters" />
+            <PasswordField label="Confirm new password" required disabled={!newOk} disabledReason={unlocked ? NEEDS_NEW : NEEDS_CURRENT} invalid={mismatch || (!!confirm && !enough(confirm))} aria-describedby={[tooShort && "password-short", mismatch && "password-mismatch"].filter(Boolean).join(" ") || undefined} value={confirm} onChange={(v) => (setConfirm(v), setPasswordError(""))} />
           </div>
           {sameAsCurrent && (
             <FieldError id="password-same">
               {SAME_AS_CURRENT}
+            </FieldError>
+          )}
+          {isInitial && !sameAsCurrent && (
+            <FieldError id="password-initial">
+              {INITIAL_REUSED}
             </FieldError>
           )}
           {tooShort && (
@@ -219,7 +249,7 @@ export default function SettingsPage() {
               Clear
             </button>
             </DisabledTip>
-            <DisabledTip reason={!savingPassword && !passwordReady && (sameAsCurrent ? SAME_AS_CURRENT : tooShort ? TOO_SHORT : mismatch ? MISMATCH : "Fill in the current, new and confirm password fields to continue.")} className="inline-block">
+            <DisabledTip reason={!savingPassword && !passwordReady && (sameAsCurrent ? SAME_AS_CURRENT : isInitial ? INITIAL_REUSED : tooShort ? TOO_SHORT : mismatch ? MISMATCH : "Fill in the current, new and confirm password fields to continue.")} className="inline-block">
             <button type="submit" disabled={savingPassword || !passwordReady} className={submitClass}>
               {savingPassword ? "Saving…" : "Change password"}
             </button>

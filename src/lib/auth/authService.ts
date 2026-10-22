@@ -7,6 +7,7 @@ import { useBacklogStore } from "@/stores/backlogStore";
 import { useItemDetailStore } from "@/stores/itemDetailStore";
 import { useMyTasksStore } from "@/stores/myTasksStore";
 import { useUsersStore } from "@/stores/usersStore";
+import { useWorkPickStore } from "@/stores/workPickStore";
 import { useWorkStore } from "@/stores/workStore";
 import { refreshUsers } from "./userStore";
 
@@ -98,6 +99,7 @@ export async function completePasswordLogin(email: string, password: string): Pr
 export function resetSharedData() {
   useBacklogStore.setState({ scope: "", status: "loading", items: [], owners: [], sprints: [], pods: [], loadedAt: 0 });
   useWorkStore.setState({ scope: "", status: "loading", entries: [], loadedAt: 0 });
+  useWorkPickStore.getState().setPicked(null);
   useUsersStore.getState().reset();
   useItemDetailStore.getState().clear();
   useMyTasksStore.getState().reset();

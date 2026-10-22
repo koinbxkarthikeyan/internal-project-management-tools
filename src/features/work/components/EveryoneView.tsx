@@ -9,7 +9,7 @@ import type { Pod, WorkEntry } from "@/types/work";
 import TaskHistoryModal from "./TaskHistoryModal";
 import { carriedChain } from "./TaskSprintHours";
 import { useUsers } from "@/features/users/hooks/useUsers";
-import { eachDay, formatDay, formatHours, isWeekend } from "../utils";
+import { eachDay, formatDay, formatHours, isWeekend, percentOfTotal } from "../utils";
 
 type EveryoneViewProps = {
   /** The sprints being looked at (one or more). */
@@ -33,6 +33,8 @@ type EveryoneViewProps = {
   details?: Readonly<Record<string, string>>;
   /** Planned hours for one person over all the sprints. */
   perPerson: number;
+  /** Planned hours for one person over the whole of the sprints. */
+  sprintTotal: number;
   updatedAt: Date | null;
   onRefresh: () => void;
 };
@@ -63,7 +65,7 @@ function Stat({ value, total, label, valueClass = "", totalClass = "text-muted" 
 }
 
 /** Team-wide view for the "Everyone" tab: who has logged time, where it went, and how it spreads over the sprint. */
-export default function EveryoneView({ sprints, entries, people, pods, tasks, allTasks = [], allEntries = [], allSprints = [], podNames, details = {}, perPerson, updatedAt, onRefresh }: EveryoneViewProps) {
+export default function EveryoneView({ sprints, entries, people, pods, tasks, allTasks = [], allEntries = [], allSprints = [], podNames, details = {}, perPerson, sprintTotal, updatedAt, onRefresh }: EveryoneViewProps) {
   const colorOf = makeTaskColor(allTasks, allSprints);
   const [breakdown, setBreakdown] = useQueryState<Breakdown>("by", ["person", "pod", "sprint"], "person");
 
@@ -88,7 +90,7 @@ export default function EveryoneView({ sprints, entries, people, pods, tasks, al
         <Stat value={String(filledIn.size)} total={String(people.length)} label="people have filled in" />
         <Stat
           value={formatHours(logged)}
-          total={`${formatHours(capacity)} expected so far`}
+          total={`${formatHours(capacity)} expected so far · ${formatHours(sprintTotal * people.length)} total sprint hours`}
           label="logged so far"
           // Worked hours: blue up to the expected hours, orange beyond them.
           valueClass={capacity > 0 && logged > capacity ? "text-orange-600 dark:text-orange-300" : "text-blue-600 dark:text-blue-300"}
@@ -124,7 +126,7 @@ export default function EveryoneView({ sprints, entries, people, pods, tasks, al
       </div>
 
       <section className={card} aria-label={BREAKDOWNS.find((b) => b.id === breakdown)?.label}>
-        {breakdown === "person" && <ByPerson people={everyPerson} entries={entries} tasks={tasks} allTasks={allTasks} colorOf={colorOf} podNames={podNames} perPerson={perPerson} details={details} />}
+        {breakdown === "person" && <ByPerson people={everyPerson} entries={entries} tasks={tasks} allTasks={allTasks} colorOf={colorOf} podNames={podNames} perPerson={perPerson} sprintTotal={sprintTotal} details={details} />}
         {breakdown === "pod" && <ByPod sprints={sprints} pods={pods} entries={entries} tasks={tasks} allTasks={allTasks} colorOf={colorOf} allEntries={allEntries} allSprints={allSprints} people={everyPerson} />}
         {breakdown === "sprint" && <AcrossSprint sprints={sprints} entries={entries} people={everyPerson} />}
       </section>
@@ -181,6 +183,7 @@ function ByPerson({
   colorOf,
   podNames,
   perPerson,
+  sprintTotal,
   details,
 }: {
   people: string[];
@@ -190,6 +193,7 @@ function ByPerson({
   colorOf: (taskId: string) => string;
   podNames: Readonly<Record<string, string>>;
   perPerson: number;
+  sprintTotal: number;
   details: Readonly<Record<string, string>>;
 }) {
   if (people.length === 0) {
@@ -208,11 +212,16 @@ function ByPerson({
       return { name, list, assigned };
     })
     .sort((a, b) => sum(b.list) - sum(a.list) || a.name.localeCompare(b.name));
+  // People with nothing logged and nothing assigned are listed apart, one short line each, in a block that scrolls on its own.
+  const idle = rows.filter((r) => r.list.length + r.assigned.length === 0);
+  const active = rows.filter((r) => r.list.length + r.assigned.length > 0);
 
   return (
     <>
-    <ul className="divide-y divide-border">
-      {rows.map(({ name, list, assigned }) => {
+    {/* People with logged work on the left; people with none in their own panel on the right (stacked on small screens), so the two never mix. */}
+    <div className={idle.length > 0 && active.length > 0 ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start" : ""}>
+    <ul className="min-w-0 divide-y divide-border">
+      {active.map(({ name, list, assigned }) => {
         const total = sum(list);
         const pct = perPerson > 0 ? total / perPerson : 0;
         // Over the plan: red. Close to it: green. Under it: amber.
@@ -244,22 +253,22 @@ function ByPerson({
               <p className="shrink-0 text-xs tabular-nums text-muted">
                 {list.length ? (
                   <>
-                    <span className="text-sm font-semibold" style={{ color: tone }}>{formatHours(total)}</span> of {formatHours(perPerson)} · {Math.round(pct * 100)}%
+                    <span className="text-sm font-semibold" style={{ color: tone }}>{formatHours(total)}</span> of {formatHours(perPerson)} expected so far · {formatHours(sprintTotal)} total · {percentOfTotal(total, sprintTotal)}%
                   </>
                 ) : assigned.length ? (
                   "not logged yet"
                 ) : (
-                  "hasn't filled in"
+                  "No work logged yet"
                 )}
               </p>
             </div>
+            {/* A person with nothing logged and nothing assigned is one compact line: no empty bar, no box. */}
+            {list.length + assigned.length > 0 && (
             <div className="mt-1 flex h-1.5 overflow-hidden rounded-full bg-hover" aria-hidden="true">
               {taskRows.map((r) => (
                 <span key={r.id} className="h-full border-r border-surface last:border-r-0" title={`${r.title}: ${formatHours(r.hours)}`} style={{ width: `${scale > 0 ? (r.hours / scale) * 100 : 0}%`, background: taskColor(r.id) }} />
               ))}
             </div>
-            {list.length + assigned.length === 0 && (
-              <EmptyState inline title="No sprint assigned" description="Assigned tasks and logged time will show here." />
             )}
             {list.length + assigned.length > 0 && (
               <ul className="mt-1.5 flex flex-col gap-0.5 text-xs">
@@ -292,6 +301,24 @@ function ByPerson({
         );
       })}
     </ul>
+    {idle.length > 0 && (
+      <section aria-label="No work logged yet" className="rounded-xl border border-border bg-background/60 p-3">
+        <p className="text-center text-sm font-semibold">No work logged yet</p>
+        <p className="mt-0.5 text-center text-xs text-muted">
+          {idle.length} {idle.length === 1 ? "person" : "people"}
+        </p>
+        {/* About 5 names are visible; the rest scroll inside this panel. The right padding keeps the scrollbar clear of the names. */}
+        <ul className="mt-2 max-h-40 divide-y divide-border overflow-y-auto pr-2">
+          {idle.map(({ name }) => (
+            <li key={name} className="flex items-baseline justify-between gap-3 py-1 text-sm">
+              <span className="min-w-0 truncate font-semibold">{name}</span>
+              <span className="shrink-0 text-xs text-muted">{details[name]}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+    </div>
     <p className="mt-3 text-[11px] text-muted">Each colour is one task, the same under every person. Time logged on several tasks at once is shared equally between them.</p>
     </>
   );

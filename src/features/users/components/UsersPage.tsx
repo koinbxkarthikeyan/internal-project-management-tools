@@ -92,10 +92,12 @@ export default function UsersPage() {
         }
       />
 
-      <section className="overflow-x-auto rounded-2xl border border-border bg-surface">
+      <section className="overflow-hidden rounded-2xl border border-border bg-surface">
+        {/* About 10 rows are visible; the rest scroll inside, with the header kept in view. */}
+        <div className="table-scroll" style={{ "--row-h": "3.05rem" } as React.CSSProperties}>
         <table className="w-full min-w-[34rem] text-sm">
           <caption className="sr-only">Users and their access status</caption>
-          <thead>
+          <thead className="sticky top-0 z-10 bg-surface">
             <tr className="border-b border-border bg-background/60 text-xs font-medium uppercase tracking-wide text-muted">
               <th scope="col" className="px-4 py-2.5 text-left">Name</th>
               <th scope="col" className="px-4 py-2.5 text-left">Email</th>
@@ -111,7 +113,7 @@ export default function UsersPage() {
               const style = STATUS_STYLE[u.status];
               return (
                 <tr key={u.id} className="transition-colors hover:bg-hover">
-                  <th scope="row" className="px-4 py-3 text-left font-medium">
+                  <th scope="row" className="px-4 py-2 text-left font-medium">
                     <span className="flex items-center gap-2">
                       <span
                         className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-medium text-accent"
@@ -123,16 +125,16 @@ export default function UsersPage() {
                       {isSelf && <span className="text-xs font-normal text-muted">(you)</span>}
                     </span>
                   </th>
-                  <td className="px-4 py-3 text-muted">{u.email}</td>
-                  <td className="px-4 py-3 text-muted">{u.team ?? "–"}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-2 text-muted">{u.email}</td>
+                  <td className="px-4 py-2 text-muted">{u.team ?? "–"}</td>
+                  <td className="px-4 py-2">
                     <span className={`${pill} ${style.pill}`}>
                       <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} aria-hidden="true" />
                       {u.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-muted">{u.lastLoginAt ? dateFormat.format(new Date(u.lastLoginAt)) : "–"}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-2 text-muted">{u.lastLoginAt ? dateFormat.format(new Date(u.lastLoginAt)) : "–"}</td>
+                  <td className="px-4 py-2">
                     <div className="flex justify-end text-muted">
                       {u.role === "Super Admin" && !isSuperAdmin ? (
                         <span className="px-2 text-xs" title="Only the Super Admin can change this account">Protected</span>
@@ -188,6 +190,7 @@ export default function UsersPage() {
             })}
           </tbody>
         </table>
+        </div>
         {users.length === 0 && (
           <EmptyState compact title="No users yet" description="Use Add Team Member to register the first one." />
         )}

@@ -41,7 +41,7 @@ const isActive = (pathname: string, href: string) =>
   pathname === href || pathname.startsWith(`${href}/`);
 
 const itemClass = (active: boolean) =>
-  `sb-item group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-accent ${
+  `group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-accent ${
     active
       ? "bg-accent-soft font-medium text-accent"
       : "text-muted hover:bg-hover hover:text-foreground"
@@ -74,7 +74,7 @@ export default function BacklogNavigation({ between }: BacklogNavigationProps) {
       : {};
 
   return (
-    <nav aria-label="Main" className="flex flex-col gap-6">
+    <nav aria-label="Main" className="flex flex-col gap-2">
       <div>
         <p id="sidebar-backlog-nav" className="mb-2 px-3 text-xs font-medium uppercase tracking-wide text-muted">
           Backlog

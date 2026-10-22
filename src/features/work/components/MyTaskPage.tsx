@@ -122,7 +122,7 @@ export default function MyTaskPage() {
         {shown.length === 0 ? (
           <EmptyState title={copy.title} description={copy.description} />
         ) : (
-          <div className="max-h-[20.5rem] overflow-auto">
+          <div className="table-scroll" style={{ "--row-h": "3.1rem" } as React.CSSProperties}>
             <table className="w-full min-w-[48rem] text-sm">
               <caption className="sr-only">{copy.caption}</caption>
               <thead className="sticky top-0 z-10 bg-surface">
@@ -146,19 +146,19 @@ export default function MyTaskPage() {
                     aria-label={`View ${item.title}`}
                     className="cursor-pointer transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
                   >
-                    <td className="max-w-xs truncate px-4 py-3 font-medium">{item.title}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-muted">{item.type ?? "–"}</td>
-                    <td className="px-4 py-3">
+                    <td className="max-w-xs truncate px-4 py-2 font-medium">{item.title}</td>
+                    <td className="whitespace-nowrap px-4 py-2 text-muted">{item.type ?? "–"}</td>
+                    <td className="px-4 py-2">
                       <PriorityBadge priority={item.priority} />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2">
                       <StatusBadge status={item.status} />
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-muted">{item.sprint}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-muted">
+                    <td className="whitespace-nowrap px-4 py-2 text-muted">{item.sprint}</td>
+                    <td className="whitespace-nowrap px-4 py-2 text-muted">
                       {item.deadline ? <time dateTime={item.deadline}>{formatDeadline(item.deadline)}</time> : "–"}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-muted">
+                    <td className="whitespace-nowrap px-4 py-2 text-muted">
                       {item.leadDeadline ? <time dateTime={item.leadDeadline}>{formatDeadline(item.leadDeadline)}</time> : "–"}
                     </td>
                   </tr>

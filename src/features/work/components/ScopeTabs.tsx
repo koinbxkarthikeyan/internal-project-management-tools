@@ -6,7 +6,7 @@ type ScopeTabsProps = {
 };
 
 const TABS: { id: WorkScope; label: string }[] = [
-  { id: "mine", label: "My sprint" },
+  { id: "mine", label: "Log Work Sprint" },
   { id: "everyone", label: "Everyone" },
 ];
 

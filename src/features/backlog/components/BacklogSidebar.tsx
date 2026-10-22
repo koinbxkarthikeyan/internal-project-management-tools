@@ -31,8 +31,8 @@ export default function BacklogSidebar() {
   // Only the menu scrolls; who is signed in, Settings and Sign out stay fixed at the bottom of the sidebar.
   const shell = (menu: ReactNode) => (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="sb-scroll flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-4 pb-5 pt-5">{menu}</div>
-      <div className="sb-foot shrink-0 px-4 pb-5">
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4 pt-4">{menu}</div>
+      <div className="shrink-0 px-4 pb-4">
         <SignOutBlock />
       </div>
     </div>
@@ -46,9 +46,9 @@ export default function BacklogSidebar() {
 
   return shell(
     <>
-      <header className="sb-card rounded-xl border border-border bg-background/60 p-4">
+      <header className="rounded-xl border border-border bg-background/60 p-3">
         <h2 className="text-base font-semibold">Backlog tracker</h2>
-        <p className="sb-note mt-1 text-xs leading-relaxed text-muted">{summary}</p>
+        <p className="mt-1 text-xs leading-relaxed text-muted">{summary}</p>
         <div className="mt-3">
           <CreateBacklogButton />
         </div>

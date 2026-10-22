@@ -150,7 +150,11 @@ export default function SprintPlanPage() {
       ) : activeTab === "active" ? (
         <section aria-label="Active sprint" className="flex flex-col gap-4">
           {running.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-border px-5 py-4 text-sm text-muted">No sprint is running right now.</p>
+            sprints.some((s) => s.name !== "Unplanned") ? (
+              <p className="rounded-2xl border border-dashed border-border px-5 py-4 text-sm text-muted">No sprint is running right now.</p>
+            ) : (
+              <EmptyState compact title="No sprint added yet" description="Create a sprint to get started." action={<button type="button" onClick={() => setCreatingSprint(true)} className="btn-brand rounded-xl px-4 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">New sprint</button>} />
+            )
           ) : (
             <div className="grid gap-4">{running.map((sp, i) => renderSprint(sp, i))}</div>
           )}

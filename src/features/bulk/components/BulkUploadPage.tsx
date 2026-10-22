@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
 import PageHeader from "@/components/layout/PageHeader";
 import { FieldError } from "@/components/ui/FieldError";
@@ -479,7 +479,7 @@ export default function BulkUploadPage() {
           </div>
         )}
 
-        <div data-bulk-table className="max-h-[32rem] overflow-auto rounded-2xl border border-border bg-surface">
+        <div data-bulk-table style={{ "--row-h": "3.4rem" } as CSSProperties} className="table-scroll rounded-2xl border border-border bg-surface">
           <table className="w-max min-w-full text-sm">
             <caption className="sr-only">{spec.label} records to upload</caption>
             <thead className="sticky top-0 z-10 border-b border-border bg-surface">

@@ -1,4 +1,4 @@
-import { formatHours } from "../utils";
+import { formatHours, percentOfTotal } from "../utils";
 
 type SprintSummaryProps = {
   logged: number;
@@ -49,12 +49,15 @@ export default function SprintSummary({ logged, limit, expected, hasPerson }: Sp
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p>
           <span className={`text-2xl font-semibold tabular-nums ${state.text}`}>{formatHours(logged)}</span>{" "}
-          <span className={`text-sm font-medium ${state.text}`}>worked</span>{" "}
-          <span className="text-sm text-muted">of</span>{" "}
+          <span className={`text-sm font-medium ${state.text}`}>logged</span>
+          <span className="text-sm text-muted"> · </span>
           <span className="text-sm font-semibold tabular-nums">{formatHours(expected)}</span>{" "}
-          <span className="text-sm text-muted">expected so far</span>
+          <span className="text-sm text-muted">expected so far · </span>
+          <span className="text-sm font-semibold tabular-nums">{formatHours(limit)}</span>{" "}
+          <span className="text-sm text-muted">total sprint hours</span>
         </p>
-        <p className="text-xs text-muted">{formatHours(expected)} expected by today</p>
+        {/* Completion is against the whole sprint's hours; the line below is the separate pace check against today's expectation. */}
+        {hasPerson && <p className="text-xs text-muted">{percentOfTotal(logged, limit)}% of the total sprint hours completed</p>}
       </div>
       <p className={`mt-1 text-sm ${message.tone}`}>{message.text}</p>
 

@@ -8,7 +8,6 @@ import { sessionStore } from "@/lib/auth/sessionStore";
 import { resetSharedData } from "@/lib/auth/authService";
 import { refreshUsers } from "@/lib/auth/userStore";
 import { getMe } from "@/services/authApi";
-import ChangePasswordRequired from "./ChangePasswordRequired";
 import { useAuth } from "../hooks/useAuth";
 
 const isWorkPath = (pathname: string) => [WORK_HREF, MY_TASK_HREF, "/settings"].some((href) => pathname === href || pathname.startsWith(`${href}/`));
@@ -16,12 +15,14 @@ const isWorkPath = (pathname: string) => [WORK_HREF, MY_TASK_HREF, "/settings"].
 /**
  * Keeps the whole app behind the login:
  * - not signed in (or not a registered user): nothing is rendered and the visitor goes to the login page;
+ * - signed in but the backend says the account must choose its own password (`mustChangePassword`): only Settings is reachable (settingsOnly),
+ *   whatever the URL, until the change succeeds;
  * - signed in with access Disabled: only "What are you working on? > My sprint" and "My Task" are available, every other
  *   page redirects there;
  * - signed in with access Enabled: everything permitted is available.
  */
 export default function AuthGate({ children }: { children: ReactNode }) {
-  const { status, restricted, settingsOnly, user } = useAuth();
+  const { status, restricted, settingsOnly } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   // A normal User may only open My sprint, My Task and Settings; a Disabled account may not be in the app at all.
@@ -40,7 +41,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         (me) => {
           if (cancelled) return;
           const current = sessionStore.read();
-          if (current && JSON.stringify(current.user) !== JSON.stringify(me)) sessionStore.write({ token: current.token, user: me });
+          // A required password change raised at sign-in (initial password) stays until the password has changed, even if the server does not report it.
+          const user = current?.user.mustChangePassword && !me.mustChangePassword ? { ...me, mustChangePassword: true, ...(current.user.usesInitialPassword ? { usesInitialPassword: true } : {}) } : me;
+          if (current && JSON.stringify(current.user) !== JSON.stringify(user)) sessionStore.write({ token: current.token, user });
         },
         () => undefined, // a 401 already signed the user out (see apiClient); other errors keep the saved login
       );
@@ -72,7 +75,5 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  // The backend asked this account to choose its own password: nothing else is reachable until it has.
-  if (user?.mustChangePassword) return <ChangePasswordRequired />;
   return <>{children}</>;
 }

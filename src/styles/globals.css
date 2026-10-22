@@ -17,6 +17,10 @@
   --danger: #dc2626;
   --danger-text: #b91c1c;
   --success: #059669;
+  /* Hours against the expectation (text colours, each readable on its theme): more than expected, fewer than expected, over the sprint's total. */
+  --tone-above: #047857;
+  --tone-below: #b45309;
+  --tone-over: #b91c1c;
   /* The one colour of the primary buttons' hover effect: grey (a mid grey on the light theme, a lighter one on dark, both keeping the white label readable). */
   --btn-fx: #6b7280;
   /* Brand gradient (primary buttons, card borders on the sign-in screens). */
@@ -44,6 +48,9 @@
   --danger: #ef4444;
   --danger-text: #fecaca;
   --success: #34d399;
+  --tone-above: #34d399;
+  --tone-below: #fbbf24;
+  --tone-over: #f87171;
   --btn-fx: #9ca3af;
   --brand-from: #3447d8;
   --brand-to: #00a8dc;
@@ -63,6 +70,9 @@
   --color-accent-soft: var(--accent-soft);
   --color-danger: var(--danger);
   --color-success: var(--success);
+  --color-tone-above: var(--tone-above);
+  --color-tone-below: var(--tone-below);
+  --color-tone-over: var(--tone-over);
   --font-sans: var(--font-plex-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -377,37 +387,9 @@ label:has([data-missing]) > .field-required-msg { display: flex; }
 /* Page placeholders wait 150ms before appearing, so a quick load never flashes them. */
 .skeleton-delay { animation: fade-in var(--dur-base) var(--ease) 150ms backwards; }
 
-/* Sidebar density: the whole sidebar should fit the window height without scrolling, so spacing tightens step by step on shorter windows
-   (nothing is hidden except the explanatory line under a heading on the shortest). Below that the menu scrolls on its own. */
-@media (max-height: 1040px) {
-  [data-sidebar] .sb-scroll { gap: 1.125rem; padding-top: 1rem; padding-bottom: 0.75rem; }
-  [data-sidebar] nav { gap: 1.125rem; }
-  [data-sidebar] .sb-card { padding: 0.875rem; }
-  [data-sidebar] .sb-item { padding-block: 0.4375rem; }
-  [data-sidebar] .sb-foot { padding-bottom: 1rem; }
-  [data-sidebar] .sb-block { padding-top: 0.875rem; }
-}
-@media (max-height: 920px) {
-  [data-sidebar] .sb-scroll { gap: 0.875rem; padding-top: 0.75rem; padding-bottom: 0.5rem; }
-  [data-sidebar] nav { gap: 0.875rem; }
-  [data-sidebar] .sb-card { padding: 0.75rem; }
-  [data-sidebar] .sb-item { padding-block: 0.375rem; }
-  [data-sidebar] .sb-foot { padding-bottom: 0.875rem; }
-  [data-sidebar] .sb-block { padding-top: 0.75rem; }
-}
-@media (max-height: 820px) {
-  [data-sidebar] .sb-scroll { gap: 0.5rem; padding-top: 0.5rem; }
-  [data-sidebar] nav { gap: 0.5rem; }
-  [data-sidebar] nav ul { gap: 0; }
-  [data-sidebar] .sb-card { padding: 0.5rem 0.75rem; }
-  [data-sidebar] .sb-card .mt-3 { margin-top: 0.5rem; }
-  [data-sidebar] .sb-item { padding-block: 0.3125rem; }
-  [data-sidebar] .sb-note { display: none; }
-  [data-sidebar] .sb-foot { padding-bottom: 0.625rem; }
-  [data-sidebar] .sb-block { padding-top: 0.5rem; }
-}
-@media (max-height: 730px) {
-  [data-sidebar] .sb-item { padding-block: 0.1875rem; }
-  [data-sidebar] .sb-card { padding-block: 0.375rem; }
-  [data-sidebar] .sb-block { padding-top: 0.375rem; }
+/* Tables and lists: show about 10 rows, then scroll inside the container (never the page), with the header kept in view. The container is as tall as its rows
+   when there are fewer; each table sets --row-h to its own row height (and --head-h if its header differs) so "10 rows" stays right. */
+.table-scroll {
+  overflow: auto;
+  max-height: calc(var(--row-h, 3rem) * 10 + var(--head-h, 2.6rem));
 }

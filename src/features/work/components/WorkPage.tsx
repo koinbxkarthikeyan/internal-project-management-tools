@@ -2,13 +2,13 @@
 
 import { DisabledTip } from "@/components/ui/DisabledTip";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
 import { useQueryState } from "@/hooks/useQueryState";
 import { useToast } from "@/components/ui/Toast";
-import { FOCUS_HOURS_PER_DAY, WORK_KINDS, SPRINT_TASKS_POD, UNPLANNED_POD, isPseudoPod } from "@/constants/work";
+import { FOCUS_HOURS_PER_DAY, WORK_KINDS, SPRINT_TASKS_POD, UNPLANNED_POD, WORK_LOGGED_HREF, isPseudoPod } from "@/constants/work";
 import ConfirmDeleteDrawer from "@/features/backlog/components/ConfirmDeleteDrawer";
 import { Field, SearchableSelect } from "@/components/ui/FormControls";
 import { refreshUsers } from "@/lib/auth/userStore";
@@ -20,13 +20,16 @@ import { todayISO } from "@/features/backlog/utils";
 import type { BacklogItemData } from "@/types/backlog";
 import type { Pod, WorkEntry, WorkEntryInput, WorkKind } from "@/types/work";
 import { useWorkData } from "../hooks/useWorkData";
-import { formatDay, plannedHours, workingDays } from "../utils";
+import { useChosenSprints } from "../hooks/useChosenSprints";
+import { formatDay, latestEntry, sprintHours } from "../utils";
 import EveryoneView from "./EveryoneView";
 import ScopeTabs, { type WorkScope } from "./ScopeTabs";
+import HoursSummaryLine from "./HoursSummaryLine";
 import SprintGlance from "./SprintGlance";
 import SprintPicker from "./SprintPicker";
 import SprintPodTasks, { type TaskSelection } from "./SprintPodTasks";
 import SprintSummary from "./SprintSummary";
+import StartEditFromUrl from "./StartEditFromUrl";
 import WorkEntriesList from "./WorkEntriesList";
 import WorkForm from "./WorkForm";
 
@@ -39,17 +42,12 @@ export default function WorkPage() {
   const users = useUsers();
   const work = useWorkData();
 
-  const datedSprints = useMemo(
-    () => sprints.flatMap((s) => (s.start && s.end ? [{ ...s, start: s.start, end: s.end }] : [])),
-    [sprints],
-  );
+  const { datedSprints, chosen, setPicked } = useChosenSprints();
   const today = todayISO();
 
-  // Which sprints are ticked; until the user chooses, the sprint running today (else the latest) is used.
-  const [picked, setPicked] = useState<string[] | null>(null);
   const [scope, setScope] = useQueryState<WorkScope>("tab", ["mine", "everyone"], "mine");
   // Entries are logged as the signed-in registered user, read from the Users data.
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const person = user?.name ?? "";
   // Re-read the users when the page opens, so a Team an Admin changed shows up here.
   useEffect(() => {
@@ -97,15 +95,18 @@ export default function WorkPage() {
         <PageHeader title="What are you working on?" />
         <section className={card}>
           <EmptyState
-            title="No sprint to plan against yet"
-            description="Start a sprint (it lasts two weeks), choose its PODs, then come back to log your work."
+            title="No sprint added yet"
+            description="Create a sprint to get started, then come back to log your work."
+            // Only an Admin can create a sprint, so only they are offered the way to do it.
             action={
-              <Link
-                href="/sprint-plan"
-                className="inline-flex rounded-xl btn-brand px-4 py-2 text-sm font-medium font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              >
-                Go to Sprint plan
-              </Link>
+              isAdmin ? (
+                <Link
+                  href="/sprint-plan"
+                  className="inline-flex rounded-xl btn-brand px-4 py-2 text-sm font-medium font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                >
+                  Create a sprint
+                </Link>
+              ) : undefined
             }
           />
         </section>
@@ -113,15 +114,6 @@ export default function WorkPage() {
     );
   }
 
-  // Default to the running sprint; if none is running, the most recent one.
-  const fallback =
-    datedSprints.find((s) => s.status === "Active") ??
-    datedSprints.find((s) => s.start <= today && today <= s.end) ??
-    datedSprints[datedSprints.length - 1];
-  const chosenIds = (picked ?? [fallback.id]).filter((id) => datedSprints.some((s) => s.id === id));
-  const chosen = datedSprints
-    .filter((s) => (chosenIds.length ? chosenIds : [fallback.id]).includes(s.id))
-    .sort((a, b) => a.start.localeCompare(b.start));
   const chosenSet = new Set(chosen.map((s) => s.id));
 
   const inSprints = work.entries.filter((e) => chosenSet.has(e.sprintId));
@@ -132,16 +124,11 @@ export default function WorkPage() {
 
   // Expected hours count working days up to today only (weekends excluded); days still to come are not included.
   // A finished sprint counts in full. Hours already logged are never touched by this.
-  const perPerson = chosen.reduce(
-    (sum, s) => sum + (today < s.start ? 0 : workingDays(s.start, today > s.end ? s.end : today) * FOCUS_HOURS_PER_DAY),
-    0,
-  );
+  // What the whole sprint plans for one person (`total`): worked hours beyond this show as the red part of the bar.
+  const { soFar: perPerson, total: sprintLimit } = sprintHours(chosen, today);
   const expected = perPerson;
-  // What the whole sprint plans for one person: worked hours beyond this show as the red part of the bar.
-  const sprintLimit = chosen.reduce((sum, s) => sum + plannedHours(s.start, s.end), 0);
   // My hours in every sprint (earlier ones included), each logged entry counted once.
-  const myAll = [...new Map(work.entries.filter((e) => (e.personId ? e.personId === user?.id : e.person === person)).map((e) => [e.id, e])).values()];
-  const myTotals = datedSprints.map((s) => ({ name: s.name, hours: myAll.filter((e) => e.sprintId === s.id).reduce((sum, e) => sum + e.hours, 0) }));
+  const newest = latestEntry(scoped);
   const savedHours = scoped.reduce((sum, e) => sum + e.hours, 0);
 
   // The form logs against the sprint of the ticked tasks, or the first chosen sprint until something is ticked.
@@ -308,6 +295,7 @@ export default function WorkPage() {
           podNames={Object.fromEntries(allPods.map((p) => [p.id, p.name]))}
           details={Object.fromEntries(users.map((u) => [u.name, u.role]))}
           perPerson={perPerson}
+          sprintTotal={sprintLimit}
           updatedAt={work.updatedAt}
           onRefresh={work.refresh}
         />
@@ -377,11 +365,23 @@ export default function WorkPage() {
           </section>
           )}
 
+          {/* Only the most recently saved entry; every entry is on the Your Logged Work page. */}
           <section className={card}>
-            <WorkEntriesList title="Your sprint so far" entries={scoped} sprintTotals={myTotals} showPerson={false} onChange={startEditing} onRemove={setRemoving} />
+            <WorkEntriesList title="Your latest entry" entries={newest ? [newest] : []} hoursLine={<HoursSummaryLine logged={savedHours} soFar={perPerson} total={sprintLimit} />} showPerson={false} onChange={startEditing} onRemove={setRemoving} />
+            <div className="mt-3 flex justify-end border-t border-border pt-3">
+              <Link
+                href={WORK_LOGGED_HREF}
+                className="inline-flex h-10 items-center rounded-xl border border-border bg-surface px-4 text-sm font-medium transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
+              >
+                View all
+              </Link>
+            </div>
           </section>
         </>
       )}
+
+      {/* Opened from Your Logged Work with ?edit=<id>: starts changing that entry here, where the form is. */}
+      <StartEditFromUrl entries={work.entries} onEntry={startEditing} />
 
       {removing && (
         <ConfirmDeleteDrawer

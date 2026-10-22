@@ -30,19 +30,19 @@ export default function AuthShell({ title, description, children }: AuthShellPro
   const focusOut = (e: FocusEvent) => !isField(e.relatedTarget) && setFocus(false);
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6 pb-28 pt-6 lg:px-8">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 pb-16 pt-16 sm:px-6 sm:pb-28 sm:pt-6 lg:px-8">
       {/* Background marks. Sizes and offsets follow the admin sign-in: 720px at -top-32 -left-30, 600px at -bottom-40 -right-25. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="auth-bg-shape absolute -left-30 -top-32 size-[720px] opacity-[0.55]">
-          <Image src="/koinbx-mark.svg" alt="" fill priority sizes="720px" className="-translate-x-12 -translate-y-6 object-contain" />
+        <div className="auth-bg-shape absolute left-[calc(var(--s)*-0.1667)] top-[calc(var(--s)*-0.1778)] size-(--s) [--s:clamp(260px,60vw,720px)] opacity-[0.55]">
+          <Image src="/koinbx-mark.svg" alt="" fill priority sizes="(min-width: 1200px) 720px, 60vw" className="translate-x-[calc(var(--s)*-0.0667)] translate-y-[calc(var(--s)*-0.0333)] object-contain" />
         </div>
-        <div className="auth-bg-shape absolute -bottom-40 -right-25 size-[600px] opacity-[0.45]">
+        <div className="auth-bg-shape absolute bottom-[calc(var(--s)*-0.2667)] right-[calc(var(--s)*-0.1667)] size-(--s) [--s:clamp(220px,50vw,600px)] opacity-[0.45]">
           <Image
             src="/koinbx-mark.svg"
             alt=""
             fill
-            sizes="600px"
-            className={`translate-x-8 translate-y-4 object-contain will-change-transform [transform:scaleX(-1)] transition-[rotate] duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:rotate-0 motion-reduce:transition-none ${
+            sizes="(min-width: 1200px) 600px, 50vw"
+            className={`translate-x-[calc(var(--s)*0.0533)] translate-y-[calc(var(--s)*0.0267)] object-contain will-change-transform [transform:scaleX(-1)] transition-[rotate] duration-[400ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:rotate-0 motion-reduce:transition-none ${
               // Turn at once; on release wait a moment, so moving from one field to the other doesn't send it back and forth.
               turned ? "rotate-[10deg] delay-0" : "rotate-0 delay-150"
             }`}
@@ -66,7 +66,7 @@ export default function AuthShell({ title, description, children }: AuthShellPro
           </div>
         </div>
         <section className="auth-card rounded-[25px] p-[2px]" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onFocus={focusIn} onBlur={focusOut}>
-          <div className="auth-card-body rounded-[23px] p-8">
+          <div className="auth-card-body rounded-[23px] p-6 sm:p-8">
             <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
             {description && <p className="mt-1.5 text-sm text-muted">{description}</p>}
             <div className="mt-6">{children}</div>

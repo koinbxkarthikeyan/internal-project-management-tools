@@ -1,6 +1,6 @@
 "use client";
 
-import type { KeyboardEvent } from "react";
+import type { CSSProperties, KeyboardEvent } from "react";
 import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
 import type { BacklogItemData } from "@/types/backlog";
 import { formatDeadline, initials } from "../utils";
@@ -27,8 +27,8 @@ export default function SprintItemsTable({ items, onOpen, onView, readOnly = fal
   }
 
   return (
-    // About 5 rows are visible; the rest scroll inside the table, with the header kept in view.
-    <div className="max-h-[20.5rem] overflow-auto">
+    // About 10 rows are visible; the rest scroll inside the table, with the header kept in view.
+    <div className="table-scroll" style={{ "--row-h": "3.1rem" } as CSSProperties}>
       <table className="w-full min-w-[44rem] text-sm">
         <caption className="sr-only">Tasks in this sprint</caption>
         <thead className="sticky top-0 z-10 bg-surface">
@@ -52,15 +52,15 @@ export default function SprintItemsTable({ items, onOpen, onView, readOnly = fal
               aria-label={`${readOnly ? "View" : "Edit"} ${item.title}`}
               className="cursor-pointer transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
             >
-              <td className="max-w-xs truncate px-4 py-3 font-medium">{item.title}</td>
-              <td className="whitespace-nowrap px-4 py-3 text-muted">{item.type ?? "–"}</td>
-              <td className="px-4 py-3">
+              <td className="max-w-xs truncate px-4 py-2 font-medium">{item.title}</td>
+              <td className="whitespace-nowrap px-4 py-2 text-muted">{item.type ?? "–"}</td>
+              <td className="px-4 py-2">
                 <PriorityBadge priority={item.priority} />
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-2">
                 <StatusBadge status={item.status} />
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-2">
                 <span className="flex items-center gap-2">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[10px] font-medium text-accent" aria-hidden="true">
                     {initials(item.owner)}
@@ -68,11 +68,11 @@ export default function SprintItemsTable({ items, onOpen, onView, readOnly = fal
                   <span className="truncate">{item.owner}</span>
                 </span>
               </td>
-              <td className="whitespace-nowrap px-4 py-3 text-muted">
+              <td className="whitespace-nowrap px-4 py-2 text-muted">
                 <time dateTime={item.deadline}>{formatDeadline(item.deadline)}</time>
               </td>
               {onView && (
-                <td className="whitespace-nowrap px-4 py-3 text-right">
+                <td className="whitespace-nowrap px-4 py-2 text-right">
                   {/* Stops the row's own click, which opens the edit panel. */}
                   <button
                     type="button"

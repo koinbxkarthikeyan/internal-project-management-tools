@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import EmptyState from "@/components/ui/EmptyState";
 import type { BacklogItemData } from "@/types/backlog";
 import BacklogItem, { ROW_GRID, type BacklogItemActions } from "./BacklogItem";
@@ -37,7 +38,7 @@ export default function BacklogList({ items, total, actions, leavingIds, emptyTi
           <EmptyState title="No matching items" description="Try changing your search or filters." />
         )
       ) : (
-        <ul className="max-h-[41rem] divide-y divide-border overflow-y-auto">
+        <ul className="table-scroll divide-y divide-border" style={{ "--row-h": "4.6rem", "--head-h": "0rem" } as CSSProperties}>
           {items.map((item, index) => (
             <BacklogItem
               key={item.id}

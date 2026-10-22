@@ -12,6 +12,8 @@ export type AppUser = {
   team?: string;
   /** The account must set its own password before using the app (only if the backend reports it). */
   mustChangePassword?: boolean;
+  /** Set at sign-in when the password typed was the shared initial one (a marker only; the password itself is never kept). */
+  usesInitialPassword?: boolean;
   createdAt: string;
   lastLoginAt?: string;
 };

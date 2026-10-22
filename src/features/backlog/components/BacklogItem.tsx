@@ -57,7 +57,7 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
             "aria-label": `${closed ? "View" : "Edit"} ${item.title}`,
           }
         : {})}
-      className={`flex flex-col gap-3 px-4 py-3.5 transition-colors duration-150 hover:bg-hover ${
+      className={`flex flex-col gap-3 px-4 py-2.5 transition-colors duration-150 hover:bg-hover ${
         openable ? "cursor-pointer focus-visible:outline-2 focus-visible:outline-accent" : ""
       } ${leaving ? "anim-row-out" : "anim-row-in"} ${ROW_GRID}`}
     >

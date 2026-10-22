@@ -196,6 +196,8 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
             {records.map(({ task, sprint, entries }) => {
               const expectedTo = sprint?.end && sprint.end < today ? sprint.end : today;
               const expected = sprint?.start && sprint.start <= expectedTo ? plannedHours(sprint.start, expectedTo) : 0;
+              // The whole sprint's weekday hours for one person.
+              const sprintTotal = sprint?.start && sprint.end ? plannedHours(sprint.start, sprint.end) : 0;
               const byPerson = [...new Set(entries.map((e) => e.person))];
               const log = activity[task.id] ?? task.activity ?? [];
               return (
@@ -222,6 +224,7 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
                       <span>Work logged</span>
                       <span className="tabular-nums">
                         {formatHours(sum(entries))} worked{expected > 0 ? ` · ${formatHours(expected)} expected per person in this sprint so far` : ""}
+                        {sprintTotal > 0 ? ` · ${formatHours(sprintTotal)} total sprint hours` : ""}
                       </span>
                     </p>
                     {entries.length === 0 ? (
@@ -240,6 +243,7 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
                                 <span className="text-xs tabular-nums text-muted">
                                   {formatHours(sum(mine))}
                                   {expected > 0 ? ` of ${formatHours(expected)} expected` : ""}
+                                  {sprintTotal > 0 ? ` · ${formatHours(sprintTotal)} total` : ""}
                                 </span>
                               </div>
                               <ul className="mt-1 divide-y divide-border rounded-lg border border-border text-xs">
@@ -264,11 +268,12 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
                   </div>
 
                   <div className="mt-3">
+                    {/* About 3 entries are visible below; the rest scroll inside the list (the same limit as the activity list in the task panels). */}
                     <p className="text-xs font-medium text-muted">Activity in this sprint</p>
                     {log.length === 0 ? (
                       <p className="mt-1 text-sm text-muted">No activity recorded.</p>
                     ) : (
-                      <ul className="mt-1 divide-y divide-border rounded-lg border border-border text-xs">
+                      <ul className="mt-1 max-h-[5.6rem] divide-y divide-border overflow-y-auto rounded-lg border border-border text-xs">
                         {newestFirst(log).map((a, i) => (
                           <li key={i} className="flex justify-between gap-3 px-3 py-1.5">
                             <span className="min-w-0 break-words">{a.text}</span>

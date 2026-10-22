@@ -6,7 +6,7 @@ import { EyeIcon, EyeOffIcon } from "./icons";
 import { Field, controlClass } from "./FormControls";
 
 /** How long a revealed password stays visible. */
-const REVEAL_MS = 500;
+const REVEAL_MS = 2000;
 
 type PasswordFieldProps = {
   label: string;
@@ -33,19 +33,31 @@ type PasswordFieldProps = {
   inputClassName?: string;
 };
 
-/** Password input with a Show / Hide button; a shown password hides itself after 0.5 seconds. The value is never read back from the server. */
+/** Password input with a Show / Hide button; a shown password hides itself after 2 seconds. The value is never read back from the server. */
 export function PasswordField({ label, value, onChange, placeholder, required, autoComplete = "new-password", invalid, valid, readOnly, autoFocus, name, disabled, disabledReason, leading, inputClassName = "h-10", ...rest }: PasswordFieldProps) {
   const [shownState, setShown] = useState(false);
   const shown = shownState && !disabled; // a disabled field never shows its value
   const input = useRef<HTMLInputElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  useEffect(() => () => clearTimeout(timer.current), []);
+  const hintTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => (clearTimeout(timer.current), clearTimeout(hintTimer.current)), []);
+  // Clicking the eye on an empty field has nothing to show: a short popup says what to enter, named after this field ("Enter your new password").
+  const [hintOn, setHintOn] = useState(false);
+  const hintShown = hintOn && !value && !disabled;
+  const subject = label.replace(/\s*[(,].*$/, "").trim().toLowerCase();
+  const hint = subject.startsWith("confirm") ? `Confirm your ${subject.replace(/^confirm\s+/, "")}` : `Enter your ${subject}`;
   // Switching the input type resets its cursor in some browsers: put the cursor / selection back where it was.
   function toggle() {
     const el = input.current;
     const start = el?.selectionStart ?? null;
     const end = el?.selectionEnd ?? null;
     clearTimeout(timer.current);
+    if (!value && !shown) {
+      setHintOn(true);
+      clearTimeout(hintTimer.current);
+      hintTimer.current = setTimeout(() => setHintOn(false), REVEAL_MS);
+      return;
+    }
     // Showing lasts REVEAL_MS and then hides itself; clicking while shown hides it at once.
     if (shown) setShown(false);
     else {
@@ -88,6 +100,11 @@ export function PasswordField({ label, value, onChange, placeholder, required, a
         >
           {shown ? <EyeIcon width={16} height={16} /> : <EyeOffIcon width={16} height={16} />}
         </button>
+        {hintShown && (
+          <span role="status" className="pointer-events-none absolute right-1 top-full z-20 mt-1 whitespace-nowrap rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium shadow-lg">
+            {hint}
+          </span>
+        )}
       </span>
       </DisabledTip>
     </Field>

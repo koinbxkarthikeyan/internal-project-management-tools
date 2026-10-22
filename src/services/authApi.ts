@@ -1,3 +1,4 @@
+import { DEFAULT_INITIAL_PASSWORD } from "@/constants/auth";
 import { apiClient } from "@/lib/apiClient";
 import { toAppUser, type ApiUser } from "@/lib/auth/userMapper";
 import type { AppUser } from "@/types/auth";
@@ -16,7 +17,10 @@ export async function signIn(email: string): Promise<SignInStep> {
 
 export async function signInWithPassword(email: string, password: string): Promise<Login> {
   const { data } = await apiClient.post<TokenResponse>("/auth/sign-in/password", { email: email.trim().toLowerCase(), password });
-  return login(data);
+  const result = login(data);
+  // Only after the backend has accepted the sign-in: signing in with the initial password means the account must choose its own now.
+  // This is a flag on the signed-in user (never the password itself); it is cleared when the password has been changed (the session ends).
+  return password === DEFAULT_INITIAL_PASSWORD ? { ...result, user: { ...result.user, mustChangePassword: true, usesInitialPassword: true } } : result;
 }
 
 export async function verifyOtp(email: string, code: string): Promise<Login> {

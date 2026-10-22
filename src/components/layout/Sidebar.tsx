@@ -27,15 +27,22 @@ export default function Sidebar({ children }: SidebarProps) {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Open sidebar"
-        aria-expanded={open}
-        className="fixed left-4 top-4 z-30 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-surface text-foreground shadow-sm transition-colors hover:bg-hover lg:hidden"
-      >
-        <MenuIcon />
-      </button>
+      {/* Below lg: one header row with the logo on the left, and the theme toggle and menu button on the right. */}
+      <header className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-border bg-surface px-4 lg:hidden">
+        <Logo />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="Open sidebar"
+            aria-expanded={open}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-surface text-foreground transition-colors hover:bg-hover"
+          >
+            <MenuIcon />
+          </button>
+        </div>
+      </header>
 
       <div
         className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-200 lg:hidden ${
@@ -46,16 +53,17 @@ export default function Sidebar({ children }: SidebarProps) {
       />
 
       <aside
-        data-sidebar
         onClick={handleClick}
-        className={`fixed inset-y-0 left-0 z-50 flex h-screen h-dvh w-72 flex-col border-r border-border bg-surface transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-border bg-surface transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between px-5 pb-3 pt-5">
+        <div className="flex items-center justify-between px-5 pb-2 pt-5">
           <Logo />
           <div className="flex items-center gap-2">
-            <ThemeToggle />
+            <div className="hidden lg:block">
+              <ThemeToggle />
+            </div>
             <button
               type="button"
               onClick={() => setOpen(false)}
