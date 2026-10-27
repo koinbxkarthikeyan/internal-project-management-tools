@@ -20,7 +20,7 @@ type BacklogListProps = {
   onLoadMore?: () => void;
 };
 
-const COLUMNS = ["Title", "Priority", "Status", "Sprint", "Owner", "Deadline", "Actions"];
+const COLUMNS = ["Title", "Type", "Priority", "Status", "Sprint", "Owner", "Deadline", "Actions"];
 
 export default function BacklogList({ items, total, actions, leavingIds, emptyTitle = "No items yet", emptyMessage, header, hasMore = false, loadingMore = false, onLoadMore }: BacklogListProps) {
   const scroller = useRef<HTMLUListElement>(null);
@@ -42,7 +42,7 @@ export default function BacklogList({ items, total, actions, leavingIds, emptyTi
     >
       {header}
       <div
-        className={`hidden border-b border-border bg-hover/70 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted ${ROW_GRID}`}
+        className={`hidden border-b border-border bg-background/60 px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted ${ROW_GRID}`}
         aria-hidden="true"
       >
         {COLUMNS.map((c, i) => (
@@ -57,7 +57,7 @@ export default function BacklogList({ items, total, actions, leavingIds, emptyTi
           <EmptyState title="No matching items" description="Try changing your search or filters." />
         )
       ) : (
-        <ul ref={scroller} className="table-scroll divide-y divide-border" style={{ "--row-h": "3.9rem", "--head-h": "0rem" } as CSSProperties}>
+        <ul ref={scroller} className="table-scroll divide-y divide-border" style={{ "--row-h": "3.4rem", "--head-h": "0rem" } as CSSProperties}>
           {items.map((item, index) => (
             <BacklogItem
               key={item.id}

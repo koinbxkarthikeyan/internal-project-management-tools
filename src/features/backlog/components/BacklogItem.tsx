@@ -60,9 +60,9 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
             "aria-label": `${closed ? "View" : "Edit"} ${item.title}`,
           }
         : {})}
-      className={`flex flex-col gap-3 px-4 py-3 transition-colors duration-150 hover:bg-row-hover ${
+      className={`flex flex-col gap-3 px-4 py-2 transition-colors duration-150 hover:bg-row-hover ${
         openable ? "cursor-pointer focus-visible:outline-2 focus-visible:outline-accent" : ""
-      } ${colour.row} ${leaving ? "anim-row-out" : "anim-row-in"} ${ROW_GRID}`}
+      } ${leaving ? "anim-row-out" : "anim-row-in"} ${ROW_GRID}`}
     >
       <div className="min-w-0">
         <p className="truncate text-sm font-medium">{item.title}</p>
@@ -72,6 +72,8 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
       </div>
 
       <div className="flex flex-wrap items-center gap-2 md:contents">
+        {item.type && <span className="text-sm text-muted">{item.type}</span>}
+        {!item.type && <span className="hidden text-sm text-muted md:block">–</span>}
         <div>
           <PriorityBadge priority={item.priority} />
         </div>
@@ -79,7 +81,7 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
           <StatusBadge status={item.status} />
         </div>
         <span className="text-sm text-muted">
-          <span className={colour.pill}>{sprintLabel(item.sprint)}</span>
+          <span className={`${colour.pill} items-center gap-1.5`}><span className={`h-2 w-2 shrink-0 rounded-full ${colour.dot}`} aria-hidden="true" />{sprintLabel(item.sprint)}</span>
           {pod && <span className="block text-xs">{pod}</span>}
         </span>
       </div>
@@ -87,7 +89,7 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm md:contents">
         <div className="flex min-w-0 items-center gap-2">
           <span
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-medium text-accent"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[10px] font-medium text-accent"
             aria-hidden="true"
           >
             {initials(item.owner)}
