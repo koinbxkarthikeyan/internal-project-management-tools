@@ -1,0 +1,528 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Theme tokens. Light is the default; `.dark` on <html> switches to dark. */
+:root {
+  --background: #f6f7fb;
+  --foreground: #0f1226;
+  --surface: #ffffff;
+  --border: #e4e7ef;
+  --muted: #5b6178;
+  --hover: #eef0f8;
+  --row-hover: color-mix(in srgb, var(--muted) 20%, transparent); /* the grey a table row takes on hover (20% of the muted text colour) */
+  --accent: #425df3; /* logo blue */
+  --accent-foreground: #ffffff;
+  --accent-soft: #e8ecff;
+  /* Form feedback: errors and the "this field is valid" state. */
+  --danger: #dc2626;
+  --danger-text: #b91c1c;
+  --success: #059669;
+  /* Hours against the expectation (text colours, each readable on its theme): more than expected, fewer than expected, over the sprint's total. */
+  --tone-above: #047857;
+  --tone-below: #b45309;
+  --tone-over: #b91c1c;
+  /* The one colour of the primary buttons' hover effect: grey (a mid grey on the light theme, a lighter one on dark, both keeping the white label readable). */
+  --btn-fx: #6b7280;
+  /* Brand gradient (primary buttons, card borders on the sign-in screens). */
+  --brand-from: #4152e0;
+  --brand-to: #00b8f0;
+  --brand-border-gradient: linear-gradient(135deg, #00c5f6, #425df3, #182b96, #425df3, #00c5f6); /* the sign-in card border; */
+  --shadow-card: 0 10px 30px -12px rgb(30 40 90 / 0.18);
+  /* Scrollbars: transparent track and corner; the thumb is a neutral grey from the theme's muted colour, a little stronger on hover. */
+  --scrollbar-thumb: color-mix(in srgb, var(--muted) 75%, transparent); /* solid thumb for browsers that can't draw an outline (Firefox) */
+  --scrollbar-thumb-fill: color-mix(in srgb, var(--muted) 35%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--muted) 60%, transparent);
+  /* Makes native controls (date/time pickers, select lists, scrollbars) follow the theme. */
+  color-scheme: light;
+}
+
+.dark {
+  --background: #141b2b;
+  --foreground: #eceffd;
+  --surface: #1b2438;
+  --border: #2c3856;
+  --muted: #9aa8c7;
+  --hover: #232e47;
+  --accent: #00c5f6; /* logo cyan */
+  --accent-foreground: #061024;
+  --accent-soft: #14304f;
+  --danger: #ef4444;
+  --danger-text: #fecaca;
+  --success: #34d399;
+  --tone-above: #34d399;
+  --tone-below: #fbbf24;
+  --tone-over: #f87171;
+  --btn-fx: #9ca3af;
+  --brand-from: #3447d8;
+  --brand-to: #00a8dc;
+  --shadow-card: 0 14px 34px -14px rgb(0 0 0 / 0.55);
+  color-scheme: dark;
+}
+
+/* Tailwind's own `transition-*` and `animate-*` utilities follow the same standards. */
+@theme {
+  --default-transition-duration: 150ms;
+  --default-transition-timing-function: ease-out;
+  --animate-spin: spin 800ms linear infinite;
+  --animate-pulse: pulse 1500ms linear infinite;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-hover: var(--hover);
+  --color-row-hover: var(--row-hover);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-tone-above: var(--tone-above);
+  --color-tone-below: var(--tone-below);
+  --color-tone-over: var(--tone-over);
+  --font-sans: var(--font-plex-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-plex-sans);
+}
+
+/* ------------------------------------------------------------------ */
+/* Motion system: the timing standards, as tokens (see the table in    */
+/* docs or the task that defined them); components use these, not own  */
+/* numbers.                                                            */
+/* Entry animations use `backwards` fill so no lingering transform      */
+/* (which would break fixed-position menus inside animated parents).   */
+/* ------------------------------------------------------------------ */
+:root {
+  --motion-fast: 120ms; /* button press */
+  --motion-standard: 150ms; /* hover, focus, icon, link, checkbox / radio / toggle, tooltip */
+  --motion-medium: 200ms; /* tabs and selected states, cards, toasts, modals, page content */
+  --motion-expand: 220ms; /* accordion / expand and collapse */
+  --motion-progress: 300ms; /* progress bar value change; the longest standard interaction */
+
+  --ease-standard: ease-in-out;
+  --ease-out: ease-out;
+
+  --button-hover-duration: 180ms;
+  --input-transition-duration: var(--motion-standard);
+  --menu-transition-duration: 180ms; /* dropdowns and menus open / close; also a modal's backdrop */
+  --modal-transition-duration: var(--motion-medium);
+  --card-transition-duration: var(--motion-medium);
+}
+
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+}
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+@keyframes row-out {
+  from { opacity: 1; max-height: 14rem; }
+  to { opacity: 0; max-height: 0; padding-block: 0; transform: translateX(16px); }
+}
+@keyframes menu-in {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+@keyframes menu-out {
+  to { opacity: 0; transform: translateY(-4px); }
+}
+@keyframes drawer-in {
+  from { transform: translateX(100%); }
+}
+@keyframes drawer-out {
+  to { transform: translateX(100%); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+@keyframes fade-out {
+  to { opacity: 0; }
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+}
+@keyframes toast-out {
+  to { opacity: 0; transform: translateY(-8px); }
+}
+@keyframes grow-x {
+  from { transform: scaleX(0); }
+}
+@keyframes indicator-in {
+  from { transform: scaleY(0); opacity: 0; }
+}
+
+.anim-page-in { animation: page-in var(--motion-medium) var(--ease-standard) backwards; }
+.anim-fade-up {
+  animation: fade-up var(--card-transition-duration) var(--ease-standard) backwards;
+  animation-delay: calc(var(--i, 0) * 50ms);
+}
+.anim-row-in {
+  animation: row-in var(--motion-medium) var(--ease-standard) backwards;
+  animation-delay: calc(var(--i, 0) * 25ms);
+}
+.anim-row-out {
+  overflow: hidden;
+  pointer-events: none;
+  animation: row-out var(--motion-expand) var(--ease-standard) forwards;
+}
+/* An expanded section (a closed sprint's tasks) fades and drops in over the expand duration; opacity and transform only, so nothing reflows while it plays. */
+.anim-expand { animation: modal-in var(--motion-expand) var(--ease-standard) backwards; }
+.anim-menu-in { animation: menu-in var(--menu-transition-duration) var(--ease-standard) backwards; }
+.anim-menu-out { animation: menu-out var(--menu-transition-duration) var(--ease-standard) forwards; }
+.anim-toast-in { animation: toast-in var(--motion-medium) var(--ease-out) backwards; }
+.anim-toast-out { animation: toast-out var(--motion-medium) var(--ease-out) forwards; }
+.anim-grow-x { transform-origin: left; animation: grow-x var(--motion-progress) var(--ease-standard) backwards; }
+.anim-indicator { transform-origin: center; animation: indicator-in var(--motion-medium) var(--ease-standard) backwards; }
+
+/* Side panel (native <dialog>) */
+.drawer { animation: drawer-in var(--modal-transition-duration) var(--ease-standard) backwards; }
+.drawer::backdrop { animation: fade-in var(--menu-transition-duration) var(--ease-standard) backwards; }
+.drawer[data-closing] { animation: drawer-out var(--modal-transition-duration) var(--ease-standard) forwards; }
+.drawer[data-closing]::backdrop { animation: fade-out var(--menu-transition-duration) var(--ease-standard) forwards; }
+/* Other dialogs (the password notice, the task history modal): a short rise and fade, with the backdrop fading in on its own. */
+dialog:not(.drawer)[open] { animation: modal-in var(--modal-transition-duration) var(--ease-standard) backwards; }
+dialog:not(.drawer)[open]::backdrop { animation: fade-in var(--menu-transition-duration) var(--ease-standard) backwards; }
+
+/* Shared interactive feedback */
+@layer base {
+  button:not(:disabled),
+  a {
+    transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+    transition-duration: var(--button-hover-duration);
+    transition-timing-function: var(--ease-out);
+  }
+  input, select, textarea {
+    transition: border-color var(--input-transition-duration) var(--ease-out), background-color var(--input-transition-duration) var(--ease-out);
+  }
+}
+
+/* Theme switch: no element transitions while the colours change, so the whole page flips in one frame
+   (ThemeToggle adds this class for a moment). */
+.theme-switching,
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Scrollbars: the page scrollbar is 6px wide; every internal one     */
+/* (sidebar, tables, cards, side panels, lists) is a thinner 4px.      */
+/* Transparent track; the thumb is a neutral grey that firms up on hover. */
+/* ------------------------------------------------------------------ */
+*::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+/* The page scrollbar: Chrome takes it from <body> while <html> has no overflow of its own, so both are listed. */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  border: 1px solid transparent;
+  background-clip: padding-box; /* the transparent border keeps the thumb slim and off the edge */
+  border-radius: 9999px;
+  background-color: var(--scrollbar-thumb-fill);
+  transition: background-color 180ms var(--ease-out);
+}
+/* Hover (or dragging): the same grey, a little stronger. */
+*::-webkit-scrollbar-thumb:hover,
+*::-webkit-scrollbar-thumb:active {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *::-webkit-scrollbar-thumb { transition: none; }
+}
+
+/* Browsers without the WebKit scrollbar pseudo-elements (Firefox) get the standard thin scrollbar in the same colours. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+  html {
+    scrollbar-width: auto;
+  }
+}
+
+/* A required field that was left empty (marked by the form check) gets a red border until it is filled in. */
+input[data-missing],
+select[data-missing],
+textarea[data-missing] {
+  border-color: var(--danger) !important;
+}
+
+/* Primary action: a solid brand colour (the gradient and the glow below belong to the sign-in card only). Hover lays a 20% grey over it; pressed darkens it a little. Dimmed (not recoloured) while disabled. */
+.btn-brand {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+  border-radius: 0.5rem;
+}
+.btn-brand:hover:not(:disabled) { box-shadow: inset 0 0 0 999px rgba(128, 128, 128, 0.2); }
+.btn-brand:active:not(:disabled) { filter: brightness(0.92); }
+.btn-brand:disabled { opacity: 0.55; cursor: not-allowed; }
+.auth-card .btn-brand {
+  background-image: linear-gradient(90deg, var(--brand-from), var(--brand-to));
+  color: #fff;
+  box-shadow: 0 8px 20px -10px var(--brand-from);
+}
+.auth-card .btn-brand:hover:not(:disabled) { box-shadow: 0 8px 20px -10px var(--brand-from); filter: brightness(1.08); }
+
+/* Sign-in loading state: the button's gradient flows slowly sideways (1.4s) and the label's three dots rise one after another (1.2s). The label fades in over 160ms. */
+@keyframes btn-flow { from { background-position: 0% 0; } to { background-position: 200% 0; } }
+@keyframes dot-wave { 0%, 60%, 100% { opacity: 0.35; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
+@keyframes label-in { from { opacity: 0; } to { opacity: 1; } }
+.auth-card .btn-brand.btn-loading {
+  background-image: linear-gradient(90deg, var(--brand-from), var(--brand-to), var(--brand-from));
+  background-size: 200% 100%;
+  animation: btn-flow 1.4s linear infinite;
+}
+.auth-card .btn-brand.btn-loading:disabled { opacity: 0.9; cursor: progress; }
+.anim-label-in { animation: label-in 160ms var(--ease-standard) backwards; }
+.loading-dots > span { width: 4px; height: 4px; border-radius: 9999px; background: currentColor; animation: dot-wave 1.2s ease-in-out infinite; }
+.loading-dots > span:nth-child(2) { animation-delay: 0.15s; }
+.loading-dots > span:nth-child(3) { animation-delay: 0.3s; }
+@media (prefers-reduced-motion: reduce) {
+  .auth-card .btn-brand.btn-loading { animation: none; }
+  .loading-dots > span { animation: none; opacity: 0.7; }
+  .anim-label-in { animation: none; }
+}
+
+/* Hover effect of every primary button: two blurred grey circles (::before and ::after) rest half out of opposite corners and, on hover
+   or keyboard focus, glide in under the label, grow, and glow. They sit below the text, are clipped to the button and ignore the
+   pointer, so size, shape and clicks are unchanged. Touch screens (no hover) only get the resting look; reduced motion skips the glide. */
+.btn-brand { position: relative; isolation: isolate; overflow: hidden; }
+/* How strong the grey circles get on hover (0.5 on most buttons; softer, 0.3, on the sign-in card's Next and Sign in). */
+.auth-card .btn-brand { --btn-fx-hover: 0.3; }
+.btn-brand::before,
+.btn-brand::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  background-color: var(--btn-fx);
+  box-shadow: 0 0 1.25rem 0.25rem var(--btn-fx);
+  filter: blur(0.9rem);
+  opacity: 0.22;
+  pointer-events: none;
+  transition: top 650ms var(--ease-out), right 650ms var(--ease-out), bottom 650ms var(--ease-out), left 650ms var(--ease-out),
+    transform 650ms var(--ease-out), opacity 650ms var(--ease-out), filter 650ms var(--ease-out); /* the brand button's grey-circle hover effect: the one deliberate exception to the 300ms limit */
+}
+/* The grey-circle glow is part of the sign-in card's gradient buttons only. */
+.btn-brand::before,
+.btn-brand::after { display: none; }
+.auth-card .btn-brand::before,
+.auth-card .btn-brand::after { display: block; }
+.btn-brand::before { top: -1.75rem; right: -1.25rem; }
+.btn-brand::after { bottom: -1.75rem; left: -1.25rem; }
+.btn-brand:focus-visible:not(:disabled)::before,
+.btn-brand:focus-visible:not(:disabled)::after { opacity: var(--btn-fx-hover, 0.5); transform: scale(1.35); filter: blur(1.1rem); }
+.btn-brand:focus-visible:not(:disabled)::before { top: 12%; right: 52%; }
+.btn-brand:focus-visible:not(:disabled)::after { bottom: 12%; left: 52%; }
+@media (hover: hover) {
+  .btn-brand:hover:not(:disabled)::before,
+  .btn-brand:hover:not(:disabled)::after { opacity: var(--btn-fx-hover, 0.5); transform: scale(1.35); filter: blur(1.1rem); }
+  .btn-brand:hover:not(:disabled)::before { top: 12%; right: 52%; }
+  .btn-brand:hover:not(:disabled)::after { bottom: 12%; left: 52%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-brand::before,
+  .btn-brand::after { transition: none !important; }
+}
+
+/* Sign-in card: a 2px gradient border (the wrapper) around a filled body, lifted off the page by a soft brand-tinted shadow. */
+.auth-card {
+  background: var(--brand-border-gradient);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 24px 60px -24px color-mix(in srgb, var(--brand-from) 45%, transparent);
+  transition: box-shadow var(--motion-medium) var(--ease-standard);
+}
+.auth-card:hover,
+.auth-card:focus-within {
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 30px 70px -22px color-mix(in srgb, var(--brand-to) 55%, transparent);
+}
+.auth-card-body { background: linear-gradient(180deg, #ffffff, #f8fafc); }
+.dark .auth-card-body { background: linear-gradient(180deg, #1f2a3a, #1b2430); }
+/* A short brand-gradient bar under the card title ties the card to the logo. */
+.auth-title::after {
+  content: "";
+  display: block;
+  width: 2rem;
+  height: 3px;
+  margin-top: 0.5rem;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--brand-from), var(--brand-to));
+}
+
+/* Sign-in background marks: brightest at 56% / 56%, fading out by 72%, as on the admin sign-in. They drift very slowly. */
+.auth-bg-shape {
+  -webkit-mask-image: radial-gradient(circle at 56% 56%, #000, transparent 72%);
+  mask-image: radial-gradient(circle at 56% 56%, #000, transparent 72%);
+}
+.auth-glow {
+  background: radial-gradient(circle, color-mix(in srgb, var(--brand-to) 14%, transparent), transparent 65%);
+}
+@keyframes auth-drift { 50% { translate: 0 14px; } }
+.auth-drift { animation: auth-drift 14s ease-in-out infinite; }
+.auth-drift-alt { animation-duration: 18s; animation-direction: reverse; }
+/* Each sign-in step (email, password, code, access denied) fades in as it replaces the last. */
+@keyframes step-in { from { opacity: 0; transform: translateY(6px); } }
+.anim-step-in { animation: step-in var(--motion-medium) var(--ease-standard) backwards; }
+
+/* ------------------------------------------------------------------ */
+/* Form fields: rounded, soft fill, brand-coloured hover and focus.     */
+/* ------------------------------------------------------------------ */
+.field {
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+  background-color: color-mix(in srgb, var(--surface) 70%, var(--background));
+  transition: border-color var(--input-transition-duration) var(--ease-out), box-shadow var(--input-transition-duration) var(--ease-out), background-color var(--input-transition-duration) var(--ease-out);
+}
+.field:hover:not(:disabled):not([readonly]) {
+  border-color: color-mix(in srgb, var(--brand-to) 55%, var(--border));
+}
+.field:focus,
+.field:focus-visible {
+  outline: none;
+  border-color: var(--brand-to);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-to) 20%, transparent);
+}
+.field:disabled,
+.field[readonly] {
+  background-color: var(--hover);
+  cursor: not-allowed;
+}
+/* A field with a problem: red border and a soft red fill, as on the reference sign-in. */
+.field[aria-invalid="true"],
+.field.border-red-500 {
+  border-color: var(--danger);
+  background-color: color-mix(in srgb, var(--danger) 7%, var(--surface));
+}
+.field[aria-invalid="true"]:focus,
+.field.border-red-500:focus {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 20%, transparent);
+}
+/* A field whose complete value passed its check (sign-in email and password): the success colour, only ever when it isn't invalid. */
+.field[data-valid="true"]:not([aria-invalid="true"]),
+.field[data-valid="true"]:not([aria-invalid="true"]):hover:not(:disabled):not([readonly]),
+.field[data-valid="true"]:not([aria-invalid="true"]):focus {
+  border-color: var(--success);
+}
+.field[data-valid="true"]:not([aria-invalid="true"]) {
+  background-color: color-mix(in srgb, var(--success) 7%, var(--surface));
+}
+.field[data-valid="true"]:not([aria-invalid="true"]):focus {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 20%, transparent);
+}
+
+/* The one error message under a field, as on the reference: a rounded red-bordered box with an alert icon. */
+.field-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 70%, transparent);
+  border-radius: 0.875rem;
+  background-color: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  color: var(--danger-text);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+.field-error > svg { flex-shrink: 0; }
+/* The "is required" line built into every required Field: hidden until the form check marks its control. */
+.field-required-msg { display: none; }
+label:has([data-missing]) > .field-required-msg { display: flex; }
+
+/* A popover that is not open stays hidden even when a utility class (flex, block...) sets its display. */
+[popover]:not(:popover-open) { display: none; }
+
+/* Page placeholders wait 150ms before appearing, so a quick load never flashes them. */
+.skeleton-delay { animation: fade-in var(--motion-medium) var(--ease-standard) 150ms backwards; }
+
+/* Tables and lists: show about 10 rows, then scroll inside the container (never the page), with the header kept in view. The container is as tall as its rows
+   when there are fewer; each table sets --row-h to its own row height (and --head-h if its header differs) so "10 rows" stays right. */
+.table-scroll {
+  overflow: auto;
+  max-height: calc(var(--row-h, 3rem) * 10 + var(--head-h, 2.6rem));
+}
+
+/* ------------------------------------------------------------------ */
+/* Shared interaction polish for buttons (the animation system above   */
+/* already covers pages, menus, drawers and toasts).                   */
+/* ------------------------------------------------------------------ */
+/* Neutral buttons (the ones that already change their background on hover) all share one smooth grey wash. Primary (brand) buttons, selected tabs and
+   switches don't carry a hover background class, so they are left alone. */
+button[class*="hover:bg-hover"]:not(:disabled):hover {
+  background-color: rgba(128, 128, 128, 0.2); /* eased by the shared button transition above (150ms ease-out, 100ms while pressed) */
+}
+/* Fallbacks that never override a component's own rules (zero specificity): a visible keyboard focus ring and a clear disabled cursor. */
+:where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+:where(button):disabled {
+  cursor: not-allowed;
+}
+/* Every enabled button eases the same properties (Tailwind's transition-colors alone leaves out the press), and sinks a little in 100ms while pressed; it
+   comes back in the hover duration. Unlayered, so it wins over the utility classes the buttons carry. */
+button:not(:disabled) {
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+}
+/* Pressed: a slightly stronger background, no scaling. */
+button:not(:disabled):active {
+  transition-duration: var(--motion-fast);
+}
+button[class*="hover:bg-hover"]:not(:disabled):active {
+  background-color: rgba(128, 128, 128, 0.3);
+}
+
+/* Tabs and selected states change in 200ms; toggles, checkboxes and radios in 150ms (ease-in-out). */
+[role="tab"] {
+  transition-duration: var(--motion-medium);
+  transition-timing-function: var(--ease-standard);
+}
+[role="switch"],
+input[type="checkbox"],
+input[type="radio"] {
+  transition-duration: var(--motion-standard);
+  transition-timing-function: var(--ease-standard);
+}
+
+/* Reduced motion: no press scaling either (the colour changes stay, so every state is still visible). Last, so it wins over the press rule above. */
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled):active { transform: none; }
+}
