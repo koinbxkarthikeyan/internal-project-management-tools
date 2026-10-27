@@ -14,6 +14,7 @@ import { Field, SearchableSelect } from "@/components/ui/FormControls";
 import { refreshUsers } from "@/lib/auth/userStore";
 import { resolveTeam, useTeamStore } from "@/stores/teamStore";
 import { useUsers } from "@/features/users/hooks/useUsers";
+import { useMyTasksStore } from "@/stores/myTasksStore";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useBacklog } from "@/features/backlog/context/BacklogContext";
 import { todayISO } from "@/features/backlog/utils";
@@ -48,6 +49,14 @@ export default function WorkPage() {
   const [scope, setScope] = useQueryState<WorkScope>("tab", ["mine", "everyone"], "mine");
   // Entries are logged as the signed-in registered user, read from the Users data.
   const { user, isAdmin, restricted } = useAuth();
+
+  // The My Task page's lists, which the task picker below reuses.
+  const mineStore = useMyTasksStore();
+  const mineScope = user?.id ?? "";
+  const { load: loadMine } = mineStore;
+  useEffect(() => {
+    if (mineScope) void loadMine(mineScope);
+  }, [mineScope, loadMine]);
   const person = user?.name ?? "";
   // Re-read the users when the page opens, so a Team an Admin changed shows up here.
   useEffect(() => {
@@ -151,8 +160,12 @@ export default function WorkPage() {
   const mixedPod = selectedPod;
 
   // Only PODs that have tasks in a chosen sprint count here.
-  // The task picker lists only tasks assigned to me, decided by my user id: a task with no assignee, or assigned to someone else, is not offered.
-  const myTasks = items.filter((t) => !!user?.id && !!t.assigneeIds?.includes(user.id));
+  // The task picker offers the same tasks as the My Task page (`GET /items/mine`): tasks assigned to me, tasks I lead and unassigned tasks.
+  // Each is shown as its newest copy from the shared list, so assignment changes show here too.
+  const mineIds = new Set(
+    mineStore.scope === mineScope ? [...mineStore.buckets.lead, ...mineStore.buckets.assigned, ...mineStore.buckets.unassigned].map((t) => t.id) : [],
+  );
+  const myTasks = items.filter((t) => mineIds.has(t.id));
 
   // Tasks this person already logged, by sprint (the entry being changed doesn't count, so its tasks stay pickable).
   const loggedBySprint: Record<string, Set<string>> = {};
