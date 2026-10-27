@@ -37,9 +37,9 @@ export default function EmptyState({ title, description, action, compact = false
     );
   }
   return (
-    <div className={`anim-fade-up flex flex-col items-center px-6 text-center ${compact ? "py-6" : "py-12"}`}>
+    <div className={`anim-fade-up flex flex-col items-center px-6 text-center ${compact ? "py-3" : "py-6"}`}>
       <div className="relative">
-        <svg viewBox="0 0 220 150" width={compact ? 150 : 220} height={compact ? 102 : 150} role="img" aria-label="Empty table" className="max-w-full">
+        <svg viewBox="0 0 220 150" width={compact ? 96 : 130} height={compact ? 65 : 89} role="img" aria-label="Empty table" className="h-auto max-w-full object-contain">
           {/* soft backdrop */}
           <ellipse cx="110" cy="136" rx="78" ry="8" className="fill-accent-soft" />
           <circle cx="36" cy="40" r="4" className="fill-accent-soft" />
@@ -64,17 +64,17 @@ export default function EmptyState({ title, description, action, compact = false
         </svg>
         {/* KoinBX mark badge */}
         <span
-          className={`absolute -bottom-1 flex items-center justify-center rounded-2xl border border-border bg-surface shadow-lg ${
-            compact ? "right-3 h-10 w-10" : "right-6 h-14 w-14"
+          className={`absolute -bottom-1 flex items-center justify-center rounded-xl border border-border bg-surface shadow-md ${
+            compact ? "right-2 h-7 w-7 rounded-xl" : "right-3 h-9 w-9 rounded-xl"
           }`}
         >
-          <Image src="/koinbx-mark.svg" alt="KoinBX" width={compact ? 16 : 24} height={compact ? 25 : 37} />
+          <Image src="/koinbx-mark.svg" alt="KoinBX" width={compact ? 11 : 14} height={compact ? 17 : 22} className="h-auto w-auto max-h-[60%] object-contain" />
         </span>
       </div>
 
-      <h3 className={`font-semibold ${compact ? "mt-4 text-sm" : "mt-5 text-base"}`}>{title}</h3>
+      <h3 className={`font-semibold ${compact ? "mt-2.5 text-sm" : "mt-3 text-sm"}`}>{title}</h3>
       {description && <p className={`mt-1 max-w-sm text-muted ${compact ? "text-xs" : "text-sm"}`}>{description}</p>}
-      {action && <div className="mt-4">{action}</div>}
+      {action && <div className="mt-3">{action}</div>}
     </div>
   );
 }

@@ -26,6 +26,7 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "Backlog Tracker",
   description: "Internal backlog and project tracking",
+  icons: { icon: { url: "/koinbx-mark.svg", type: "image/svg+xml" }, shortcut: "/koinbx-mark.svg" },
 };
 
 // Applies the saved (or system) theme before first paint to avoid a flash.

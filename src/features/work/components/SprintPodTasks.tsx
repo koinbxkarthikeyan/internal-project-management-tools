@@ -104,7 +104,7 @@ export default function SprintPodTasks({ sprints, pods, items, selection, logged
             </h3>
 
             {groups.length === 0 ? (
-              <EmptyState compact title="No tasks assigned to you." />
+              <EmptyState compact title="No tasks available to work on." />
             ) : (
               groups.map(({ pod, tasks }) => {
                 const picked = selection?.sprintId === sprint.id && (isPseudoPod(pod.id) || selection.podId === pod.id) ? selection.itemIds : [];
