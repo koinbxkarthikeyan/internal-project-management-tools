@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { todayISO } from "../utils";
 import { useBacklog } from "../context/BacklogContext";
 import SignOutBlock from "@/features/auth/components/SignOutBlock";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -10,19 +9,22 @@ import BacklogNavigation from "./BacklogNavigation";
 import CreateBacklogButton from "./CreateBacklogButton";
 
 export default function BacklogSidebar() {
-  const { status, items, sprints } = useBacklog();
+  const { status, items, activeSprint, itemsPaging } = useBacklog();
   const { restricted, settingsOnly } = useAuth();
 
   let summary = "Loading…";
-  if (status === "ready") {
-    const count = (fn: (s: string) => boolean) => items.filter((i) => fn(i.status)).length;
-    const today = todayISO();
-    const active = sprints.find((s) => s.start && s.end && s.start <= today && today <= s.end);
+  if (status === "ready" && !itemsPaging.complete) {
+    // Only the first pages of the All Items table are loaded, so counts by status would be wrong: name the running sprint only.
+    summary = activeSprint ? `${activeSprint.name} active` : "No active sprint";
+  } else if (status === "ready") {
+    // Only the running sprint's tasks and the Backlog tasks that are still active: nothing from planned, paused, closed or earlier sprints, and no finished tasks.
+    const mine = items.filter((i) => i.status !== "Completed" && (i.sprint === "Unplanned" || (!!activeSprint && i.sprint === activeSprint.name)));
+    const count = (fn: (s: string) => boolean) => mine.filter((i) => fn(i.status)).length;
     summary = [
       `${count((s) => s === "Open" || s === "In progress")} open`,
       `${count((s) => s === "Blocked")} blocked`,
       `${count((s) => s === "On hold")} on hold`,
-      active ? `${active.name} active` : "No active sprint",
+      activeSprint ? `${activeSprint.name} active` : "No active sprint",
     ].join(" · ");
   } else if (status === "error") {
     summary = "Couldn't load data";

@@ -63,15 +63,19 @@ type BacklogNavigationProps = {
 
 export default function BacklogNavigation({ between }: BacklogNavigationProps) {
   const pathname = usePathname();
-  const { status, items } = useBacklog();
+  const { status, items, itemsPaging, activeSprint } = useBacklog();
   const { isAdmin } = useAuth();
   const workspaceItems = NAV_ITEMS.filter((item) => (item.href === "/users" || item.href === "/bulk-upload") && isAdmin);
   const completed = items.filter((i) => i.status === "Completed").length;
-  // Counts appear once the data has loaded.
+  // The numbers in the menu are for the running sprint's tasks and the Backlog tasks (no planned, paused, closed or earlier sprints). Whether a list is empty (and so can't be opened)
+  // is judged on every task, as before. Counts appear once the data has loaded; while only the first pages of All Items are loaded they wait for the full list.
+  const mine = items.filter((i) => i.sprint === "Unplanned" || (!!activeSprint && i.sprint === activeSprint.name));
+  const mineCompleted = mine.filter((i) => i.status === "Completed").length;
+  const mineActive = mine.length - mineCompleted; // finished tasks are not active work
+  const everything: Partial<Record<BacklogNavId, number>> =
+    status !== "ready" ? {} : itemsPaging.complete ? { overview: items.length - completed, "all-items": items.length, completed } : { "all-items": itemsPaging.totalShown };
   const counts: Partial<Record<BacklogNavId, number>> =
-    status === "ready"
-      ? { overview: items.length - completed, "all-items": items.length, completed }
-      : {};
+    status === "ready" && itemsPaging.complete ? { overview: mineActive, "all-items": mineActive, completed: mineCompleted } : {};
 
   return (
     <nav aria-label="Main" className="flex flex-col gap-2">
@@ -85,7 +89,7 @@ export default function BacklogNavigation({ between }: BacklogNavigationProps) {
             const Icon = BACKLOG_ICONS[id];
             const active = isActive(pathname, href);
             // An empty list can't be opened (the page you are on stays reachable).
-            const disabled = !active && count === 0;
+            const disabled = !active && everything[id] === 0;
             const content = (
               <>
                 <Icon className="shrink-0 transition-transform duration-200 group-hover:scale-110" />

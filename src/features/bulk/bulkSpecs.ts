@@ -1,13 +1,14 @@
-import { ALLOWED_EMAIL_DOMAIN, DEFAULT_INITIAL_PASSWORD, TEAM_MAX_LENGTH } from "@/constants/auth";
+import { ALLOWED_DOMAINS_TEXT, ALLOWED_EMAIL_DOMAIN, DEFAULT_INITIAL_PASSWORD, TEAM_MAX_LENGTH } from "@/constants/auth";
 import { ITEM_TYPES, PRIORITIES } from "@/constants/backlog-options";
 import { cleanAssignees } from "@/features/backlog/components/AssigneeField";
 import { todayISO } from "@/features/backlog/utils";
-import { completeEmail, completeWhileTyping, validateEmail } from "@/lib/auth/emailRules";
+import { emailProblem, emailSuggestions, validateEmail } from "@/lib/auth/emailRules";
 import { cleanTeam } from "@/lib/auth/teams";
 import * as backlogService from "@/services/backlogService";
 import * as userService from "@/services/userService";
 import type { AppUser, AssignableRole, AccessStatus } from "@/types/auth";
 import type { ItemType, Owner, Priority } from "@/types/backlog";
+import { DUPLICATE_TASK_MESSAGE, taskNameKey, taskNameTaken } from "@/features/backlog/taskNames";
 
 /**
  * What each upload type is made of: its columns (the same labels, options and rules as the Create backlog, Create owner and
@@ -28,6 +29,8 @@ export type Ctx = {
   teams: string[];
   ownerTeams: string[];
   isSuperAdmin: boolean;
+  /** The names of the tasks that already exist (Backlog and every sprint). */
+  taskTitles: readonly string[];
 };
 
 export type Column = {
@@ -50,8 +53,10 @@ export type Column = {
   readOnly?: (ctx: Ctx, values: Values) => boolean;
   /** Normalises what is typed (e.g. capitalising a name). */
   format?: (value: string) => string;
-  /** Adjusts what is typed or pasted, given the previous text (e.g. a just-typed "@" after a name gets the company domain). */
-  typing?: (previous: string, next: string) => string;
+  /** Values to offer as optional suggestions for what is typed (a text cell's datalist); nothing is inserted unless one is picked. */
+  optionsFor?: (value: string) => string[];
+  /** A message to show while the cell is being typed in (before Submit is tried); "" for none. */
+  liveProblem?: (value: string) => string;
   /** Completes the value when the cell is left (e.g. `name` becomes `name@koinbx.com`, as the Email field does). */
   complete?: (value: string) => string;
 };
@@ -109,12 +114,14 @@ const backlog: BulkSpec = {
     { key: "notes", label: "Notes", control: "text", width: 200 },
     { key: "status", label: "Status", control: "text", width: 110, excel: false, readOnly: () => true },
   ],
-  blank: () => ({ priority: "Not set", status: "Backlog" }),
-  check({ values: v }, _rows, c) {
+  blank: () => ({ priority: "Not set", status: "To Do" }),
+  check({ id, values: v }, rows, c) {
     const p: Problems = {};
     // Owner, Lead and Team Members are optional in a bulk upload; whatever is chosen must still exist.
     if (v.owner && !resolveOne(ownerChoices(c), v.owner)) p.owner = "This owner no longer exists. Choose another.";
     if (!clean(v.title ?? "")) p.title = REQUIRED("Title");
+    else if (taskNameTaken(v.title ?? "", c.taskTitles.map((title) => ({ title })))) p.title = DUPLICATE_TASK_MESSAGE;
+    else if (repeats(rows, "title", v.title ?? "", id, taskNameKey)) p.title = "This name is repeated in the table.";
     if (!v.type) p.type = REQUIRED("Type");
     else if (!ITEM_TYPES.includes(v.type as ItemType)) p.type = "Choose a listed type.";
     if (v.priority && v.priority !== "Not set" && !PRIORITIES.includes(v.priority as Priority)) p.priority = "Choose a listed priority.";
@@ -180,10 +187,10 @@ const ROLES: AssignableRole[] = ["Admin", "User"];
 
 const users: BulkSpec = {
   label: "Team Member",
-  hint: `Each row adds one team member, as Add Team Member does (only @${ALLOWED_EMAIL_DOMAIN} addresses). No password is entered or shown here; new accounts get the standard initial password and Users sign in with an emailed code.`,
+  hint: `Each row adds one team member, as Add Team Member does (only ${ALLOWED_DOMAINS_TEXT} addresses). No password is entered or shown here; new accounts get the standard initial password and Users sign in with an emailed code.`,
   columns: [
     { key: "name", label: "Name", control: "text", required: true, width: 220, format: titleCase, placeholder: "e.g. Jordan Blake" },
-    { key: "email", label: "Email", control: "text", required: true, width: 250, placeholder: `name@${ALLOWED_EMAIL_DOMAIN}`, format: (v) => v.toLowerCase(), typing: completeWhileTyping, complete: (v) => completeEmail(v).toLowerCase() },
+    { key: "email", label: "Email", control: "text", required: true, width: 250, placeholder: `name@${ALLOWED_EMAIL_DOMAIN}`, format: (v) => v.toLowerCase(), liveProblem: (v) => emailProblem(v), optionsFor: emailSuggestions },
     { key: "role", label: "Role", control: "select", required: true, width: 130, options: () => options(ROLES) },
     { key: "team", label: "Team", control: "text", width: 200, suggestions: (c) => c.teams },
     {

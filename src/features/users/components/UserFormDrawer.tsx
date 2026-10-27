@@ -8,7 +8,7 @@ import { useUsers } from "../hooks/useUsers";
 import { PasswordField } from "@/components/ui/PasswordField";
 import { checkNewPassword, generatePassword } from "@/lib/auth/passwordRules";
 import { EmailField } from "@/components/ui/EmailInput";
-import { ComboField, SelectField, TextField } from "@/components/ui/FormControls";
+import { SelectField, TextField } from "@/components/ui/FormControls";
 import { useToast } from "@/components/ui/Toast";
 import { ALLOWED_EMAIL_DOMAIN, DEFAULT_INITIAL_PASSWORD, TEAM_MAX_LENGTH, USER_ROLES } from "@/constants/auth";
 import BacklogDrawer from "@/features/backlog/components/BacklogDrawer";
@@ -136,8 +136,19 @@ export default function UserFormDrawer({ user, isSelf = false, onSaved, onCreate
     <BacklogDrawer heading={user ? "Edit user" : "Add Team Member"} submitLabel={user ? "Save user" : "Add Team Member"} compact canSubmit={!unchanged} onClose={onClose} onSubmit={submit}>
       <TextField label="Name" required value={name} onChange={changeName} placeholder="e.g. Jordan Blake" />
       <EmailField label="Email" required value={email} onChange={clear(setEmail)} placeholder={`name@${ALLOWED_EMAIL_DOMAIN}`} />
-      <ComboField label="Team" value={team} onChange={clear(setTeam)} suggestions={teams} placeholder="Search, select or type a new team" onEditOption={setRenamingTeam} onDeleteOption={askDelete} />
-      {cleanTeam(team) && !isKnownTeam(team, teams) && <p className="-mt-2 text-xs text-muted">&ldquo;{cleanTeam(team)}&rdquo; is a new team. It will be added when you save.</p>}
+      <SelectField
+        label="Team"
+        value={team}
+        onChange={clear(setTeam)}
+        // The team just added (not saved yet) is listed too, so the field can show it.
+        options={cleanTeam(team) && !isKnownTeam(team, teams) ? [...teams, cleanTeam(team)] : teams}
+        placeholder="Search or select a team, or add a new one"
+        // A team that isn't listed is added by choosing the `+ Add "name"` row (it is registered when the person is saved).
+        onCreate={(name) => clear(setTeam)(cleanTeam(name))}
+        onEditOption={setRenamingTeam}
+        onDeleteOption={askDelete}
+      />
+      {cleanTeam(team) && !isKnownTeam(team, teams) && <p className="-mt-2 text-xs text-muted">&ldquo;{cleanTeam(team)}&rdquo; is a new team. It is added when you save.</p>}
       {!ownerMode && (
       <SelectField label="Role" value={isSuper ? "Super Admin" : role} onChange={(v) => (setRole(v as AssignableRole), setStatus(defaultStatus()))} options={isSuper ? ["Super Admin"] : isSelf ? [role] : USER_ROLES} />
       )}
@@ -154,9 +165,9 @@ export default function UserFormDrawer({ user, isSelf = false, onSaved, onCreate
           <PasswordField label="Password" required readOnly value={DEFAULT_INITIAL_PASSWORD} onChange={() => {}} />
         ))}
       {isSuper ? (
-        <p className="-mt-2 text-xs text-muted">The Super Admin is the only one of its kind: the role and access can&apos;t be changed, and it can&apos;t be deleted.</p>
+        <p className="-mt-2 text-xs text-muted">The Super Admin&apos;s role and access can&apos;t be changed, and it can&apos;t be deleted.</p>
       ) : (
-        isSelf && <p className="-mt-2 text-xs text-muted">You can&apos;t change your own role or disable your own access while signed in.</p>
+        isSelf && <p className="-mt-2 text-xs text-muted">You can&apos;t change your own role or access.</p>
       )}
       {error && (
         <FieldError>
@@ -183,7 +194,7 @@ export default function UserFormDrawer({ user, isSelf = false, onSaved, onCreate
           <ConfirmDeleteDrawer
             title="Delete team"
             name={deletingTeam}
-            consequence="No team members are in it. It will be removed from the team lists."
+            consequence="It has no team members and is removed from the team lists."
             onClose={() => setDeletingTeam(null)}
             onConfirm={() => {
               useTeamStore.getState().remove(deletingTeam);

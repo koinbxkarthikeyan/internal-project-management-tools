@@ -10,6 +10,7 @@ import TaskHistoryModal from "./TaskHistoryModal";
 import { carriedChain } from "./TaskSprintHours";
 import { useUsers } from "@/features/users/hooks/useUsers";
 import { eachDay, formatDay, formatHours, isWeekend, percentOfTotal } from "../utils";
+import { sprintLabel } from "@/constants/backlog-options";
 
 type EveryoneViewProps = {
   /** The sprints being looked at (one or more). */
@@ -289,7 +290,7 @@ function ByPerson({
                     <span className="flex min-w-0 items-baseline gap-1.5">
                       <span className="h-2 w-2 shrink-0 rounded-sm bg-hover" aria-hidden="true" />
                       <span className="truncate">
-                        {t.title} · {t.podId ? (podNames[t.podId] ?? "POD") : "Unplanned"} · {t.sprint}
+                        {t.title} · {t.podId ? (podNames[t.podId] ?? "POD") : "Backlog"} · {sprintLabel(t.sprint)}
                       </span>
                     </span>
                     <span className="shrink-0 font-mono text-[11px]">assigned</span>
@@ -422,10 +423,6 @@ function ByPod({
     const noPodEntries = entries.filter((e) => e.sprintId === sprint.id && !e.podId);
     const sprintEntries = noPodEntries.filter((e) => e.itemIds?.some((id) => noPodIds.has(id)));
     blocks.push(block("sprint-tasks", "Sprint tasks", sprintEntries, noPodTasks));
-    // Unplanned work belongs to the running sprint.
-    if (sprint.status === "Active") {
-      blocks.push(block("unplanned", "Unplanned", noPodEntries.filter((e) => !sprintEntries.includes(e)), tasks.filter((t) => t.sprint === "Unplanned")));
-    }
     return { sprint, blocks: blocks.filter((b): b is PodBlock => b !== null) };
   });
 
@@ -522,7 +519,7 @@ function UnplannedCard({ block, max, allTasks, onView, taskHours }: { block: Pod
       <div className="flex shrink-0 items-baseline justify-between gap-3">
         <p className="flex min-w-0 items-baseline gap-2 text-sm">
           <span className="h-2 w-2 shrink-0 rounded-sm" style={{ background: colorFor(block.key) }} aria-hidden="true" />
-          <span className="truncate font-semibold">Unplanned tasks</span>
+          <span className="truncate font-semibold">Backlog</span>
           <span className="shrink-0 text-xs text-muted">
             {people} {people === 1 ? "person" : "people"}
           </span>
@@ -530,11 +527,11 @@ function UnplannedCard({ block, max, allTasks, onView, taskHours }: { block: Pod
         <span className="shrink-0 font-mono text-sm font-semibold">{block.hours > 0 ? formatHours(block.hours) : "–"}</span>
       </div>
       {/* One bar for all unplanned tasks together: their combined hours against the busiest card of the sprint. */}
-      <div className="mt-1 h-1.5 shrink-0 overflow-hidden rounded-full bg-hover" role="img" aria-label={`${formatHours(block.hours)} logged on unplanned tasks`}>
+      <div className="mt-1 h-1.5 shrink-0 overflow-hidden rounded-full bg-hover" role="img" aria-label={`${formatHours(block.hours)} logged on Backlog tasks`}>
         <div className="h-full rounded-full" style={{ width: `${max > 0 ? (block.hours / max) * 100 : 0}%`, background: colorFor(block.key) }} />
       </div>
       {lines.length === 0 ? (
-        <p className="mt-2 text-xs text-muted">No time logged on unplanned tasks yet.</p>
+        <p className="mt-2 text-xs text-muted">No time logged on Backlog tasks yet.</p>
       ) : (
         <ul className="mt-2 max-h-[20.5rem] min-h-0 flex-1 divide-y divide-border overflow-y-auto pr-1 text-xs">
           {lines.map((e) => {

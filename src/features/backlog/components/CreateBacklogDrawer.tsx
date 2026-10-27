@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { FieldError } from "@/components/ui/FieldError";
 import { useToast } from "@/components/ui/Toast";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/FormControls";
 import { ITEM_TYPES, PRIORITIES } from "@/constants/backlog-options";
 import type { ItemType, Priority } from "@/types/backlog";
 import { useBacklog } from "../context/BacklogContext";
+import { DUPLICATE_TASK_MESSAGE, taskNameTaken } from "../taskNames";
 import { formatDeadline, todayISO } from "../utils";
 import AssigneeField, { cleanAssignees } from "./AssigneeField";
 import BacklogDrawer from "./BacklogDrawer";
@@ -14,11 +16,12 @@ import OwnerSelect from "./OwnerSelect";
 import TaskPlacementFields, { emptyPlacement, placementToItem, type Placement } from "./TaskPlacementFields";
 
 function CreateForm() {
-  const { addItem, closeCreate } = useBacklog();
+  const { addItem, closeCreate, items, hiddenItems } = useBacklog();
   const toast = useToast();
   const [created] = useState(todayISO);
   const [owner, setOwner] = useState("");
   const [title, setTitle] = useState("");
+  const [titleError, setTitleError] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState<ItemType | "">("");
   const [priority, setPriority] = useState<Priority>("Not set");
@@ -29,6 +32,11 @@ function CreateForm() {
   const [notes, setNotes] = useState("");
 
   async function submit() {
+    // Checked again here, just before saving, against every task now loaded (Backlog and every sprint, hidden tasks too). Nothing existing is touched.
+    if (taskNameTaken(title, [...items, ...hiddenItems])) {
+      setTitleError(DUPLICATE_TASK_MESSAGE);
+      return false;
+    }
     const { sprint, podId } = placementToItem(placement);
     const saved = await addItem({
       title: title.trim(),
@@ -62,11 +70,12 @@ function CreateForm() {
     <BacklogDrawer heading="Create backlog" submitLabel="Create backlog" onSubmit={submit} onClose={closeCreate}>
       <dl className="flex gap-6 rounded-xl border border-border bg-background px-4 py-3">
         {metaItem("Created", formatDeadline(created))}
-        {metaItem("Status", "Backlog")}
+        {metaItem("Status", "To Do")}
       </dl>
 
       <OwnerSelect required excludeUnassigned value={owner} onChange={setOwner} placeholder="Search or select an owner, or add a new owner." />
-      <TextField label="Title" required value={title} onChange={setTitle} placeholder="Short name for the work" />
+      <TextField label="Title" required value={title} onChange={(v) => (setTitle(v), setTitleError(""))} placeholder="Short name for the work" />
+      {titleError && <FieldError>{titleError}</FieldError>}
       <TextAreaField
         label="Description"
         rows={4}

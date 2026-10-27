@@ -1,5 +1,6 @@
 "use client";
 
+import LoadingLabel from "./LoadingLabel";
 import { ArrowRightIcon, LockIcon } from "@/components/ui/icons";
 import { useState, type FormEvent } from "react";
 import { DisabledTip } from "@/components/ui/DisabledTip";
@@ -81,9 +82,10 @@ export default function PasswordStep({ email, onChangeEmail }: PasswordStepProps
       <button
         type="submit"
         disabled={busy || tooShort}
-        className="h-11 w-full btn-brand inline-flex items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        aria-busy={busy}
+        className={`${busy ? "btn-loading " : ""}h-11 w-full btn-brand inline-flex items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
       >
-        {busy ? "Signing in…" : <>Sign in <ArrowRightIcon width={16} height={16} /></>}
+        {busy ? <LoadingLabel>Signing in</LoadingLabel> : <>Sign in <ArrowRightIcon width={16} height={16} /></>}
       </button>
       </DisabledTip>
       <div className="flex justify-center">

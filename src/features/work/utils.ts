@@ -41,6 +41,15 @@ export function myHoursBySprint(
   return sprints.map((s) => ({ name: s.name, hours: mine.filter((e) => e.sprintId === s.id).reduce((sum, e) => sum + e.hours, 0) }));
 }
 
+/** The running sprint and the two sprints before it (by start date), oldest first; with no running sprint, the three latest. Fewer when fewer exist. */
+export function recentSprints<T extends { id?: string; start: string; end: string; status?: string }>(sprints: readonly T[]): T[] {
+  // Newest first by start date, then end date; sprints that share both (several made on one day) go by their number, the highest first.
+  const num = (s: { id?: string }) => Number(s.id) || 0;
+  const newest = [...sprints].sort((a, b) => b.start.localeCompare(a.start) || b.end.localeCompare(a.end) || num(b) - num(a));
+  const at = Math.max(0, newest.findIndex((s) => s.status === "Active"));
+  return newest.slice(at, at + 3).reverse(); // oldest first, the running sprint last
+}
+
 /** The most recently saved entry (by its saved time, then its id), or undefined when there is none. */
 export function latestEntry<T extends { id: string; createdAt: string }>(entries: readonly T[]): T | undefined {
   return [...entries].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || (Number(b.id) || 0) - (Number(a.id) || 0))[0];

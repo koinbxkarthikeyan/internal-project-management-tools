@@ -62,7 +62,7 @@ export default function BulkUploadPage() {
   const { isAdmin, isSuperAdmin, user } = useAuth();
   const userId = user?.id ?? "";
   const searchParams = useSearchParams();
-  const { owners, ownerRecords, activeSprint, reload } = useBacklog();
+  const { owners, ownerRecords, activeSprint, reload, items: allTasks, hiddenItems: hiddenTasks } = useBacklog();
   const users = useUsers();
   const toast = useToast();
   const renames = useTeamStore((s) => s.renames);
@@ -160,12 +160,13 @@ export default function BulkUploadPage() {
       owners,
       ownerRecords,
       users,
-      sprintOptions: [...(activeSprint ? [{ value: activeSprint.name, label: activeSprint.name }] : []), { value: "Unplanned", label: "Unplanned Task" }],
+      sprintOptions: [...(activeSprint ? [{ value: activeSprint.name, label: activeSprint.name }] : []), { value: "Unplanned", label: "Backlog" }],
       teams: teamOptions(users, [], { renames, deleted, custom }),
       ownerTeams: teamSuggestions(ownerRecords).map((t) => resolveTeam(t, renames)),
       isSuperAdmin,
+      taskTitles: [...allTasks, ...hiddenTasks].map((t) => t.title),
     }),
-    [owners, ownerRecords, users, activeSprint, renames, deleted, custom, isSuperAdmin],
+    [owners, ownerRecords, users, activeSprint, renames, deleted, custom, isSuperAdmin, allTasks, hiddenTasks],
   );
 
   const spec = BULK_SPECS[type];
@@ -189,8 +190,7 @@ export default function BulkUploadPage() {
   const problemCount = Object.values(problems).reduce((n, p) => n + Object.keys(p).length, 0);
 
   function edit(row: Row, col: Column, raw: string) {
-    const formatted = col.format ? col.format(raw) : raw;
-    const value = col.typing ? col.typing(row.values[col.key] ?? "", formatted) : formatted;
+    const value = col.format ? col.format(raw) : raw;
     setRows((rs) =>
       rs.map((r) => {
         if (r.id !== row.id) return r;
@@ -500,7 +500,7 @@ export default function BulkUploadPage() {
                 <tr key={row.id} className="align-top">
                   <td className="px-2 py-2 text-center text-xs tabular-nums text-muted">{index + 1}</td>
                   {spec.columns.map((c) => {
-                    const message = problems[row.id]?.[c.key];
+                    const message = problems[row.id]?.[c.key] ?? (c.liveProblem?.(row.values[c.key] ?? "") || undefined);
                     return (
                       <td key={c.key} className="px-1.5 py-1.5" style={{ minWidth: c.width }}>
                         <Cell column={c} row={row} index={index} ctx={ctx} invalid={!!message} disabled={uploading} onChange={(v) => edit(row, c, v)} onLeave={(v) => c.complete && v !== c.complete(v) && edit(row, c, c.complete(v))} onCreate={c.create ? () => setCreating({ kind: c.create!, rowId: row.id, key: c.key, multi: c.control === "multi" }) : undefined} />
@@ -675,25 +675,23 @@ function Cell({ column: c, row, index, ctx, invalid, disabled, onChange, onLeave
       />
     );
   }
+  const choices = c.optionsFor?.(value) ?? [];
   return (
+    <>
     <input
       type={c.control === "date" ? "date" : "text"}
+      list={choices.length ? `${row.id}-${c.key}-options` : undefined}
       aria-label={label}
       aria-invalid={invalid || undefined}
       value={value}
       readOnly={locked}
       disabled={disabled}
       placeholder={c.placeholder}
-      onChange={(e) => {
-        const input = e.target;
-        const typed = c.format ? c.format(input.value) : input.value;
-        onChange(input.value);
-        // A domain added after a typed "@" is selected, so carrying on typing replaces it instead of following it.
-        const next = c.typing ? c.typing(value, typed) : typed;
-        if (next !== typed) requestAnimationFrame(() => input.setSelectionRange(typed.length, next.length));
-      }}
+      onChange={(e) => onChange(e.target.value)}
       onBlur={(e) => onLeave(e.target.value)}
       className={inputClass}
     />
+    {choices.length > 0 && <datalist id={`${row.id}-${c.key}-options`}>{choices.map((v) => <option key={v} value={v} />)}</datalist>}
+    </>
   );
 }

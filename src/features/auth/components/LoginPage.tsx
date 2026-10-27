@@ -43,7 +43,7 @@ export default function LoginPage() {
   }
 
   if (step.kind === "denied") {
-    return <AccessNotGranted email={step.email} reason={step.reason} onUseAnotherEmail={() => setStep({ kind: "email", email: "" })} />;
+    return <AccessNotGranted email={step.email} reason={step.reason} onUseAnotherEmail={() => setStep({ kind: "email", email: step.email })} />;
   }
 
   if (step.kind === "password") {

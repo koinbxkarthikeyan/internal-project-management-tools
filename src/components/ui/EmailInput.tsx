@@ -1,9 +1,10 @@
 "use client";
 
-import { useId, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { ALLOWED_EMAIL_DOMAIN } from "@/constants/auth";
-import { completeEmail, completeWhileTyping, suggestEmail } from "@/lib/auth/emailRules";
+import { emailProblem, emailSuggestions } from "@/lib/auth/emailRules";
 import { Field, controlClass } from "./FormControls";
+import { FieldError } from "./FieldError";
 import { CheckCircleIcon } from "./icons";
 
 type EmailInputProps = {
@@ -18,16 +19,22 @@ type EmailInputProps = {
   /** An icon shown inside the field, before the text. */
   leading?: ReactNode;
   className?: string;
+  /** Show the "company email address" message under the field while typing (default). A form that shows its own message turns this off. */
+  showError?: boolean;
   "aria-describedby"?: string;
 };
 
 /**
- * The one email input in the app. Type a name and the `@koinbx.com` address is suggested; type `name@` and it is
- * completed on the spot; leaving the field completes whatever is there. The address stays editable.
+ * The one email input in the app. Nothing is ever filled in for you: type the whole address, or type `name@` and pick `@koinbx.com` /
+ * `@koinbazar.com` from the suggestions if you like (the browser's own suggestion list, so ignoring it costs nothing).
  */
-export function EmailInput({ value, onChange, placeholder = `name@${ALLOWED_EMAIL_DOMAIN}`, required, autoFocus, invalid, valid, leading, className = "", ...rest }: EmailInputProps) {
+export function EmailInput({ value, onChange, placeholder = `name@${ALLOWED_EMAIL_DOMAIN}`, required, autoFocus, invalid, valid, leading, className = "", showError = true, ...rest }: EmailInputProps) {
   const listId = useId();
-  const suggestion = suggestEmail(value);
+  const suggestions = emailSuggestions(value);
+  // Checked while typing (a partly typed address is not flagged), and fully once the field has been left.
+  const [left, setLeft] = useState(false);
+  const problem = showError ? emailProblem(value, left) : "";
+  const problemId = `${listId}-problem`;
   return (
     <>
       <span className="relative block">
@@ -43,26 +50,20 @@ export function EmailInput({ value, onChange, placeholder = `name@${ALLOWED_EMAI
         required={required}
         autoFocus={autoFocus}
         placeholder={placeholder}
-        aria-invalid={invalid || undefined}
-        data-valid={(valid && !invalid) || undefined}
-        aria-describedby={rest["aria-describedby"]}
+        aria-invalid={invalid || !!problem || undefined}
+        data-valid={(valid && !invalid && !problem) || undefined}
+        aria-describedby={[rest["aria-describedby"], problem && problemId].filter(Boolean).join(" ") || undefined}
         onChange={(e) => {
           const input = e.target;
           const typed = input.value.toLowerCase(); // typed or pasted capitals become lowercase
-          const next = completeWhileTyping(value, typed);
-          onChange(next);
-          // The domain was added after a typed "@": select it, so carrying on typing (e.g. the rest of "…@koinbx.com") replaces it.
-          if (next !== typed) requestAnimationFrame(() => input.setSelectionRange(typed.length, next.length));
-          else if (input.value !== typed) {
+          onChange(typed);
+          if (input.value !== typed) {
             // Keep the caret where it was when capitals were lowercased (same length, so the position is unchanged).
             const at = input.selectionStart;
             requestAnimationFrame(() => at != null && input.setSelectionRange(at, at));
           }
         }}
-        onBlur={() => {
-          const done = completeEmail(value).toLowerCase();
-          if (done !== value) onChange(done);
-        }}
+        onBlur={() => setLeft(true)}
         className={`${controlClass} ${leading ? "pl-10" : ""} ${valid && !invalid ? "pr-10" : ""} ${className}`}
       />
       {valid && !invalid && (
@@ -71,7 +72,8 @@ export function EmailInput({ value, onChange, placeholder = `name@${ALLOWED_EMAI
         </span>
       )}
       </span>
-      <datalist id={listId}>{suggestion && <option value={suggestion} />}</datalist>
+      {problem && <FieldError id={problemId}>{problem}</FieldError>}
+      <datalist id={listId}>{suggestions.map((v) => <option key={v} value={v} />)}</datalist>
     </>
   );
 }

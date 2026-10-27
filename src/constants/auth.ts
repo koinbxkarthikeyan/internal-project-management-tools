@@ -1,7 +1,11 @@
 // Configuration for the login flow (not user data).
 
-/** Only addresses ending in `@<ALLOWED_EMAIL_DOMAIN>` may sign in. */
-export const ALLOWED_EMAIL_DOMAIN = "koinbx.com";
+/** Only addresses on one of these domains (matched exactly, the part after the last "@") may sign in or be added. The first is the one suggested and completed. */
+export const ALLOWED_EMAIL_DOMAINS = ["koinbx.com", "koinbazar.com"] as const;
+export const ALLOWED_EMAIL_DOMAIN = ALLOWED_EMAIL_DOMAINS[0];
+/** The domains as text for messages: "@koinbx.com or @koinbazar.com" (and "@koinbx.com and @koinbazar.com"). */
+export const ALLOWED_DOMAINS_TEXT = ALLOWED_EMAIL_DOMAINS.map((d) => `@${d}`).join(" or ");
+export const ALLOWED_DOMAINS_AND_TEXT = ALLOWED_EMAIL_DOMAINS.map((d) => `@${d}`).join(" and ");
 
 /** Length of the one-time code the backend emails to regular users. */
 export const OTP_LENGTH = 6;
@@ -22,7 +26,7 @@ export const USER_ROLES = ["Admin", "User"] as const;
 /** Where a successful sign-in lands. */
 export const DEFAULT_REDIRECT = "/overview";
 
-export const LOGIN_PATH = "/login";
+export const LOGIN_PATH = "/";
 
 // localStorage keys: the login (token + user). `users` is only the name of a cache an earlier version kept; it is removed on sign-out.
 export const STORAGE_KEYS = {

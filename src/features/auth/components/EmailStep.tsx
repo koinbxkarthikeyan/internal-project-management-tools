@@ -1,11 +1,12 @@
 "use client";
 
+import LoadingLabel from "./LoadingLabel";
 import { ArrowRightIcon, MailIcon } from "@/components/ui/icons";
 import { useState, type FormEvent } from "react";
 import { EmailInput } from "@/components/ui/EmailInput";
 import { Field } from "@/components/ui/FormControls";
-import { ALLOWED_EMAIL_DOMAIN } from "@/constants/auth";
-import { validateEmail } from "@/lib/auth/emailRules";
+import { ALLOWED_DOMAINS_AND_TEXT, ALLOWED_EMAIL_DOMAIN, ALLOWED_EMAIL_DOMAINS } from "@/constants/auth";
+import { emailProblem, validateEmail } from "@/lib/auth/emailRules";
 import { startLogin, type DeniedReason, type StartLoginResult } from "@/lib/auth/authService";
 import { FieldError } from "@/components/ui/FieldError";
 
@@ -24,10 +25,11 @@ export default function EmailStep({ initialEmail = "", onSent, onDenied }: Email
   // the form) or pressed Next, and from then on as they type, so the message goes as soon as the address is usable.
   const [touched, setTouched] = useState(false);
   const check = validateEmail(email);
-  const problem = touched && !check.ok ? (email.trim() ? check.message : "Email is required.") : "";
+  // Flagged while typing as soon as the domain is identifiable (`sasi@gmail`); a half-typed address waits until the field is left or Next is pressed.
+  const problem = email.trim() ? emailProblem(email, touched) : touched ? "Email is required." : "";
   const message = error || problem;
   // Green only for a complete address (name@koinbx.com) that passes the check, not for a partly typed one.
-  const complete = new RegExp(`^[^\\s@]+@${ALLOWED_EMAIL_DOMAIN.replace(/\./g, "\\.")}$`, "i").test(email.trim());
+  const complete = new RegExp(`^[^\\s@]+@(${ALLOWED_EMAIL_DOMAINS.map((d) => d.replace(/\./g, "\\.")).join("|")})$`, "i").test(email.trim());
   const valid = !message && check.ok && complete;
 
   async function handleSubmit(e: FormEvent) {
@@ -57,6 +59,7 @@ export default function EmailStep({ initialEmail = "", onSent, onDenied }: Email
     >
       <Field label="Work email" required>
         <EmailInput
+          showError={false}
           autoFocus
           leading={<MailIcon width={16} height={16} />}
           value={email}
@@ -74,15 +77,16 @@ export default function EmailStep({ initialEmail = "", onSent, onDenied }: Email
         </FieldError>
       ) : (
         <p id="email-help" className="-mt-2 text-xs text-muted">
-          Only @{ALLOWED_EMAIL_DOMAIN} email addresses can sign in.
+          Only {ALLOWED_DOMAINS_AND_TEXT} email addresses can sign in.
         </p>
       )}
       <button
         type="submit"
         disabled={sending}
-        className="h-11 w-full btn-brand inline-flex items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        aria-busy={sending}
+        className={`${sending ? "btn-loading " : ""}h-11 w-full btn-brand inline-flex items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent`}
       >
-        {sending ? "Please wait…" : <>Next <ArrowRightIcon width={16} height={16} /></>}
+        {sending ? <LoadingLabel>Please wait</LoadingLabel> : <>Next <ArrowRightIcon width={16} height={16} /></>}
       </button>
     </form>
   );

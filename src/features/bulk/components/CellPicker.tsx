@@ -186,7 +186,7 @@ export default function CellPicker({ options, selected, display, multi = false, 
         id={id}
         popover="manual"
         onKeyDown={onKey}
-        className="m-0 flex max-h-72 flex-col overflow-hidden rounded-xl border border-border bg-surface p-0 text-sm text-foreground shadow-lg"
+        className="anim-menu-in m-0 flex max-h-72 flex-col overflow-hidden rounded-xl border border-border bg-surface p-0 text-sm text-foreground shadow-lg"
         style={{ position: "fixed", inset: "auto" }}
       >
         {searchable && (

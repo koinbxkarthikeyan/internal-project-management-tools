@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useLiveTaskUpdates } from "../hooks/useLiveTaskUpdates";
@@ -16,6 +17,18 @@ import type { BacklogItemData, ItemPatch, NewItemInput, Owner, Sprint, SprintInp
 import type { Pod } from "@/types/work";
 
 type LoadStatus = "loading" | "ready" | "error";
+type ItemsPaging = {
+  /** Every task is loaded (so nothing is left to fetch). */
+  complete: boolean;
+  /** How many tasks there are in all on each side, counting this browser's own additions and removals. */
+  totalShown: number;
+  totalHidden: number;
+  hasMore: (hidden: boolean) => boolean;
+  loadingMore: boolean;
+  loadMore: (hidden: boolean) => void;
+  /** Reads the rest of the tasks (used when a search or filter has to look at all of them). */
+  loadAll: () => void;
+};
 type SprintResult = "ok" | "empty" | "duplicate" | "locked" | "running" | "error";
 
 type BacklogContextValue = {
@@ -37,6 +50,8 @@ type BacklogContextValue = {
   /** My Task, normal users: a status change with the required work details (BACKEND-DEPENDENT, see backlogService.changeStatusWithDetails). */
   changeStatusWithDetails: (id: string, status: Status, details: string) => Promise<boolean>;
   deleteItem: (id: string) => Promise<boolean>;
+  /** How much of the task list is loaded. The All Items table reads 10 tasks at a time; every other screen has the whole list. */
+  itemsPaging: ItemsPaging;
   hideItem: (id: string) => Promise<boolean>;
   restoreItem: (id: string) => Promise<boolean>;
 
@@ -110,8 +125,13 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
   const apiOwners = useBacklogStore((st) => (st.scope === scopeKey ? st.owners : EMPTY_OWNERS));
   const rawSprints = useBacklogStore((st) => (st.scope === scopeKey ? st.sprints : EMPTY_SPRINTS));
   const allPods = useBacklogStore((st) => (st.scope === scopeKey ? st.pods : EMPTY_PODS));
-  const { setItems: setAll, setOwners: setOwnerList, setSprints, setPods, load, refreshParts, syncSprints } = useBacklogStore.getState();
-  const ctx = useMemo(() => ({ userId: user?.id ?? "", restricted, skip: settingsOnly }), [user?.id, restricted, settingsOnly]);
+  const itemsComplete = useBacklogStore((st) => st.itemsComplete);
+  const itemsMeta = useBacklogStore((st) => st.itemsMeta);
+  const loadingMore = useBacklogStore((st) => st.loadingMore);
+  const { setItems: setAll, setOwners: setOwnerList, setSprints, setPods, load, refreshParts, syncSprints, loadMoreItems, completeItems } = useBacklogStore.getState();
+  // The All Items table loads 10 tasks at a time; every other screen needs the whole list.
+  const lazyItems = usePathname() === "/all-items";
+  const ctx = useMemo(() => ({ userId: user?.id ?? "", restricted, skip: settingsOnly, lazyItems }), [user?.id, restricted, settingsOnly, lazyItems]);
   const [createOpen, setCreateOpen] = useState(false);
 
   // Owners are their own records (not users); "Unassigned" is added last.
@@ -123,6 +143,11 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void load(ctx);
   }, [ctx, load]);
+
+  // Leaving All Items for a screen that needs every task: read the rest.
+  useEffect(() => {
+    if (status === "ready" && !lazyItems && !itemsComplete) void completeItems(ctx);
+  }, [status, lazyItems, itemsComplete, ctx, completeItems]);
 
   // Status changes saved by other people arrive live (only when a socket URL is configured; see src/lib/socketClient.ts).
   useLiveTaskUpdates(status === "ready");
@@ -143,6 +168,22 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
   }, [status, ctx, syncSprints]);
 
   const reload = useCallback(() => void load(ctx, { force: true }), [ctx, load]);
+
+  const loadedShown = all.filter((i) => !i.hidden).length;
+  const loadedHidden = all.length - loadedShown;
+  const itemsPaging = useMemo<ItemsPaging>(
+    () => ({
+      complete: itemsComplete,
+      // Until everything is loaded: the total the server gave, moved by what this browser added or removed since.
+      totalShown: itemsComplete ? loadedShown : Math.max(loadedShown, itemsMeta.shownTotal + loadedShown - itemsMeta.shownBase),
+      totalHidden: itemsComplete ? loadedHidden : Math.max(loadedHidden, itemsMeta.hiddenTotal + loadedHidden - itemsMeta.hiddenBase),
+      hasMore: (hidden) => !itemsComplete && (hidden ? itemsMeta.hiddenMore : itemsMeta.shownMore),
+      loadingMore,
+      loadMore: (hidden) => void loadMoreItems(hidden, ctx),
+      loadAll: () => void completeItems(ctx),
+    }),
+    [itemsComplete, itemsMeta, loadedShown, loadedHidden, loadingMore, loadMoreItems, completeItems, ctx],
+  );
 
   const value = useMemo<BacklogContextValue>(() => {
     const fail = (err: unknown) => toast.show(getErrorMessage(err), "danger");
@@ -186,6 +227,7 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
       items: all.filter((i) => !i.hidden),
       hiddenItems: all.filter((i) => i.hidden),
       nextId: `BLG-${maxId + 1}`,
+      itemsPaging,
       addItem: async (input) => {
         try {
           const created = await backlogService.createItem(input);
@@ -438,7 +480,7 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
       openCreate: () => setCreateOpen(true),
       closeCreate: () => setCreateOpen(false),
     };
-  }, [status, error, reload, all, ownerList, rawSprints, allPods, createOpen, toast, ctx, refreshParts, setAll, setPods, setSprints, setOwnerList]);
+  }, [status, error, reload, all, itemsPaging, ownerList, rawSprints, allPods, createOpen, toast, ctx, refreshParts, setAll, setPods, setSprints, setOwnerList]);
 
   return <BacklogContext.Provider value={value}>{children}</BacklogContext.Provider>;
 }

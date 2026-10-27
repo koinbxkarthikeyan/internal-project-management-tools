@@ -1,9 +1,12 @@
 type BacklogSearchProps = {
   value: string;
   onChange: (value: string) => void;
+  /** Defaults to the backlog wording; other pages pass their own. */
+  placeholder?: string;
+  ariaLabel?: string;
 };
 
-export default function BacklogSearch({ value, onChange }: BacklogSearchProps) {
+export default function BacklogSearch({ value, onChange, placeholder = "Search title or owner…", ariaLabel = "Search backlog items" }: BacklogSearchProps) {
   return (
     <div className="relative min-w-0 flex-1 basis-48">
       <svg
@@ -24,8 +27,8 @@ export default function BacklogSearch({ value, onChange }: BacklogSearchProps) {
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Search title or owner…"
-        aria-label="Search backlog items"
+        placeholder={placeholder}
+        aria-label={ariaLabel}
         className="h-10 w-full field pl-8 pr-3 text-sm placeholder:text-muted"
       />
     </div>

@@ -83,7 +83,9 @@ type CreateProps = {
    */
   onCreate?: (name: string) => void | Promise<void>;
   /** An extra row always shown at the end of the list (e.g. "+ Add Team Member"); choosing it calls `onSelect`. */
-  action?: { label: string; onSelect: () => void };
+  action?: { label: string; onSelect: () => void };  /** Small Rename / Delete buttons on each listed option (e.g. a Team); choosing one closes the list and calls this with the option's label. */
+  onEditOption?: (label: string) => void;
+  onDeleteOption?: (label: string) => void;
 };
 
 type SearchableSelectProps = Omit<SelectFieldProps, "label"> & CreateProps & {
@@ -96,7 +98,7 @@ type SearchableSelectProps = Omit<SelectFieldProps, "label"> & CreateProps & {
   hideArrow?: boolean;
 };
 
-export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hideArrow, value, onChange, options, groups, placeholder, required, disabled, disabledReason, onCreate, action, className = "" }: SearchableSelectProps) {
+export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hideArrow, value, onChange, options, groups, placeholder, required, disabled, disabledReason, onCreate, action, onEditOption, onDeleteOption, className = "" }: SearchableSelectProps) {
   const listId = useId();
   const [open, setOpen] = useState(false);
   const [up, setUp] = useState(false);
@@ -194,25 +196,51 @@ export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hi
       {open && !disabled && (
         // Only the options scroll; the action ("+ Add …") stays fixed at the bottom of the list.
         <div
-          className={`anim-fade-up absolute inset-x-0 z-20 flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-lg ${up ? "bottom-full mb-1" : "top-full mt-1"}`}
+          className={`anim-menu-in absolute inset-x-0 z-20 flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-lg ${up ? "bottom-full mb-1" : "top-full mt-1"}`}
         >
           <ul id={listId} role="listbox" aria-label={label ?? ariaLabel} className="max-h-48 min-h-0 flex-1 overflow-y-auto p-1">
           {rows.length === 0 && <li className="px-3 py-2 text-sm text-muted">No matches.</li>}
           {rows.map((c, i) => (
             <li key={`${c.group ?? ""}:${c.value}`} role="option" aria-selected={c.value === value}>
               {c.group && c.group !== rows[i - 1]?.group && <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-muted">{c.group}</p>}
+              <div className={`flex items-center rounded-lg ${i === active ? "bg-hover" : ""}`}>
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => pick(c)}
-                className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-accent ${
-                  i === active ? "bg-hover" : ""
-                } ${c.create ? "font-medium text-accent" : c.value === value ? "font-medium text-accent" : c.value === "" ? "text-muted" : ""}`}
+                className={`flex min-w-0 flex-1 items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-accent ${
+                  c.create ? "font-medium text-accent" : c.value === value ? "font-medium text-accent" : c.value === "" ? "text-muted" : ""
+                }`}
               >
                 <span className="min-w-0 truncate">{c.label}</span>
                 {!c.create && c.value === value && c.value !== "" && <span className="shrink-0 text-xs">✓</span>}
               </button>
+              {!c.create && c.value !== "" && onEditOption && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => (close(), onEditOption(c.label))}
+                  aria-label={`Rename ${c.label}`}
+                  title="Rename"
+                  className="shrink-0 rounded-md p-1.5 text-muted hover:bg-hover hover:text-accent focus-visible:outline-2 focus-visible:outline-accent"
+                >
+                  <EditIcon width={14} height={14} />
+                </button>
+              )}
+              {!c.create && c.value !== "" && onDeleteOption && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => (close(), onDeleteOption(c.label))}
+                  aria-label={`Delete ${c.label}`}
+                  title="Delete"
+                  className="mr-1 shrink-0 rounded-md p-1.5 text-muted hover:bg-hover hover:text-red-600 focus-visible:outline-2 focus-visible:outline-accent dark:hover:text-red-300"
+                >
+                  <TrashIcon width={14} height={14} />
+                </button>
+              )}
+              </div>
             </li>
           ))}
           </ul>
@@ -367,7 +395,7 @@ export function ComboField({ label, value, onChange, suggestions, placeholder, r
         </span>
       </Field>
       {open && (matches.length > 0 || isNew) && (
-        <ul id={listId} role="listbox" aria-label={label} className="anim-fade-up absolute inset-x-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-lg">
+        <ul id={listId} role="listbox" aria-label={label} className="anim-menu-in absolute inset-x-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-lg">
           {matches.map((o, i) => (
             <li key={o} role="option" aria-selected={o.toLowerCase() === q} className="flex items-center gap-1">
               <button

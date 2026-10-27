@@ -16,7 +16,7 @@ export default function HidePodDrawer({ pod, onClose }: { pod: Pod; onClose: () 
       title="Hide POD"
       name={pod.name}
       confirmLabel="Confirm hide"
-      consequence={`It will no longer be offered in sprints, task choices or My sprint. Its ${tasks} ${tasks === 1 ? "task" : "tasks"} and logged time are kept. Adding a POD with the same name brings it back.`}
+      consequence={`It is hidden from sprints and task choices. Its ${tasks} ${tasks === 1 ? "task" : "tasks"} and logged time are kept.`}
       onClose={onClose}
       onConfirm={async () => {
         if (!(await hidePod(pod.id))) return false;

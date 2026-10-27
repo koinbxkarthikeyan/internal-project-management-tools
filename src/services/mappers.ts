@@ -172,6 +172,7 @@ export function itemFromApi(raw: Rec, codeById?: ReadonlyMap<number, string>): B
     ...(lastUpdater(raw) ? { updatedBy: lastUpdater(raw) } : {}),
     ...(raw.completedAt ? { completed: day(raw.completedAt) } : {}),
     ...(carriedFrom ? { carriedFrom } : {}),
+    ...(list(rec(raw.history)?.sprintIds).length ? { historySprintIds: list(rec(raw.history)?.sprintIds).map((id) => (id == null ? null : String(id))) } : {}),
     ...(typeof raw.canLeadEdit === "boolean" ? { canLeadEdit: raw.canLeadEdit } : {}),
     ...(typeof raw.readOnly === "boolean" ? { readOnly: raw.readOnly } : {}),
     activity: list(raw.activity).flatMap((a) => {
@@ -226,7 +227,7 @@ export function entryLabel(tasks: BacklogItemData[]): { pod: string; podId?: str
   const parts = [
     real ? (directory.pods.find((p) => p.id === real.podId)?.name ?? "POD") : null,
     tasks.some((t) => t.sprint !== "Unplanned" && !t.podId) ? "Sprint tasks" : null,
-    tasks.some((t) => t.sprint === "Unplanned") ? "Unplanned" : null,
+    tasks.some((t) => t.sprint === "Unplanned") ? "Backlog" : null,
   ].filter(Boolean);
   return { pod: parts.join(" + ") || "Sprint tasks", ...(real?.podId ? { podId: real.podId } : {}) };
 }

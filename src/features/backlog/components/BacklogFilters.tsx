@@ -29,7 +29,7 @@ type BacklogFiltersProps = {
     status: readonly (string | { value: string; label: string })[];
     priority: readonly string[];
     owner: readonly string[];
-    sprint: readonly string[];
+    sprint: readonly (string | { value: string; label: string })[];
   };
 };
 

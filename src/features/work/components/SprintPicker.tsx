@@ -1,6 +1,8 @@
 "use client";
 
 import { SelectField } from "@/components/ui/FormControls";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useWorkPickStore } from "@/stores/workPickStore";
 import type { Sprint } from "@/types/backlog";
 import { formatDay } from "../utils";
 
@@ -15,6 +17,8 @@ type SprintPickerProps = {
 
 /** Pick the sprint to look at from a dropdown. Every sprint is listed, finished ones too. */
 export default function SprintPicker({ sprints, selectedIds, onChange }: SprintPickerProps) {
+  const { isAdmin, isSuperAdmin } = useAuth();
+  const { showAllClosed, setShowAllClosed } = useWorkPickStore();
   const labelOf = (s: DatedSprint) => `${s.name} · ${formatDay(s.start)} – ${formatDay(s.end)}${s.status === "Closed" ? " · Closed" : s.status === "Active" ? " · Active" : ""}`;
 
   return (
@@ -28,6 +32,13 @@ export default function SprintPicker({ sprints, selectedIds, onChange }: SprintP
         required
         className="max-w-md"
       />
+      {/* An Admin can list every closed sprint; a Super Admin always sees them all, and anyone else only the latest one. */}
+      {isAdmin && !isSuperAdmin && (
+        <label className="mt-3 flex w-fit cursor-pointer items-center gap-2 text-sm text-muted">
+          <input type="checkbox" checked={showAllClosed} onChange={(e) => setShowAllClosed(e.target.checked)} className="h-4 w-4 accent-[var(--accent)]" />
+          View all closed sprints
+        </label>
+      )}
     </section>
   );
 }

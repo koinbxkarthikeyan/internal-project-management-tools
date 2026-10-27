@@ -4,7 +4,7 @@ import { SelectField } from "@/components/ui/FormControls";
 import { useBacklog } from "../context/BacklogContext";
 
 /**
- * Where a task goes, chosen from one Sprint dropdown: the running sprint, or "Unplanned Task". `choice` is the
+ * Where a task goes, chosen from one Sprint dropdown: the running sprint, a planned sprint, or Backlog. `choice` is the
  * sprint's name when a sprint is picked.
  */
 export type Placement = { kind: "" | "sprint" | "unplanned"; choice: string };
@@ -34,13 +34,16 @@ type TaskPlacementFieldsProps = {
 const UNPLANNED = "__unplanned__";
 
 export default function TaskPlacementFields({ value, onChange, current, createLayout = false }: TaskPlacementFieldsProps) {
-  const { activeSprint } = useBacklog();
+  const { activeSprint, sprints } = useBacklog();
 
-  const sprintOptions = activeSprint ? [activeSprint.name] : [];
+  // Every sprint a task can be planned into: the running one and the planned ones (waiting to start). Closed sprints never take a task.
+  const open = sprints.filter((s) => s.name !== "Unplanned" && s.status !== "Closed");
+  const stateOf = (s: { status?: string }) => (s.status === "Active" ? "Active" : "Planned");
+  const sprintOptions = open.map((s) => ({ name: s.name, label: `${s.name} (${stateOf(s)})` }));
   // A task already planned in an earlier sprint can stay there (that sprint is closed now).
-  const earlier = current && current.sprint !== "Unplanned" && current.sprint !== activeSprint?.name ? current.sprint : null;
+  const earlier = current && current.sprint !== "Unplanned" && !open.some((s) => s.name === current.sprint) ? current.sprint : null;
   const options = [
-    ...sprintOptions.map((s) => ({ value: s, label: s })),
+    ...sprintOptions.map((s) => ({ value: s.name, label: s.label })),
     ...(earlier ? [{ value: earlier, label: `${earlier} (closed)` }] : []),
   ];
 
@@ -55,19 +58,21 @@ export default function TaskPlacementFields({ value, onChange, current, createLa
         className={createLayout ? "order-4" : undefined}
         value={value.kind === "sprint" ? value.choice : value.kind === "unplanned" ? UNPLANNED : ""}
         onChange={choose}
-        options={[...options, { value: UNPLANNED, label: "Unplanned Task" }]}
+        options={[...options, { value: UNPLANNED, label: "Backlog" }]}
         placeholder="Choose sprint"
       />
-      {!activeSprint && (
+      {open.length === 0 && (
         <p className="col-span-full order-5 -mt-2 text-xs text-muted">
-          No sprint is running, so a task can only be an Unplanned Task for now. Start a sprint on Sprint plan to plan tasks into it.
+          No sprint is running or planned, so this task goes to Backlog. Plan a sprint on Sprint plan to add tasks to it.
         </p>
       )}
-      {value.kind === "sprint" && activeSprint && value.choice === activeSprint.name && (
-        <p className="col-span-full order-5 -mt-2 text-xs text-muted">This task will be part of {activeSprint.name}, the running sprint.</p>
+      {value.kind === "sprint" && open.some((s) => s.name === value.choice) && (
+        <p className="col-span-full order-5 -mt-2 text-xs text-muted">
+          This task joins {value.choice}, {value.choice === activeSprint?.name ? "the running sprint" : "a planned sprint"}.
+        </p>
       )}
       {value.kind === "unplanned" && (
-        <p className="col-span-full order-5 -mt-2 text-xs text-muted">An Unplanned Task isn&apos;t part of the sprint plan.</p>
+        <p className="col-span-full order-5 -mt-2 text-xs text-muted">A Backlog task isn&apos;t part of any sprint yet.</p>
       )}
     </>
   );

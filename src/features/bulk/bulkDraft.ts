@@ -22,6 +22,11 @@ function cleanValues(type: BulkType, raw: unknown): Values | null {
   if (!isRecord(raw)) return null;
   const out: Values = {};
   for (const col of BULK_SPECS[type].columns) {
+    // A fixed column (the Backlog tab's Status) is never read back from storage: a draft saved before it was renamed ("Backlog" -> "To Do") would otherwise make an empty row look filled in.
+    if (col.excel === false) {
+      out[col.key] = BULK_SPECS[type].blank()[col.key] ?? "";
+      continue;
+    }
     const v = raw[col.key];
     if (typeof v === "string") out[col.key] = v.slice(0, MAX_TEXT);
   }

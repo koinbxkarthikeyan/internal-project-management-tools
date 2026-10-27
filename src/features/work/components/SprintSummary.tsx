@@ -74,7 +74,7 @@ export default function SprintSummary({ logged, limit, expected, hasPerson }: Sp
           {segments.map((s, i) => (
             <div
               key={s.key}
-              className={`absolute inset-y-0 ${s.color.bg} transition-[width,left] duration-500 ${i > 0 ? "border-l-2 border-surface" : ""}`}
+              className={`absolute inset-y-0 ${s.color.bg} transition-[width,left] duration-300 ${i > 0 ? "border-l-2 border-surface" : ""}`}
               style={{ left: `${pct(s.from)}%`, width: `${pct(s.size)}%` }}
             />
           ))}

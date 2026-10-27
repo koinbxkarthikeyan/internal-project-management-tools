@@ -66,6 +66,8 @@ export type BacklogItemData = {
   leadDeadline?: string;
   /** Id of the task this one was copied from when its sprint closed unfinished (the original stays in the old sprint). */
   carriedFrom?: string;
+  /** The ids of every sprint this task has belonged to, in order (`null` is Backlog), the current one last (the backend's `history.sprintIds`). Absent until the backend sends it. */
+  historySprintIds?: (string | null)[];
   blockedReason?: string;
   /** ISO date (YYYY-MM-DD). */
   created?: string;

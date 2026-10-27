@@ -1,5 +1,3 @@
-"use client";
-
 import ActionsMenu from "@/components/ui/ActionsMenu";
 import { EyeIcon, EyeOffIcon, TrashIcon } from "@/components/ui/icons";
 import type { BacklogItemData } from "@/types/backlog";

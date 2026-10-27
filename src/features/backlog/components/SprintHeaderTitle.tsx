@@ -2,6 +2,7 @@ import { DisabledTip } from "@/components/ui/DisabledTip";
 import { CheckCircleIcon, EditIcon, TrashIcon } from "@/components/ui/icons";
 import type { Sprint } from "@/types/backlog";
 import { formatDeadline } from "../utils";
+import { sprintLabel } from "@/constants/backlog-options";
 
 type SprintHeaderTitleProps = {
   sprint: Sprint;
@@ -29,7 +30,7 @@ export default function SprintHeaderTitle({ sprint, onEdit, onDelete, onClose, o
         className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-sm font-semibold"
         title={sprint.goal || undefined}
       >
-        {sprint.name}
+        {sprintLabel(sprint.name)}
         {sprint.start && sprint.end && (
           <span className="text-xs font-normal text-muted">
             {formatDeadline(sprint.start)} – {formatDeadline(sprint.end)}
@@ -50,7 +51,7 @@ export default function SprintHeaderTitle({ sprint, onEdit, onDelete, onClose, o
             className={`h-1.5 w-1.5 rounded-full ${sprint.status === "Active" ? "bg-emerald-500" : sprint.status === "Paused" ? "bg-amber-500" : "bg-slate-400"}`}
             aria-hidden="true"
           />
-          {sprint.status}
+          {sprint.status === "Paused" ? "Planned" : sprint.status}
         </span>
       )}
       {sprint.name !== "Unplanned" && (

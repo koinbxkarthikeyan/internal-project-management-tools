@@ -287,7 +287,7 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
         <button
           type="submit"
           disabled={saving || closed || unchanged}
-          className="h-11 w-full shrink-0 rounded-xl btn-brand px-4 text-sm font-medium font-semibold  focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:w-auto sm:flex-1"
+          className="h-11 w-full shrink-0 rounded-xl btn-brand px-4 text-sm font-semibold  focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:w-auto sm:flex-1"
         >
           {saving ? "Saving…" : editing ? "Save changes" : "Add to my sprint"}
         </button>

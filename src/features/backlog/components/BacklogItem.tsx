@@ -10,6 +10,8 @@ import { EyeIcon } from "@/components/ui/icons";
 import TaskHistoryModal from "@/features/work/components/TaskHistoryModal";
 import RowActionsMenu from "./RowActionsMenu";
 import { ROW_GRID } from "./rowGrid";
+import { sprintLabel } from "@/constants/backlog-options";
+import { sprintColour } from "../sprintColours";
 
 export { ROW_GRID };
 
@@ -34,6 +36,7 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
   // A task of a closed sprint is read-only: a click (or the menu) opens View instead of Edit, and Hide / Delete are not offered.
   const closed = sprints.some((s) => s.name === item.sprint && s.status === "Closed");
   const [viewing, setViewing] = useState(false);
+  const colour = sprintColour(item.sprint);
   const pod = item.podId ? allPods.find((p) => p.id === item.podId)?.name : undefined;
   // A visible row opens the Edit panel when clicked anywhere (the ⋯ menu keeps its own clicks). Hidden rows don't.
   const openable = !!actions && (closed || !item.hidden);
@@ -57,9 +60,9 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
             "aria-label": `${closed ? "View" : "Edit"} ${item.title}`,
           }
         : {})}
-      className={`flex flex-col gap-3 px-4 py-2.5 transition-colors duration-150 hover:bg-hover ${
+      className={`flex flex-col gap-3 px-4 py-3 transition-colors duration-150 hover:bg-row-hover ${
         openable ? "cursor-pointer focus-visible:outline-2 focus-visible:outline-accent" : ""
-      } ${leaving ? "anim-row-out" : "anim-row-in"} ${ROW_GRID}`}
+      } ${colour.row} ${leaving ? "anim-row-out" : "anim-row-in"} ${ROW_GRID}`}
     >
       <div className="min-w-0">
         <p className="truncate text-sm font-medium">{item.title}</p>
@@ -76,7 +79,7 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
           <StatusBadge status={item.status} />
         </div>
         <span className="text-sm text-muted">
-          {item.sprint}
+          <span className={colour.pill}>{sprintLabel(item.sprint)}</span>
           {pod && <span className="block text-xs">{pod}</span>}
         </span>
       </div>

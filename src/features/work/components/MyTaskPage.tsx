@@ -13,6 +13,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useMyTasksStore } from "@/stores/myTasksStore";
 import type { BacklogItemData } from "@/types/backlog";
 import ViewTaskDrawer from "./ViewTaskDrawer";
+import { sprintLabel } from "@/constants/backlog-options";
 
 const head = "px-4 py-2.5 text-left";
 
@@ -28,7 +29,7 @@ const TABS: { id: Tab; label: string }[] = [
  * enough for either. Who "I" am is decided by user id (with the name only as a fallback when the backend sent no id).
  */
 export default function MyTaskPage() {
-  const { items: shared } = useBacklog();
+  const { items: shared, activeSprint } = useBacklog();
   const { user } = useAuth();
   const [open, setOpen] = useState<BacklogItemData | null>(null);
   const [tab, setTab] = useQueryState<Tab>("tab", ["mine", "lead", "unassigned"], "mine");
@@ -48,10 +49,12 @@ export default function MyTaskPage() {
 
   // A task that was copied into the next sprint when its sprint closed is left out (the copy is the live one).
   const carried = new Set([...shared, ...all].flatMap((t) => (t.carriedFrom ? [t.carriedFrom] : [])));
+  // Only the running sprint's tasks: none from planned, paused, closed or earlier sprints, and no Backlog tasks. It follows the sprint now running and each task's current sprint.
+  const live = (t: BacklogItemData) => !carried.has(t.id) && !!activeSprint && t.sprint === activeSprint.name;
   const lists: Record<Tab, BacklogItemData[]> = {
-    mine: fresh(mineStore.buckets.assigned).filter((t) => !carried.has(t.id)),
-    lead: fresh(mineStore.buckets.lead).filter((t) => !carried.has(t.id)),
-    unassigned: fresh(mineStore.buckets.unassigned).filter((t) => !carried.has(t.id)),
+    mine: fresh(mineStore.buckets.assigned).filter(live),
+    lead: fresh(mineStore.buckets.lead).filter(live),
+    unassigned: fresh(mineStore.buckets.unassigned).filter(live),
   };
   // Every tab stays visible; one with no tasks is disabled. The tab that is open is the chosen one while it has tasks, otherwise the first
   // tab (in tab order) that has some, so a page never opens on an empty tab while another has tasks. With no tasks anywhere it stays on My Tasks.
@@ -144,7 +147,7 @@ export default function MyTaskPage() {
                     onClick={() => setOpen(item)}
                     onKeyDown={(e) => handleKeyDown(e, item)}
                     aria-label={`View ${item.title}`}
-                    className="cursor-pointer transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
+                    className="cursor-pointer transition-colors duration-150 hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-accent"
                   >
                     <td className="max-w-xs truncate px-4 py-2 font-medium">{item.title}</td>
                     <td className="whitespace-nowrap px-4 py-2 text-muted">{item.type ?? "–"}</td>
@@ -154,7 +157,7 @@ export default function MyTaskPage() {
                     <td className="px-4 py-2">
                       <StatusBadge status={item.status} />
                     </td>
-                    <td className="whitespace-nowrap px-4 py-2 text-muted">{item.sprint}</td>
+                    <td className="whitespace-nowrap px-4 py-2 text-muted">{sprintLabel(item.sprint)}</td>
                     <td className="whitespace-nowrap px-4 py-2 text-muted">
                       {item.deadline ? <time dateTime={item.deadline}>{formatDeadline(item.deadline)}</time> : "–"}
                     </td>

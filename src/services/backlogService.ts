@@ -21,6 +21,19 @@ import {
 
 type Rec = Record<string, unknown>;
 
+/** The page size of the All Items table: it loads this many tasks at a time. */
+export const ITEMS_PAGE_SIZE = 10;
+
+/** One page of `/items` for one side of the hidden switch, with how many tasks that side has in all. */
+export async function getItemsPage(hidden: boolean, page: number, limit = ITEMS_PAGE_SIZE): Promise<{ items: BacklogItemData[]; total: number; received: number }> {
+  const { data } = await apiClient.get<unknown>("/items", { params: { hidden, page, limit } });
+  const rows = listFrom(data, "items").flatMap((r) => (rec(r) ? [rec(r)!] : []));
+  const codeById = new Map(rows.flatMap((r) => (typeof r.code === "string" ? [[Number(r.id), r.code] as [number, string]] : [])));
+  const items = rows.map((r) => itemFromApi(r, codeById));
+  items.forEach(rememberItem); // added to what the services remember (the full list replaces it, a page only adds)
+  return { items, total: Number(rec(data)?.total ?? rows.length), received: rows.length };
+}
+
 /** Every page of `/items` for one side of the hidden switch (the backend pages at 200). */
 async function fetchPages(hidden: boolean): Promise<Rec[]> {
   const out: Rec[] = [];

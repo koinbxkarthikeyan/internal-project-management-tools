@@ -5,9 +5,11 @@ import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import ActionsMenu from "@/components/ui/ActionsMenu";
 import EmptyState from "@/components/ui/EmptyState";
+import { SearchableSelect } from "@/components/ui/FormControls";
 import { EditIcon, EyeIcon, EyeOffIcon, PlusIcon, TrashIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import BacklogSearch from "@/features/backlog/components/BacklogSearch";
 import ConfirmDeleteDrawer from "@/features/backlog/components/ConfirmDeleteDrawer";
 import { initials } from "@/features/backlog/utils";
 import { getErrorMessage } from "@/lib/apiClient";
@@ -36,13 +38,26 @@ export default function UsersPage() {
   const [editing, setEditing] = useState<AppUser | null>(null);
   const [deleting, setDeleting] = useState<AppUser | null>(null);
   const [adding, setAdding] = useState(false);
+  // Search (name, email, team) and filters (team, role, access status); they only narrow what is listed.
+  const [filters, setFilters] = useState({ query: "", team: "", role: "", status: "" });
+  const hasFilters = Object.values(filters).some(Boolean);
+  const q = filters.query.trim().toLowerCase();
+  const shown = users.filter(
+    (u) =>
+      (!q || [u.name, u.email, u.team ?? ""].some((v) => v.toLowerCase().includes(q))) &&
+      (!filters.team || u.team === filters.team) &&
+      (!filters.role || u.role === filters.role) &&
+      (!filters.status || u.status === filters.status),
+  );
+  const teamChoices = [...new Set(users.map((u) => u.team).filter((t): t is string => !!t))].sort((a, b) => a.localeCompare(b));
+  const roleChoices = (["Super Admin", "Admin", "User"] as const).filter((r) => users.some((u) => u.role === r));
   // Accounts whose Enable / Disable is being saved, so a double click can't send it twice.
   const toggling = useRef(new Set<string>());
 
   if (!isAdmin) {
     return (
       <div className="flex flex-col gap-6">
-        <PageHeader title="Users" />
+        <PageHeader title="Team Members" />
         <section className="rounded-2xl border border-border bg-surface">
           <EmptyState title="Admins only" description="Only an Admin can manage users. Ask an administrator if you need access changed." />
         </section>
@@ -55,7 +70,7 @@ export default function UsersPage() {
   if (status === "error") {
     return (
       <div className="flex flex-col gap-6">
-        <PageHeader title="Users" />
+        <PageHeader title="Team Members" />
         <section role="alert" className="rounded-2xl border border-border bg-surface">
           <EmptyState
             title="Couldn't load users"
@@ -64,7 +79,7 @@ export default function UsersPage() {
               <button
                 type="button"
                 onClick={retry}
-                className="rounded-xl btn-brand px-4 py-2 text-sm font-medium font-semibold focus-visible:outline-2 focus-visible:outline-accent"
+                className="rounded-xl btn-brand px-4 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-accent"
               >
                 Try again
               </button>
@@ -78,19 +93,31 @@ export default function UsersPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Users"
+        title="Team Members"
         description="Only registered users can sign in, and nobody can sign up. Enabled Admins can use the whole application and add team members; only the Super Admin can edit, delete or disable other accounts. Users and Disabled Admins can only open My sprint, My Task and Settings; a Disabled User can only open Settings."
         actions={
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="flex items-center gap-2 rounded-xl btn-brand px-4 py-2.5 text-sm font-medium font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="flex items-center gap-2 rounded-xl btn-brand px-4 py-2.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <PlusIcon />
             Add Team Member
           </button>
         }
       />
+
+      <section aria-label="Search and filters" className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-surface p-2.5">
+        <BacklogSearch value={filters.query} onChange={(query) => setFilters({ ...filters, query })} placeholder="Search name, email or team…" ariaLabel="Search team members" />
+        <SearchableSelect ariaLabel="Filter by team" value={filters.team} onChange={(team) => setFilters({ ...filters, team })} options={teamChoices} placeholder="Team: All" className="min-w-0 flex-1 basis-32 sm:flex-none sm:basis-40" />
+        <SearchableSelect ariaLabel="Filter by role" value={filters.role} onChange={(role) => setFilters({ ...filters, role })} options={roleChoices} placeholder="Role: All" className="min-w-0 flex-1 basis-32 sm:flex-none sm:basis-40" />
+        <SearchableSelect ariaLabel="Filter by access status" value={filters.status} onChange={(status) => setFilters({ ...filters, status })} options={["Enabled", "Disabled"]} placeholder="Access: All" className="min-w-0 flex-1 basis-32 sm:flex-none sm:basis-40" />
+        {hasFilters && (
+          <button type="button" onClick={() => setFilters({ query: "", team: "", role: "", status: "" })} className="h-10 rounded-lg px-3 text-sm font-medium text-accent transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent">
+            Clear
+          </button>
+        )}
+      </section>
 
       <section className="overflow-hidden rounded-2xl border border-border bg-surface">
         {/* About 10 rows are visible; the rest scroll inside, with the header kept in view. */}
@@ -108,11 +135,11 @@ export default function UsersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {users.map((u) => {
+            {shown.map((u) => {
               const isSelf = u.id === me?.id;
               const style = STATUS_STYLE[u.status];
               return (
-                <tr key={u.id} className="transition-colors hover:bg-hover">
+                <tr key={u.id} className="transition-colors duration-150 hover:bg-row-hover">
                   <th scope="row" className="px-4 py-2 text-left font-medium">
                     <span className="flex items-center gap-2">
                       <span
@@ -194,6 +221,7 @@ export default function UsersPage() {
         {users.length === 0 && (
           <EmptyState compact title="No users yet" description="Use Add Team Member to register the first one." />
         )}
+        {users.length > 0 && shown.length === 0 && <EmptyState compact title="No matching team members" description="Try changing your search or filters." />}
       </section>
 
       {adding && <UserFormDrawer canSetStatus={isSuperAdmin} onSaved={reload} onClose={() => setAdding(false)} />}
@@ -203,7 +231,7 @@ export default function UsersPage() {
           key={deleting.id}
           title="Delete user"
           name={`${deleting.name} (${deleting.email})`}
-          consequence="They will be signed out and will no longer be able to sign in."
+          consequence="They are signed out and can no longer sign in."
           onClose={() => setDeleting(null)}
           onConfirm={async () => {
             try {

@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { BacklogItemData, Sprint } from "@/types/backlog";
 import type { WorkEntry } from "@/types/work";
 import { formatDay, formatHours } from "../utils";
+import { sprintLabel } from "@/constants/backlog-options";
 
 type Tone = "current" | "previous";
 
@@ -88,7 +89,7 @@ function Chip({ bucket, person }: { bucket: Bucket; person: string }) {
     >
       <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${TONE[tone].chip}`}>
         <span className={`h-1.5 w-1.5 rounded-full ${TONE[tone].dot}`} aria-hidden="true" />
-        {sprint.name} {tone === "current" ? "(current)" : "(previous)"} · {formatHours(total)}
+        {sprintLabel(sprint.name)} {tone === "current" ? "(current)" : "(previous)"} · {formatHours(total)}
       </span>
       <span
         ref={tip}
@@ -100,7 +101,7 @@ function Chip({ bucket, person }: { bucket: Bucket; person: string }) {
       >
         <span className="flex items-center gap-1.5 text-sm font-semibold">
           <span className={`h-2 w-2 rounded-full ${TONE[tone].dot}`} aria-hidden="true" />
-          {sprint.name}
+          {sprintLabel(sprint.name)}
           <span className="text-xs font-normal text-muted">{tone === "current" ? "current sprint" : "previous sprint"}</span>
         </span>
         <span className="mt-1.5 block">
@@ -110,7 +111,7 @@ function Chip({ bucket, person }: { bucket: Bucket; person: string }) {
           <span className="text-muted">User</span> {person}
         </span>
         {entries.length === 0 ? (
-          <span className="mt-1.5 block text-muted">No hours logged in {sprint.name}.</span>
+          <span className="mt-1.5 block text-muted">No hours logged in {sprintLabel(sprint.name)}.</span>
         ) : (
           <span className="mt-1.5 block divide-y divide-border rounded-lg border border-border">
             {entries.map((e) => (
@@ -125,7 +126,7 @@ function Chip({ bucket, person }: { bucket: Bucket; person: string }) {
           </span>
         )}
         <span className="mt-1.5 flex justify-between font-semibold">
-          <span>Total in {sprint.name}</span>
+          <span>Total in {sprintLabel(sprint.name)}</span>
           <span className="tabular-nums">{formatHours(total)}</span>
         </span>
       </span>

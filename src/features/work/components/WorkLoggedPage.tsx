@@ -14,7 +14,8 @@ import type { WorkEntry } from "@/types/work";
 import { useChosenSprints } from "../hooks/useChosenSprints";
 import { useWorkData } from "../hooks/useWorkData";
 import { todayISO } from "@/features/backlog/utils";
-import { myHoursBySprint, sprintHours } from "../utils";
+import { myHoursBySprint, recentSprints, sprintHours } from "../utils";
+import { useBacklog } from "@/features/backlog/context/BacklogContext";
 import HoursSummaryLine from "./HoursSummaryLine";
 import SprintPicker from "./SprintPicker";
 import WorkEntriesList from "./WorkEntriesList";
@@ -31,6 +32,9 @@ export default function WorkLoggedPage() {
   const { user } = useAuth();
   const work = useWorkData();
   const { datedSprints, chosen, setPicked } = useChosenSprints();
+  // The hours line looks at every sprint (not only the ones the picker offers to this role): the running sprint and the two before it. Planned sprints have no history yet.
+  const { sprints } = useBacklog();
+  const recent = recentSprints(sprints.flatMap((s) => (s.name !== "Unplanned" && s.start && s.end && s.status !== "Paused" ? [{ ...s, start: s.start, end: s.end }] : [])));
   const [removing, setRemoving] = useState<WorkEntry | null>(null);
   const [viewing, setViewing] = useState<WorkEntry | null>(null);
   const person = user?.name ?? "";
@@ -84,7 +88,7 @@ export default function WorkLoggedPage() {
           title="Your Logged Work"
           entries={mine}
           hoursLine={<HoursSummaryLine logged={loggedHours} soFar={soFar} total={total} />}
-          sprintTotals={myHoursBySprint(work.entries, datedSprints, { id: user?.id, name: person })}
+          sprintTotals={myHoursBySprint(work.entries, recent, { id: user?.id, name: person }).map((t, i) => (recent[i].status === "Active" ? { ...t, name: `${t.name} (Active)` } : t))}
           showPerson={false}
           onChange={(entry) => router.push(`${WORK_HREF}?edit=${encodeURIComponent(entry.id)}`)}
           onView={setViewing}

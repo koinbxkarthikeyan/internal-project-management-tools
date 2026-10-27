@@ -12,6 +12,8 @@ import BacklogDrawer from "@/features/backlog/components/BacklogDrawer";
 import { useBacklog } from "@/features/backlog/context/BacklogContext";
 import { formatDeadline } from "@/features/backlog/utils";
 import { getErrorMessage } from "@/lib/apiClient";
+import { sprintLabel } from "@/constants/backlog-options";
+import { carryOverSource } from "@/features/backlog/carryOver";
 import { useItemDetailStore } from "@/stores/itemDetailStore";
 import type { BacklogItemData, Status } from "@/types/backlog";
 import { FieldError } from "@/components/ui/FieldError";
@@ -23,7 +25,7 @@ type Row = { label: string; value: React.ReactNode };
  * the Assigned Users and set the Lead Deadline here.
  */
 export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly = false }: { item: BacklogItemData; onClose: () => void; /** Details only: no editing controls, even for the task's Lead. */ viewOnly?: boolean }) {
-  const { allPods, sprints, leadUpdateItem } = useBacklog();
+  const { allPods, sprints, items, hiddenItems, leadUpdateItem } = useBacklog();
   // A task of a closed sprint is history: details only, no status / assignee / deadline changes.
   const sprintClosed = sprints.some((s) => s.name === item.sprint && s.status === "Closed");
   const { user } = useAuth();
@@ -74,7 +76,7 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
     { label: "Priority", value: <PriorityBadge priority={item.priority} /> },
     { label: "Status", value: isLead ? undefined : <StatusBadge status={item.status} /> },
     { label: "Sprint", value: item.sprint },
-    { label: "Carried over from", value: item.carriedFrom },
+    { label: "Carried over from", value: carryOverSource(item, sprints) ?? (item.carriedFrom ? sprintLabel([...items, ...hiddenItems].find((t) => t.id === item.carriedFrom)?.sprint ?? "an earlier sprint") : undefined) },
     { label: "POD", value: pod },
     { label: "Assignees", value: isLead ? undefined : assignees.join(", ") },
     { label: "Expected deadline", value: item.deadline ? formatDeadline(item.deadline) : undefined },
@@ -115,7 +117,7 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
       </div>
       {isLead && (
         <div className="flex flex-col gap-4 rounded-xl border border-border bg-background/60 p-4">
-          <p className="text-xs text-muted">You lead this task: you can change its status, assign users and set the Lead Deadline.</p>
+          <p className="text-xs text-muted">You lead this task: change its status, assign users and set the Lead Deadline.</p>
           <SelectField label="Status" value={status} onChange={(v) => (setStatus(v as Status), setError(""))} options={STATUS_OPTIONS} />
           {needsReason && (
             <TextAreaField

@@ -1,6 +1,6 @@
 "use client";
 
-import { ALLOWED_EMAIL_DOMAIN } from "@/constants/auth";
+import { ALLOWED_DOMAINS_TEXT } from "@/constants/auth";
 import type { DeniedReason } from "@/lib/auth/authService";
 import AuthShell from "./AuthShell";
 
@@ -27,7 +27,7 @@ export default function AccessNotGranted({ email, reason, onUseAnotherEmail }: A
           onClick={onUseAnotherEmail}
           className="h-11 w-full rounded-xl border border-border px-4 text-sm font-medium hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
         >
-          Use a different @{ALLOWED_EMAIL_DOMAIN} email
+          Use a different {ALLOWED_DOMAINS_TEXT} email
         </button>
       </div>
     </AuthShell>

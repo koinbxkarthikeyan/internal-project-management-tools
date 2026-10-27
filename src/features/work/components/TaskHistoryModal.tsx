@@ -11,6 +11,7 @@ import { useItemDetailStore } from "@/stores/itemDetailStore";
 import type { ActivityEntry, BacklogItemData, Sprint } from "@/types/backlog";
 import type { WorkEntry } from "@/types/work";
 import { formatDay, formatHours, plannedHours } from "../utils";
+import { sprintLabel } from "@/constants/backlog-options";
 
 type TaskHistoryModalProps = {
   item: BacklogItemData;
@@ -115,7 +116,7 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
   };
   const link = (t: BacklogItemData) => {
     const from = t.carriedFrom ? allTasks.find((x) => x.id === t.carriedFrom) : undefined;
-    return from ? `Carried over from ${from.sprint} (${from.status})` : "Created here";
+    return from ? `Carried over from ${sprintLabel(from.sprint)} (${from.status})` : "Created here";
   };
 
   return (
@@ -205,7 +206,7 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
                   <span className="absolute -left-[1.4rem] top-5 h-2.5 w-2.5 rounded-full bg-accent" aria-hidden="true" />
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                     <h4 className="text-sm font-semibold">
-                      {task.sprint}
+                      {sprintLabel(task.sprint)}
                       {sprint?.start && sprint.end && (
                         <span className="ml-2 text-xs font-normal text-muted">
                           {formatDay(sprint.start)} – {formatDay(sprint.end)}

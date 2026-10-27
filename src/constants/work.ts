@@ -21,7 +21,7 @@ export const MY_TASK_HREF = "/my-task";
  * Stands in for a POD when time is logged against Unplanned Tasks (tasks that aren't in any POD).
  * It is never saved as a real POD.
  */
-export const UNPLANNED_POD = { id: "__unplanned__", name: "Unplanned" } as const;
+export const UNPLANNED_POD = { id: "__unplanned__", name: "Backlog" } as const;
 
 /** Stands in for a POD when time is logged against tasks that are in the sprint but in no POD. Never saved as a real POD. */
 export const SPRINT_TASKS_POD = { id: "__sprint-tasks__", name: "Sprint tasks" } as const;

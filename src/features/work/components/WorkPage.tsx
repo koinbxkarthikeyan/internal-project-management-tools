@@ -47,7 +47,7 @@ export default function WorkPage() {
 
   const [scope, setScope] = useQueryState<WorkScope>("tab", ["mine", "everyone"], "mine");
   // Entries are logged as the signed-in registered user, read from the Users data.
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, restricted } = useAuth();
   const person = user?.name ?? "";
   // Re-read the users when the page opens, so a Team an Admin changed shows up here.
   useEffect(() => {
@@ -81,7 +81,7 @@ export default function WorkPage() {
         <button
           type="button"
           onClick={work.reload}
-          className="mt-4 rounded-xl btn-brand px-4 py-2 text-sm font-medium font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="mt-4 rounded-xl btn-brand px-4 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           Try again
         </button>
@@ -102,7 +102,7 @@ export default function WorkPage() {
               isAdmin ? (
                 <Link
                   href="/sprint-plan"
-                  className="inline-flex rounded-xl btn-brand px-4 py-2 text-sm font-medium font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  className="inline-flex rounded-xl btn-brand px-4 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 >
                   Create a sprint
                 </Link>
@@ -151,12 +151,8 @@ export default function WorkPage() {
   const mixedPod = selectedPod;
 
   // Only PODs that have tasks in a chosen sprint count here.
-  // A task with assignees is shown only to them and to its Lead; a task with none is shown to everyone.
-  const names = (value?: string) => (value ?? "").split(",").map((n) => n.trim().replace(/^@+/, "").trim().toLowerCase()).filter(Boolean);
-  const myTasks = items.filter((t) => {
-    const assigned = names(t.assignees);
-    return assigned.length === 0 || assigned.includes(person.toLowerCase()) || (!!t.lead && t.lead.toLowerCase() === person.toLowerCase());
-  });
+  // The task picker lists only tasks assigned to me, decided by my user id: a task with no assignee, or assigned to someone else, is not offered.
+  const myTasks = items.filter((t) => !!user?.id && !!t.assigneeIds?.includes(user.id));
 
   // Tasks this person already logged, by sprint (the entry being changed doesn't count, so its tasks stay pickable).
   const loggedBySprint: Record<string, Set<string>> = {};
@@ -288,12 +284,13 @@ export default function WorkPage() {
           entries={inSprints}
           people={[...new Set(users.map((u) => u.name))]}
           pods={poolPods}
-          tasks={items.filter((i) => chosenSet.has(chosen.find((s) => s.name === i.sprint)?.id ?? "") || (i.sprint === "Unplanned" && chosen.some((s) => s.status === "Active")))}
+          tasks={items.filter((i) => chosenSet.has(chosen.find((s) => s.name === i.sprint)?.id ?? ""))}
           allTasks={[...items, ...hiddenItems]}
           allEntries={work.entries}
           allSprints={sprints}
           podNames={Object.fromEntries(allPods.map((p) => [p.id, p.name]))}
-          details={Object.fromEntries(users.map((u) => [u.name, u.role]))}
+          // A User (or a Disabled Admin) sees role labels for nobody but themselves.
+          details={Object.fromEntries(users.filter((u) => !restricted || u.name === person).map((u) => [u.name, u.role]))}
           perPerson={perPerson}
           sprintTotal={sprintLimit}
           updatedAt={work.updatedAt}

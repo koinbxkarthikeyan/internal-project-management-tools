@@ -1,7 +1,6 @@
-import { redirect } from "next/navigation";
-import { DEFAULT_REDIRECT } from "@/constants/auth";
+import LoginPage from "@/features/auth/components/LoginPage";
 
-// The app's home is Overview; signed-out visitors are sent on to the login page by the AuthGate.
+// The login page is the main address. A user who is already signed in is sent on to their home page by the login page itself.
 export default function Home() {
-  redirect(DEFAULT_REDIRECT);
+  return <LoginPage />;
 }

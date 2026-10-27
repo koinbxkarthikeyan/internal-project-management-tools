@@ -3,6 +3,7 @@
 import { useToast } from "@/components/ui/Toast";
 import type { Sprint } from "@/types/backlog";
 import { useBacklog } from "../context/BacklogContext";
+import { sprintDateProblem } from "../sprintDates";
 import SprintFormDrawer from "./SprintFormDrawer";
 
 type EditSprintDrawerProps = {
@@ -11,7 +12,7 @@ type EditSprintDrawerProps = {
 };
 
 export default function EditSprintDrawer({ sprint, onClose }: EditSprintDrawerProps) {
-  const { updateSprint } = useBacklog();
+  const { sprints, updateSprint } = useBacklog();
   const toast = useToast();
 
   return (
@@ -20,6 +21,8 @@ export default function EditSprintDrawer({ sprint, onClose }: EditSprintDrawerPr
       submitLabel="Save sprint"
       editing
       initial={{ name: sprint.name, start: sprint.start ?? "", goal: sprint.goal ?? "", podIds: sprint.podIds ?? [] }}
+      // Its own dates are not a clash: only the other sprints count.
+      dateProblem={(s, e) => sprintDateProblem(sprints, s, e, sprint.name)}
       onClose={onClose}
       onSave={async ({ name, start, end, goal, podIds }) => {
         const result = await updateSprint(sprint.name, { name, start, end, goal: goal.trim(), podIds });

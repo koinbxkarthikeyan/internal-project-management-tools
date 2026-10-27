@@ -3,12 +3,15 @@ import type { BacklogItemData } from "@/types/backlog";
 
 type BacklogSummaryProps = {
   items: readonly BacklogItemData[];
+  /** While only the first pages of the table are loaded: how many tasks there are in all. The counts by status need every task, so they wait (shown as "–"). */
+  partialTotal?: number;
 };
 
-export default function BacklogSummary({ items }: BacklogSummaryProps) {
-  const count = (fn: (i: BacklogItemData) => boolean) => items.filter(fn).length;
+export default function BacklogSummary({ items, partialTotal }: BacklogSummaryProps) {
+  const partial = partialTotal !== undefined;
+  const count = (fn: (i: BacklogItemData) => boolean): number | string => (partial ? "–" : items.filter(fn).length);
   const stats = [
-    { label: "Total items", value: items.length, tone: "text-foreground" },
+    { label: "Total items", value: partial ? partialTotal : items.length, tone: "text-foreground" },
     { label: "Open", value: count((i) => i.status === "Open" || i.status === "In progress"), tone: "text-blue-600 dark:text-blue-300" },
     { label: "Blocked", value: count((i) => i.status === "Blocked"), tone: "text-red-600 dark:text-red-300" },
     { label: "On hold", value: count((i) => i.status === "On hold"), tone: "text-amber-600 dark:text-amber-300" },

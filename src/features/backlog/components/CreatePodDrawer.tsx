@@ -38,7 +38,7 @@ export default function CreatePodDrawer({ sprint, onClose }: CreatePodDrawerProp
       <p className="-mt-2 text-xs text-muted">
         {existing
           ? `${existing.name} already exists. It will be added to ${sprint.name}.`
-          : `It will be added to ${sprint.name}. A sprint can have many PODs, and tasks are created inside a POD.`}
+          : `It will be added to ${sprint.name}.`}
       </p>
       {error && (
         <FieldError>
