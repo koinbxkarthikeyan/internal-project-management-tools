@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueryState } from "@/hooks/useQueryState";
 import EmptyState from "@/components/ui/EmptyState";
 import { FOCUS_HOURS_PER_DAY, WORK_KINDS } from "@/constants/work";
@@ -9,6 +9,8 @@ import type { Pod, WorkEntry } from "@/types/work";
 import TaskHistoryModal from "./TaskHistoryModal";
 import { carriedChain } from "./TaskSprintHours";
 import { useUsers } from "@/features/users/hooks/useUsers";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useItemDetailStore } from "@/stores/itemDetailStore";
 import { eachDay, formatDay, formatHours, isWeekend, percentOfTotal } from "../utils";
 import { sprintLabel } from "@/constants/backlog-options";
 
@@ -26,6 +28,10 @@ type EveryoneViewProps = {
   /** Every task (also those of earlier sprints) and every logged entry, so a carried-over task can show its earlier sprints. */
   allTasks?: readonly BacklogItemData[];
   allEntries?: readonly WorkEntry[];
+  /** When set, every breakdown and the summary cover only this person: their entries and the tasks assigned to them. */
+  ownOnly?: string;
+  /** The ids of the tasks the backend says are the person's (assigned to them or led by them), used with `ownOnly`. */
+  ownTaskIds?: ReadonlySet<string>;
   /** Every sprint, so the History view can follow a carried-over task. */
   allSprints?: readonly Sprint[];
   /** POD names by id, for the assigned tasks. */
@@ -66,17 +72,27 @@ function Stat({ value, total, label, valueClass = "", totalClass = "text-muted" 
 }
 
 /** Team-wide view for the "Everyone" tab: who has logged time, where it went, and how it spreads over the sprint. */
-export default function EveryoneView({ sprints, entries, people, pods, tasks, allTasks = [], allEntries = [], allSprints = [], podNames, details = {}, perPerson, sprintTotal, updatedAt, onRefresh }: EveryoneViewProps) {
+export default function EveryoneView({ sprints, entries: teamEntries, people: teamPeople, pods, tasks: teamTasks, allTasks = [], allEntries: teamAllEntries = [], allSprints = [], ownOnly, ownTaskIds, podNames, details = {}, perPerson, sprintTotal, updatedAt, onRefresh }: EveryoneViewProps) {
   const colorOf = makeTaskColor(allTasks, allSprints);
   const [breakdown, setBreakdown] = useQueryState<Breakdown>("by", ["person", "pod", "sprint"], "person");
+  // For anyone but a Super Admin or enabled Admin: only their own entries and assigned tasks, in every breakdown and the summary.
+  const mine = ownOnly;
+  const entries = mine === undefined ? teamEntries : teamEntries.filter((e) => e.person === mine);
+  const allEntries = mine === undefined ? teamAllEntries : teamAllEntries.filter((e) => e.person === mine);
+  // Their tasks: those the backend lists as theirs or that name them, and any they logged time on.
+  const loggedOn = new Set(entries.flatMap((e) => e.itemIds ?? []));
+  const tasks =
+    mine === undefined
+      ? teamTasks
+      : teamTasks.filter((t) => ownTaskIds?.has(t.id) || assigneeKeys(t.assignees).includes(mine.toLowerCase()) || loggedOn.has(t.id));
+  const people = mine === undefined ? teamPeople : [mine];
 
   const logged = sum(entries);
-  const capacity = perPerson * people.length;
-  const filledIn = new Set(entries.map((e) => e.person));
-  const podsUsed = new Set(entries.map((e) => e.podId ?? e.pod));
-
   // Everyone who logged time, even if they are no longer in the owner list.
   const everyPerson = [...new Set([...people, ...entries.map((e) => e.person)])];
+  const capacity = perPerson * everyPerson.length;
+  const filledIn = new Set(entries.map((e) => e.person));
+  const podsUsed = new Set(entries.map((e) => e.podId ?? e.pod));
 
   return (
     <div className="flex flex-col gap-5">
@@ -88,10 +104,10 @@ export default function EveryoneView({ sprints, entries, people, pods, tasks, al
       </p>
 
       <section aria-label="Team summary" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Stat value={String(filledIn.size)} total={String(people.length)} label="people have filled in" />
+        <Stat value={String(filledIn.size)} total={String(everyPerson.length)} label="people have filled in" />
         <Stat
           value={formatHours(logged)}
-          total={`${formatHours(capacity)} expected so far · ${formatHours(sprintTotal * people.length)} total sprint hours`}
+          total={`${formatHours(capacity)} expected so far · ${formatHours(sprintTotal * everyPerson.length)} total sprint hours`}
           label="logged so far"
           // Worked hours: blue up to the expected hours, orange beyond them.
           valueClass={capacity > 0 && logged > capacity ? "text-orange-600 dark:text-orange-300" : "text-blue-600 dark:text-blue-300"}
@@ -128,7 +144,7 @@ export default function EveryoneView({ sprints, entries, people, pods, tasks, al
 
       <section className={card} aria-label={BREAKDOWNS.find((b) => b.id === breakdown)?.label}>
         {breakdown === "person" && <ByPerson people={everyPerson} entries={entries} tasks={tasks} allTasks={allTasks} colorOf={colorOf} podNames={podNames} perPerson={perPerson} sprintTotal={sprintTotal} details={details} />}
-        {breakdown === "pod" && <ByPod sprints={sprints} pods={pods} entries={entries} tasks={tasks} allTasks={allTasks} colorOf={colorOf} allEntries={allEntries} allSprints={allSprints} people={everyPerson} />}
+        {breakdown === "pod" && <ByPod sprints={sprints} pods={pods} entries={entries} tasks={tasks} allTasks={allTasks} colorOf={colorOf} allEntries={allEntries} allSprints={allSprints} people={everyPerson} own={mine !== undefined} />}
         {breakdown === "sprint" && <AcrossSprint sprints={sprints} entries={entries} people={everyPerson} />}
       </section>
     </div>
@@ -175,6 +191,9 @@ const BLUE = "#4a8fe0";
 const AMBER = "#f5a524";
 
 const assigneeKeys = (value?: string) => (value ?? "").split(",").map((n) => n.trim().replace(/^@+/, "").trim().toLowerCase()).filter(Boolean);
+
+/** Anyone who sees only their own work reads the Unplanned section as "Unassigned Tasks". */
+const unplannedAs = (name: string, own: boolean) => (own && name === "Unplanned" ? "Unassigned Tasks" : name);
 
 function ByPerson({
   people,
@@ -339,7 +358,9 @@ function ByPod({
   allEntries,
   allSprints,
   people,
+  own = false,
 }: {
+  own?: boolean;
   sprints: (Sprint & { start: string; end: string })[];
   pods: readonly Pod[];
   entries: readonly WorkEntry[];
@@ -369,7 +390,9 @@ function ByPod({
       r.lines.push(e.task);
     }
     for (const t of podTasks) {
-      const names = assigneeKeys(t.assignees).map(display);
+      // Someone who sees only their own work still sees a task's people on its card, but only they appear in the hours rows.
+      const names = assigneeKeys(t.assignees).map(display).filter((n) => !own || people.includes(n));
+      if (own && names.length === 0) continue; // a task of one's own with nobody assigned: no placeholder row
       for (const who of names.length ? names : ["Unassigned"]) {
         const covered = entries.some((e) => e.person === who && e.itemIds?.includes(t.id));
         if (covered) continue;
@@ -437,7 +460,7 @@ function ByPod({
             {/* The sprint picker at the top says which sprint this is; the name is shown only to tell several apart. */}
             {sprints.length > 1 && (
               <h3 className="flex flex-wrap items-baseline gap-x-2 text-sm font-semibold">
-              {sprint.name}
+              {unplannedAs(sprint.name, own)}
               <span className="text-xs font-normal text-muted">
                 {formatDay(sprint.start)} – {formatDay(sprint.end)}
               </span>
@@ -457,12 +480,12 @@ function ByPod({
                       <div className="flex shrink-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                         <p className="flex min-w-0 items-baseline gap-2 text-sm">
                           <span className="h-2 w-2 shrink-0 rounded-sm" style={{ background: color }} aria-hidden="true" />
-                          {b.key !== "sprint-tasks" && <span className="truncate font-semibold">{b.name}</span>}
+                          {b.key !== "sprint-tasks" && <span className="truncate font-semibold">{unplannedAs(b.name, own)}</span>}
                           <span className="shrink-0 text-xs text-muted">
                             {logged.length} of {b.people.length} {b.people.length === 1 ? "person has" : "people have"} logged
                           </span>
                         </p>
-                        <span className="shrink-0 font-mono text-sm font-semibold">{b.hours > 0 ? formatHours(b.hours) : "–"}</span>
+                        <span className="shrink-0 font-mono text-sm font-semibold">{b.hours > 0 || own ? formatHours(b.hours) : "–"}</span>
                       </div>
                       {/* One header per task (name, Lead, Assigned Users, its own hours per sprint, View); the list scrolls under the card header. */}
                       <ul className="mt-2 max-h-[20.5rem] min-h-0 flex-1 divide-y divide-border overflow-y-auto pr-1">
@@ -482,6 +505,7 @@ function ByPod({
                             entries={entries}
                             allTasks={allTasks}
                             allEntries={allEntries}
+                            own={own}
                             onView={() => setViewing(t)}
                           />
                           ));
@@ -573,6 +597,7 @@ function PodTask({
   entries,
   allTasks,
   allEntries,
+  own = false,
   onView,
 }: {
   task: BacklogItemData;
@@ -584,15 +609,28 @@ function PodTask({
   entries: readonly WorkEntry[];
   allTasks: readonly BacklogItemData[];
   allEntries: readonly WorkEntry[];
+  own?: boolean;
   onView: () => void;
 }) {
   const users = useUsers();
+  // The list of tasks may leave out the Lead and the assignees; the task's own detail (`/items/:id`) then fills them in.
+  const missing = !task.lead && !task.leadId && !task.assignees && !task.assigneeIds?.length;
+  const [detail, setDetail] = useState<BacklogItemData | null>(null);
+  useEffect(() => {
+    if (!missing) return;
+    let cancelled = false;
+    useItemDetailStore.getState().get(task.id).then((d) => !cancelled && setDetail(d), () => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [missing, task.id]);
+  const people = missing && detail ? detail : task;
   // Lead and Assigned Users are matched by user id (names only when the backend gave no ids).
   const nameOf = (id: string) => users.find((u) => u.id === id)?.name;
-  const lead = (task.leadId ? nameOf(task.leadId) : undefined) ?? task.lead ?? "";
-  const assigned = task.assigneeIds?.length
-    ? task.assigneeIds.map((id) => nameOf(id)).filter((n): n is string => !!n)
-    : (task.assignees ?? "").split(",").map((n) => n.trim().replace(/^@+/, "").trim()).filter(Boolean);
+  const lead = (people.leadId ? nameOf(people.leadId) : undefined) ?? people.lead ?? "";
+  const assigned = people.assigneeIds?.length
+    ? people.assigneeIds.map((id) => nameOf(id)).filter((n): n is string => !!n)
+    : (people.assignees ?? "").split(",").map((n) => n.trim().replace(/^@+/, "").trim()).filter(Boolean);
 
   // Hours per sprint for this task (everyone's, each entry once), oldest sprint first, then the total.
   const unique = [...new Map(allEntries.map((e) => [e.id, e])).values()];
@@ -603,7 +641,9 @@ function PodTask({
   // Who logged time on it in the sprint being looked at.
   const mine = [...new Map(entries.filter((e) => e.itemIds?.includes(task.id) && (task.sprint === "Unplanned" || e.sprintId === sprint.id)).map((e) => [e.id, e])).values()];
   const byPerson = [...mine.reduce((m, e) => m.set(e.person, (m.get(e.person) ?? 0) + e.hours), new Map<string, number>())].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  const waiting = assigned.filter((n) => !byPerson.some(([p]) => p.toLowerCase() === n.toLowerCase()));
+  const split = byPerson.length > 1;
+  const me = useAuth().user?.name.toLowerCase();
+  const waiting = assigned.filter((n) => !byPerson.some(([p]) => p.toLowerCase() === n.toLowerCase()) && (!own || n.toLowerCase() === me));
 
   return (
     <li className="py-3 first:pt-0 last:pb-0">
@@ -623,14 +663,23 @@ function PodTask({
         </button>
       </div>
       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-hover" role="img" aria-label={`${formatHours(hours)} logged in this sprint`}>
-        <div className="h-full rounded-full" style={{ width: `${top > 0 ? (hours / top) * 100 : 0}%`, background: color }} />
+        {/* Several people logged on this task: one segment each, in the colour shown next to their name below. */}
+        {split ? (
+          <div className="flex h-full" style={{ width: `${top > 0 ? (hours / top) * 100 : 0}%` }}>
+            {byPerson.map(([name, h], i) => (
+              <span key={name} className="h-full border-r border-surface last:border-r-0" title={`${name}: ${formatHours(h)}`} style={{ width: `${hours > 0 ? (h / hours) * 100 : 0}%`, background: PALETTE[i % PALETTE.length] }} />
+            ))}
+          </div>
+        ) : (
+          <div className="h-full rounded-full" style={{ width: `${top > 0 ? (hours / top) * 100 : 0}%`, background: color }} />
+        )}
       </div>
       <p className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-3 text-[11px] text-muted">
         <span className="min-w-0">
           Lead: <span className={lead ? "text-foreground" : ""}>{lead || "Not assigned"}</span>
         </span>
         <span className="font-mono" title="Hours on this task, per sprint">
-          {parts.map((p) => `${p.name}: ${formatHours(p.hours)}`).join(" | ")}
+          {parts.map((p) => `${unplannedAs(p.name, own)}: ${formatHours(p.hours)}`).join(" | ")}
         </span>
       </p>
       <p className="flex flex-wrap items-baseline justify-between gap-x-3 text-[11px] text-muted">
@@ -641,9 +690,10 @@ function PodTask({
       </p>
       {(byPerson.length > 0 || waiting.length > 0) && (
         <ul className="mt-1.5 flex flex-col gap-0.5 text-xs">
-          {byPerson.map(([name, hours]) => (
+          {byPerson.map(([name, hours], i) => (
             <li key={name} className="flex justify-between gap-3">
-              <span className="min-w-0 truncate">
+              <span className="flex min-w-0 items-baseline gap-1.5 truncate">
+                {split && <span className="h-2 w-2 shrink-0 self-center rounded-sm" style={{ background: PALETTE[i % PALETTE.length] }} aria-hidden="true" />}
                 {name}
                 {lead && name.toLowerCase() === lead.toLowerCase() && <span className="ml-1.5 font-mono text-[10px] text-blue-500">lead</span>}
               </span>

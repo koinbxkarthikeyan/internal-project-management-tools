@@ -42,7 +42,7 @@ function HoverTipBubble({ tip, shown }: { tip: Tip; shown: boolean }) {
     <div
       role="tooltip"
       style={{ left, top: below ? tip.y + 16 : undefined, bottom: below ? undefined : window.innerHeight - tip.y + 12, width: "max-content", maxWidth: width }}
-      className={`pointer-events-none fixed z-[70] rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs leading-snug text-foreground shadow-md transition-opacity duration-150 ease-in-out motion-reduce:transition-none ${shown ? "opacity-100" : "opacity-0"}`}
+      className={`pointer-events-none fixed z-[70] rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs leading-snug text-foreground shadow-tip transition-opacity duration-150 ease-in-out motion-reduce:transition-none ${shown ? "opacity-100" : "opacity-0"}`}
     >
       {tip.text}
     </div>,

@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
-import { useQueryState } from "@/hooks/useQueryState";
 import { useToast } from "@/components/ui/Toast";
 import { FOCUS_HOURS_PER_DAY, WORK_KINDS, SPRINT_TASKS_POD, UNPLANNED_POD, WORK_LOGGED_HREF, isPseudoPod } from "@/constants/work";
 import ConfirmDeleteDrawer from "@/features/backlog/components/ConfirmDeleteDrawer";
@@ -23,8 +22,6 @@ import type { Pod, WorkEntry, WorkEntryInput, WorkKind } from "@/types/work";
 import { useWorkData } from "../hooks/useWorkData";
 import { useChosenSprints } from "../hooks/useChosenSprints";
 import { formatDay, latestEntry, sprintHours } from "../utils";
-import EveryoneView from "./EveryoneView";
-import ScopeTabs, { type WorkScope } from "./ScopeTabs";
 import HoursSummaryLine from "./HoursSummaryLine";
 import SprintGlance from "./SprintGlance";
 import SprintPicker from "./SprintPicker";
@@ -39,16 +36,15 @@ const card = "rounded-2xl border border-border bg-surface p-5";
 /** The "What are you working on?" section: independent of the Backlog pages (it only reads sprints, PODs, tasks and owners). */
 export default function WorkPage() {
   const toast = useToast();
-  const { sprints, pods, allPods, items, hiddenItems } = useBacklog();
+  const { sprints, pods, items, hiddenItems } = useBacklog();
   const users = useUsers();
   const work = useWorkData();
 
   const { datedSprints, chosen, setPicked } = useChosenSprints();
   const today = todayISO();
 
-  const [scope, setScope] = useQueryState<WorkScope>("tab", ["mine", "everyone"], "mine");
   // Entries are logged as the signed-in registered user, read from the Users data.
-  const { user, isAdmin, restricted } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   // The My Task page's lists, which the task picker below reuses.
   const mineStore = useMyTasksStore();
@@ -126,7 +122,6 @@ export default function WorkPage() {
   const chosenSet = new Set(chosen.map((s) => s.id));
 
   const inSprints = work.entries.filter((e) => chosenSet.has(e.sprintId));
-  const everyone = scope === "everyone";
   const scoped = inSprints
     .filter((e) => e.person === person)
     .sort((a, b) => a.from.localeCompare(b.from) || a.createdAt.localeCompare(b.createdAt));
@@ -159,7 +154,6 @@ export default function WorkPage() {
   const selectedPod: Pod | null = selection ? { id: selection.podId, name: podLabel } : null;
   const mixedPod = selectedPod;
 
-  // Only PODs that have tasks in a chosen sprint count here.
   // The task picker offers the same tasks as the My Task page (`GET /items/mine`): tasks assigned to me, tasks I lead and unassigned tasks.
   // Each is shown as its newest copy from the shared list, so assignment changes show here too.
   const mineIds = new Set(
@@ -175,7 +169,6 @@ export default function WorkPage() {
     for (const id of e.itemIds ?? []) set.add(id);
   }
 
-  const poolPods = pods.filter((p) => chosen.some((s) => s.podIds?.includes(p.id) && items.some((i) => i.sprint === s.name && i.podId === p.id)));
   const sprintNames = chosen.map((s) => s.name).join(", ");
 
   function setSprints(ids: string[]) {
@@ -289,27 +282,6 @@ export default function WorkPage() {
 
       <SprintPicker sprints={datedSprints} selectedIds={chosen.map((s) => s.id)} onChange={setSprints} />
 
-      <ScopeTabs scope={scope} onChange={setScope} />
-
-      {everyone ? (
-        <EveryoneView
-          sprints={chosen}
-          entries={inSprints}
-          people={[...new Set(users.map((u) => u.name))]}
-          pods={poolPods}
-          tasks={items.filter((i) => chosenSet.has(chosen.find((s) => s.name === i.sprint)?.id ?? ""))}
-          allTasks={[...items, ...hiddenItems]}
-          allEntries={work.entries}
-          allSprints={sprints}
-          podNames={Object.fromEntries(allPods.map((p) => [p.id, p.name]))}
-          // A User (or a Disabled Admin) sees role labels for nobody but themselves.
-          details={Object.fromEntries(users.filter((u) => !restricted || u.name === person).map((u) => [u.name, u.role]))}
-          perPerson={perPerson}
-          sprintTotal={sprintLimit}
-          updatedAt={work.updatedAt}
-          onRefresh={work.refresh}
-        />
-      ) : (
         <>
           <section className={`${card} grid gap-4 sm:grid-cols-2`}>
             <SearchableSelect
@@ -388,7 +360,6 @@ export default function WorkPage() {
             </div>
           </section>
         </>
-      )}
 
       {/* Opened from Your Logged Work with ?edit=<id>: starts changing that entry here, where the form is. */}
       <StartEditFromUrl entries={work.entries} onEntry={startEditing} />

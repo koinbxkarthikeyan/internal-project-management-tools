@@ -1,12 +1,13 @@
 "use client";
 
+import { statusOptionsFor } from "@/features/backlog/statusOptions";
 import { useEffect, useState } from "react";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/FormControls";
-import { STATUS_OPTIONS } from "@/constants/backlog-options";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import AssigneeField, { cleanAssignees } from "@/features/backlog/components/AssigneeField";
 import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
+import TaskLoggedHours from "./TaskLoggedHours";
 import ActivityTimeline from "@/features/backlog/components/ActivityTimeline";
 import BacklogDrawer from "@/features/backlog/components/BacklogDrawer";
 import { useBacklog } from "@/features/backlog/context/BacklogContext";
@@ -53,6 +54,8 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
   const [reason, setReason] = useState(item.blockedReason ?? "");
   const [error, setError] = useState("");
   const needsReason = status === "Blocked" || status === "On hold";
+  // Any status change can carry a comment; Blocked and On hold require one (why).
+  const commenting = needsReason || status !== item.status;
 
   const taskChanged =
     cleanAssignees(assigned) !== cleanAssignees(item.assignees ?? "") ||
@@ -61,7 +64,7 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
 
   async function save() {
     if (needsReason && !reason.trim()) return setError("Say why it is blocked or on hold."), false;
-    const saved = await leadUpdateItem(item.id, { assignees: cleanAssignees(assigned), leadDeadline, status });
+    const saved = await leadUpdateItem(item.id, { assignees: cleanAssignees(assigned), leadDeadline, status, comment: reason });
     if (!saved) return false;
     toast.show(`${item.title} updated`);
   }
@@ -118,15 +121,15 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
       {isLead && (
         <div className="flex flex-col gap-4 rounded-xl border border-border bg-background/60 p-4">
           <p className="text-xs text-muted">You lead this task: change its status, assign users and set the Lead Deadline.</p>
-          <SelectField label="Status" value={status} onChange={(v) => (setStatus(v as Status), setError(""))} options={STATUS_OPTIONS} />
-          {needsReason && (
+          <SelectField label="Status" value={status} onChange={(v) => (setStatus(v as Status), setError(""))} options={statusOptionsFor(item)} />
+          {commenting && (
             <TextAreaField
-              label="Why is it blocked or on hold?"
-              required
-              invalid={!reason.trim()}
+              label={needsReason ? "Why is it blocked or on hold?" : "Comment (optional)"}
+              required={needsReason}
+              invalid={needsReason && !reason.trim()}
               value={reason}
               onChange={(v) => (setReason(v), setError(""))}
-              placeholder="What's it waiting on, and who can unblock it?"
+              placeholder={needsReason ? "What's it waiting on, and who can unblock it?" : "Add a note about this status change"}
             />
           )}
           <AssigneeField value={assigned} onChange={setAssigned} />
@@ -150,6 +153,7 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
           <p className="mt-1 whitespace-pre-line break-words text-sm">{item.notes}</p>
         </div>
       )}
+      <TaskLoggedHours taskId={item.id} />
       <ActivityTimeline compact item={detail ?? item} activity={activity} />
     </BacklogDrawer>
   );

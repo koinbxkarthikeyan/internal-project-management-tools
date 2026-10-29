@@ -20,6 +20,8 @@ type State = {
   loadedAt: number;
   updatedAt: Date | null;
   entries: WorkEntry[];
+  /** The server did not give the team view, so other people's entries may be missing. */
+  teamUnavailable: boolean;
   setEntries: (next: Updater<WorkEntry[]>) => void;
   /** Loads the entries unless they are already loaded and fresh; simultaneous calls share one request. */
   load: (userId: string, options?: { force?: boolean; quiet?: boolean }) => Promise<void>;
@@ -34,6 +36,7 @@ export const useWorkStore = create<State>((set, get) => ({
   loadedAt: 0,
   updatedAt: null,
   entries: [],
+  teamUnavailable: false,
 
   setEntries: (next) => set((s) => ({ entries: apply(next, s.entries) })),
 
@@ -42,14 +45,14 @@ export const useWorkStore = create<State>((set, get) => ({
     if (!force && state.scope === userId && state.status === "ready" && Date.now() - state.loadedAt < FRESH_MS) return Promise.resolve();
     if (inflight && inflight.scope === userId) return inflight.promise;
 
-    if (state.scope !== userId) set({ scope: userId, status: "loading", error: "", entries: [], updatedAt: null });
+    if (state.scope !== userId) set({ scope: userId, status: "loading", error: "", entries: [], teamUnavailable: false, updatedAt: null });
     else if (!quiet && state.status !== "ready") set({ status: "loading", error: "" });
 
     const promise = workService
       .getWorkEntries()
       .then(
-        (entries) => {
-          if (get().scope === userId) set({ entries, status: "ready", error: "", loadedAt: Date.now(), updatedAt: new Date() });
+        ({ entries, teamUnavailable }) => {
+          if (get().scope === userId) set({ entries, teamUnavailable, status: "ready", error: "", loadedAt: Date.now(), updatedAt: new Date() });
         },
         (err) => {
           // A failed background refresh keeps what is shown (the caller reports it); a failed first load is an error state.

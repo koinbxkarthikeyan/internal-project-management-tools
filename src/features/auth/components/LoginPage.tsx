@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DEFAULT_REDIRECT } from "@/constants/auth";
+import { ACCOUNT_DISABLED_PATH, DEFAULT_REDIRECT } from "@/constants/auth";
 import { WORK_HREF } from "@/constants/work";
-import { peekLoginHandoff, type DeniedReason, type StartLoginResult } from "@/lib/auth/authService";
+import { peekLoginHandoff, signOut, type DeniedReason, type StartLoginResult } from "@/lib/auth/authService";
 import { useAuth } from "../hooks/useAuth";
 import AccessNotGranted from "./AccessNotGranted";
 import AuthShell from "./AuthShell";
@@ -20,7 +20,7 @@ type Step =
 
 export default function LoginPage() {
   const router = useRouter();
-  const { status, restricted, settingsOnly } = useAuth();
+  const { status, restricted, settingsOnly, disabledAdmin } = useAuth();
   // After a password change the email is already known: Admins go straight to the password, others see their email filled in.
   const [handoff] = useState(peekLoginHandoff);
   const [step, setStep] = useState<Step>(() =>
@@ -31,8 +31,15 @@ export default function LoginPage() {
   // Once signed in (just now, or already), go to Overview.
   useEffect(() => {
     // Enabled users land on Overview; users with access Disabled can only use My sprint.
-    if (status === "signedIn") router.replace(settingsOnly ? "/settings" : restricted ? WORK_HREF : DEFAULT_REDIRECT);
-  }, [status, restricted, settingsOnly, router]);
+    if (status !== "signedIn") return;
+    // A Disabled Admin who just signed in is signed out again and told why.
+    if (disabledAdmin) {
+      signOut();
+      router.replace(ACCOUNT_DISABLED_PATH);
+      return;
+    }
+    router.replace(settingsOnly ? "/settings" : restricted ? WORK_HREF : DEFAULT_REDIRECT);
+  }, [status, restricted, settingsOnly, disabledAdmin, router]);
 
   if (status === "loading" || status === "signedIn") {
     return (

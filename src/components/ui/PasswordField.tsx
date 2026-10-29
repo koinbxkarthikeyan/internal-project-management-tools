@@ -101,7 +101,7 @@ export function PasswordField({ label, value, onChange, placeholder, required, a
           {shown ? <EyeIcon width={16} height={16} /> : <EyeOffIcon width={16} height={16} />}
         </button>
         {hintShown && (
-          <span role="status" className="pointer-events-none absolute right-1 top-full z-20 mt-1 whitespace-nowrap rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium shadow-lg">
+          <span role="status" className="pointer-events-none absolute right-1 top-full z-20 mt-1 whitespace-nowrap rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium shadow-menu">
             {hint}
           </span>
         )}

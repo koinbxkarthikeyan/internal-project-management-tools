@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useQueryState } from "@/hooks/useQueryState";
 import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
@@ -19,6 +20,7 @@ import { useBacklog } from "@/features/backlog/context/BacklogContext";
 import HoursSummaryLine from "./HoursSummaryLine";
 import SprintPicker from "./SprintPicker";
 import WorkEntriesList from "./WorkEntriesList";
+import TeamWorkView from "./TeamWorkView";
 import WorkEntryDetailsDrawer from "./WorkEntryDetailsDrawer";
 
 const card = "rounded-2xl border border-border bg-surface p-5";
@@ -38,6 +40,8 @@ export default function WorkLoggedPage() {
   const [removing, setRemoving] = useState<WorkEntry | null>(null);
   const [viewing, setViewing] = useState<WorkEntry | null>(null);
   const person = user?.name ?? "";
+  // Everyone, whatever their role, has their own PODs and tasks here on a second tab (the whole team is on Team Work Details).
+  const [view, setView] = useQueryState<"entries" | "pods">("view", ["entries", "pods"], "entries");
 
   if (work.status === "loading") return <PageSkeleton />;
   if (work.status === "error") {
@@ -83,6 +87,22 @@ export default function WorkLoggedPage() {
     <div className="flex flex-col gap-5">
       {header}
       <SprintPicker sprints={datedSprints} selectedIds={chosen.map((s) => s.id)} onChange={setPicked} />
+      <div role="group" aria-label="Show" className="grid grid-cols-2 rounded-xl border border-border bg-surface p-1">
+        {([["entries", "My entries"], ["pods", "My PODs & tasks"]] as const).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={view === id}
+            onClick={() => setView(id)}
+            className={`rounded-lg px-3 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-accent ${
+              view === id ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-hover hover:text-foreground"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {view === "entries" && (
       <section className={card}>
         <WorkEntriesList
           title="Your Logged Work"
@@ -95,6 +115,8 @@ export default function WorkLoggedPage() {
           onRemove={setRemoving}
         />
       </section>
+      )}
+      {view === "pods" && <TeamWorkView work={work} chosen={chosen} mineOnly />}
       {viewing && <WorkEntryDetailsDrawer key={viewing.id} entry={viewing} hoursLine={<HoursSummaryLine logged={loggedHours} soFar={soFar} total={total} className="text-sm text-muted" />} onClose={() => setViewing(null)} />}
       {removing && (
         <ConfirmDeleteDrawer

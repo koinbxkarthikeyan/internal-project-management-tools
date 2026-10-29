@@ -15,6 +15,7 @@ export const HOUR_PRESETS = [
 
 export const WORK_HREF = "/my-sprint";
 export const WORK_LOGGED_HREF = "/my-sprint/logged";
+export const WORK_TEAM_HREF = "/my-sprint/team";
 export const MY_TASK_HREF = "/my-task";
 
 /**
