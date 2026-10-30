@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
 import PageHeader from "@/components/layout/PageHeader";
+import { DisabledTip } from "@/components/ui/DisabledTip";
 import { FieldError } from "@/components/ui/FieldError";
 import EmptyState from "@/components/ui/EmptyState";
 import { CloseIcon, PlusIcon, UploadIcon } from "@/components/ui/icons";
@@ -17,7 +18,7 @@ import UserFormDrawer from "@/features/users/components/UserFormDrawer";
 import { useUsers } from "@/features/users/hooks/useUsers";
 import { useBacklogStore } from "@/stores/backlogStore";
 import { getErrorMessage } from "@/lib/apiClient";
-import { submitBulk } from "@/services/bulkService";
+import { BULK_MIN_ROWS, submitBulk } from "@/services/bulkService";
 import { teamOptions } from "@/lib/auth/teams";
 import { refreshUsers } from "@/lib/auth/userStore";
 import { resolveTeam, useTeamStore } from "@/stores/teamStore";
@@ -187,6 +188,15 @@ export default function BulkUploadPage() {
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempted, spec, rows, ctx]);
+  // Which entered rows are valid right now (always, not only after Submit): at least BULK_MIN_ROWS must be before Submit is allowed.
+  const rowChecks = useMemo(
+    () => rows.flatMap((r, i) => (isBlank(r) ? [] : [{ number: i + 1, problems: spec.check(r, rows.filter((x) => !isBlank(x)), ctx) }])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [spec, rows, ctx],
+  );
+  const validCount = rowChecks.filter((c) => Object.keys(c.problems).length === 0).length;
+  const invalidRows = rowChecks.filter((c) => Object.keys(c.problems).length > 0);
+  const canSubmit = validCount >= BULK_MIN_ROWS;
   const problemCount = Object.values(problems).reduce((n, p) => n + Object.keys(p).length, 0);
 
   function edit(row: Row, col: Column, raw: string) {
@@ -234,6 +244,7 @@ export default function BulkUploadPage() {
     setSummary(null);
     setAttemptedBy((a) => ({ ...a, [tab]: true })); // show what is wrong with the imported cells straight away
     toast.show(`${imported.length} ${imported.length === 1 ? NOUN[tab][0] : NOUN[tab][1]} imported into the table. Check them, then Submit.`);
+    if (imported.length < BULK_MIN_ROWS) toast.show(`The file has ${imported.length} data ${imported.length === 1 ? "row" : "rows"}. At least ${BULK_MIN_ROWS} are needed to submit.`, "warning");
   }
 
   async function runExcel(job: () => Promise<void>) {
@@ -269,9 +280,9 @@ export default function BulkUploadPage() {
     if (uploading) return;
     setAttempted(true);
     setSummary(null);
-    if (filled.length === 0) return void toast.show("Add at least one record before uploading.", "warning");
+    if (filled.length < BULK_MIN_ROWS) return void toast.show(`Add at least ${BULK_MIN_ROWS} records before uploading.`, "warning");
     const any = filled.some((r) => Object.keys(spec.check(r, filled, ctx)).length > 0);
-    if (any) {
+    if (any || !canSubmit) {
       toast.show("Some cells need fixing. They are marked in red.", "warning");
       requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-bulk-table] [aria-invalid="true"]')?.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" }));
       return;
@@ -404,7 +415,7 @@ export default function BulkUploadPage() {
             >
               <span className="truncate">{t.label}</span>
               {count > 0 && (
-                <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${on ? "bg-[#425df3] font-semibold text-white dark:bg-accent dark:text-accent-foreground" : "bg-hover text-muted"}`}>{count}</span>
+                <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${on ? "bg-accent font-semibold text-accent-foreground" : "bg-hover text-muted"}`}>{count}</span>
               )}
             </button>
           );
@@ -441,19 +452,38 @@ export default function BulkUploadPage() {
             >
               Clear
             </button>
-            <button
-              type="button"
-              onClick={submit}
-              disabled={uploading}
-              className="btn-brand inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            >
-              <UploadIcon width={16} height={16} />
-              {uploading ? "Uploading…" : "Submit"}
-            </button>
+            <DisabledTip reason={!uploading && !canSubmit && `Submit needs at least ${BULK_MIN_ROWS} valid records (${validCount} valid so far).`} className="inline-block">
+              <button
+                type="button"
+                onClick={submit}
+                disabled={uploading || !canSubmit}
+                className="btn-brand inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                <UploadIcon width={16} height={16} />
+                {uploading ? "Uploading…" : "Submit"}
+              </button>
+            </DisabledTip>
           </div>
         </div>
 
         {excelError && <FieldError>{excelError}</FieldError>}
+        {!canSubmit && filled.length > 0 && (
+          <div role="status" data-bulk-rule className="rounded-xl border border-border bg-surface px-4 py-3 text-sm">
+            <p className="font-medium">
+              At least {BULK_MIN_ROWS} valid {many} are needed to submit. You have {validCount} valid so far.
+            </p>
+            {invalidRows.length > 0 && (
+              <ul className="mt-1.5 flex flex-col gap-0.5 text-xs text-muted">
+                {invalidRows.slice(0, 5).map((c) => (
+                  <li key={c.number}>
+                    <span className="font-medium text-foreground">Row {c.number}:</span> {Object.values(c.problems).join(" ")}
+                  </li>
+                ))}
+                {invalidRows.length > 5 && <li>…and {invalidRows.length - 5} more {invalidRows.length - 5 === 1 ? "row" : "rows"}.</li>}
+              </ul>
+            )}
+          </div>
+        )}
         {problemCount > 0 && (
           <FieldError>
             {problemCount} {problemCount === 1 ? "cell needs" : "cells need"} fixing in {Object.keys(problems).length} {Object.keys(problems).length === 1 ? "row" : "rows"}. They are marked in red.

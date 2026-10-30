@@ -1,9 +1,10 @@
 "use client";
 
+import { statusOptionsFor } from "../statusOptions";
 import { useEffect, useRef, useState } from "react";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/FormControls";
 import { FieldError } from "@/components/ui/FieldError";
-import { ITEM_TYPES, PRIORITIES, STATUS_OPTIONS, statusLabel } from "@/constants/backlog-options";
+import { ITEM_TYPES, PRIORITIES, statusLabel } from "@/constants/backlog-options";
 import { getErrorMessage } from "@/lib/apiClient";
 import { useItemDetailStore } from "@/stores/itemDetailStore";
 import type { BacklogItemData, ItemType, Priority, Status } from "@/types/backlog";
@@ -38,13 +39,13 @@ const norm = (v: unknown) => (v == null ? "" : String(v).trim());
 /** Does the form (fields, placement, assignees) differ from the saved task `base`? */
 function differs(draft: BacklogItemData, placement: Placement, base: BacklogItemData): boolean {
   const placed = placementToItem(placement, { sprint: base.sprint, podId: base.podId });
-  const needsReason = draft.status === "Blocked" || draft.status === "On hold";
+  const commenting = draft.status !== base.status || draft.status === "Blocked" || draft.status === "On hold";
   return (
     (["title", "description", "status", "type", "priority", "deadline", "owner", "lead", "leadDeadline", "notes", "created", "completed"] as const).some((k) => norm(draft[k]) !== norm(base[k])) ||
     placed.sprint !== base.sprint ||
     norm(placed.podId) !== norm(base.podId) ||
     cleanAssignees(draft.assignees ?? "") !== cleanAssignees(base.assignees ?? "") ||
-    (needsReason && norm(draft.blockedReason) !== norm(base.blockedReason))
+    (commenting && norm(draft.blockedReason) !== norm(base.blockedReason))
   );
 }
 
@@ -83,12 +84,11 @@ export default function EditBacklogDrawer({ item, onSave, onClose }: EditBacklog
   const set = <K extends keyof BacklogItemData>(key: K, value: BacklogItemData[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
-  // On an unplanned task, finishing it is offered as "Close Task" (the Completed status); it then moves to Closed Unplanned Tasks.
-  const statusOptions =
-    base.sprint === "Unplanned" && base.status !== "Completed"
-      ? STATUS_OPTIONS.map((o) => (o.value === "Completed" ? { ...o, label: "Close Task" } : o))
-      : STATUS_OPTIONS;
+  // The status choices depend on where the saved task is: a Backlog task gets only To Do, On Hold and Blocked (see statusOptions.ts).
+  const statusOptions = statusOptionsFor(base);
   const needsReason = draft.status === "Blocked" || draft.status === "On hold";
+  // Any status change can carry a comment; Blocked and On hold require one (why).
+  const commenting = needsReason || draft.status !== base.status;
   const reason = draft.blockedReason ?? "";
 
   // Save stays off until something differs from the saved task (changing a value back turns it off again).
@@ -137,14 +137,14 @@ export default function EditBacklogDrawer({ item, onSave, onClose }: EditBacklog
         <LeadSelect value={draft.lead ?? ""} onChange={(v) => setDraft((d) => ({ ...d, lead: v, ...(v !== (d.lead ?? "") ? { leadDeadline: "" } : {}) }))} />
       </div>
 
-      {needsReason && (
+      {commenting && (
         <TextAreaField
-          label="Why is it blocked or on hold?"
-          required
-          invalid={!reason.trim()}
+          label={needsReason ? "Why is it blocked or on hold?" : "Comment (optional)"}
+          required={needsReason}
+          invalid={needsReason && !reason.trim()}
           value={reason}
           onChange={(v) => set("blockedReason", v)}
-          placeholder="What's it waiting on, and who can unblock it?"
+          placeholder={needsReason ? "What's it waiting on, and who can unblock it?" : "Add a note about this status change"}
         />
       )}
 

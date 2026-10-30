@@ -1,5 +1,5 @@
-/** The kinds of work the backend accepts (sent as BACKEND, FRONTEND, MOBILE, TESTING, DESIGN). */
-export type WorkKind = "Backend" | "Frontend" | "Mobile" | "Testing" | "Design";
+/** A kind of work: any team name (the Team Members team list) or one of the five the backend lists (BACKEND, FRONTEND, MOBILE, TESTING, DESIGN). */
+export type WorkKind = string;
 
 /** A block of work someone logged against a sprint. */
 export type WorkEntry = {

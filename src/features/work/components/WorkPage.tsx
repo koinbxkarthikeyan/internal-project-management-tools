@@ -6,12 +6,12 @@ import { useEffect, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
-import { useQueryState } from "@/hooks/useQueryState";
 import { useToast } from "@/components/ui/Toast";
 import { FOCUS_HOURS_PER_DAY, WORK_KINDS, SPRINT_TASKS_POD, UNPLANNED_POD, WORK_LOGGED_HREF, isPseudoPod } from "@/constants/work";
 import ConfirmDeleteDrawer from "@/features/backlog/components/ConfirmDeleteDrawer";
 import { Field, SearchableSelect } from "@/components/ui/FormControls";
 import { refreshUsers } from "@/lib/auth/userStore";
+import { teamOptions } from "@/lib/auth/teams";
 import { resolveTeam, useTeamStore } from "@/stores/teamStore";
 import { useUsers } from "@/features/users/hooks/useUsers";
 import { useMyTasksStore } from "@/stores/myTasksStore";
@@ -23,8 +23,6 @@ import type { Pod, WorkEntry, WorkEntryInput, WorkKind } from "@/types/work";
 import { useWorkData } from "../hooks/useWorkData";
 import { useChosenSprints } from "../hooks/useChosenSprints";
 import { formatDay, latestEntry, sprintHours } from "../utils";
-import EveryoneView from "./EveryoneView";
-import ScopeTabs, { type WorkScope } from "./ScopeTabs";
 import HoursSummaryLine from "./HoursSummaryLine";
 import SprintGlance from "./SprintGlance";
 import SprintPicker from "./SprintPicker";
@@ -39,16 +37,15 @@ const card = "rounded-2xl border border-border bg-surface p-5";
 /** The "What are you working on?" section: independent of the Backlog pages (it only reads sprints, PODs, tasks and owners). */
 export default function WorkPage() {
   const toast = useToast();
-  const { sprints, pods, allPods, items, hiddenItems } = useBacklog();
+  const { sprints, pods, items, hiddenItems } = useBacklog();
   const users = useUsers();
   const work = useWorkData();
 
   const { datedSprints, chosen, setPicked } = useChosenSprints();
   const today = todayISO();
 
-  const [scope, setScope] = useQueryState<WorkScope>("tab", ["mine", "everyone"], "mine");
   // Entries are logged as the signed-in registered user, read from the Users data.
-  const { user, isAdmin, restricted } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   // The My Task page's lists, which the task picker below reuses.
   const mineStore = useMyTasksStore();
@@ -68,10 +65,14 @@ export default function WorkPage() {
   // The kind of work: the supported kind that matches the person's Team when there is one, otherwise none until one is chosen; it can be changed in
   // the form at any time. The Team itself (e.g. Marketing) is never sent as the kind; it stays on the profile.
   const [kindPick, setKindPick] = useState<WorkKind | null>(null);
-  const kindFromTeam = WORK_KINDS.find((k) => k.toLowerCase() === (rawTeam || myTeam).trim().toLowerCase());
+  // Every kind is a team from the same list the Team Members form offers (plus the five the backend lists), so none is left out.
+  const teamDeleted = useTeamStore((s) => s.deleted);
+  const teamCustom = useTeamStore((s) => s.custom);
+  const kinds = teamOptions(users, WORK_KINDS, { renames, deleted: teamDeleted, custom: teamCustom });
+  const kindFromTeam = kinds.find((k) => k.toLowerCase() === (rawTeam || myTeam).trim().toLowerCase());
   const kind: WorkKind | null = kindPick ?? kindFromTeam ?? null;
   // Hours currently in the form, so the bar follows what is being entered.
-  const [draftHours, setDraftHours] = useState<number | null>(null);
+  const [draft, setDraft] = useState<{ from: string; to: string; hours: number } | null>(null);
   const [selection, setSelection] = useState<TaskSelection | null>(null);
   const [editing, setEditing] = useState<WorkEntry | null>(null);
   // "Other Work": time that is not on a sprint task. Ticking it clears the task ticks; ticking a task clears it.
@@ -126,7 +127,6 @@ export default function WorkPage() {
   const chosenSet = new Set(chosen.map((s) => s.id));
 
   const inSprints = work.entries.filter((e) => chosenSet.has(e.sprintId));
-  const everyone = scope === "everyone";
   const scoped = inSprints
     .filter((e) => e.person === person)
     .sort((a, b) => a.from.localeCompare(b.from) || a.createdAt.localeCompare(b.createdAt));
@@ -142,11 +142,18 @@ export default function WorkPage() {
 
   // The form logs against the sprint of the ticked tasks, or the first chosen sprint until something is ticked.
   const formSprint = chosen.find((s) => s.id === selection?.sprintId) ?? chosen[0];
-  // Once the dates or hours in the form are changed, they count too (an entry being changed is replaced by them).
-  const logged = draftHours !== null && person && formSprint.status !== "Closed" ? savedHours - (editing?.hours ?? 0) + draftHours : savedHours;
+  // This page's hours bar and timeline show only what is in the form now: nothing until a task is ticked, and empty again once the entry is saved
+  // (everything already logged is on Your Logged Work).
+  const formActive = (!!selection || otherWork) && formSprint.status !== "Closed";
+  const logged = formActive && draft ? draft.hours : 0;
   const selectedTasks = selection
     ? selection.itemIds.flatMap((id) => items.filter((i) => i.id === id))
     : [];
+  // The entry being filled in, drawn on the timeline as one bar.
+  const draftEntries: WorkEntry[] =
+    formActive && draft
+      ? [{ id: "draft", sprintId: formSprint.id, person, pod: "", kind: kind ?? "Backend", task: otherWork ? "Something else" : selectedTasks.map((t) => t.title).join(", ") || "New entry", from: draft.from, to: draft.to, hours: draft.hours, createdAt: "" }]
+      : [];
   // The entry is filed under the POD of the ticked tasks plus "Sprint tasks" / "Unplanned" for tasks without a POD.
   const realPod = selection && !isPseudoPod(selection.podId) ? (pods.find((p) => p.id === selection.podId) ?? null) : null;
   const podLabel = [
@@ -159,7 +166,6 @@ export default function WorkPage() {
   const selectedPod: Pod | null = selection ? { id: selection.podId, name: podLabel } : null;
   const mixedPod = selectedPod;
 
-  // Only PODs that have tasks in a chosen sprint count here.
   // The task picker offers the same tasks as the My Task page (`GET /items/mine`): tasks assigned to me, tasks I lead and unassigned tasks.
   // Each is shown as its newest copy from the shared list, so assignment changes show here too.
   const mineIds = new Set(
@@ -175,7 +181,6 @@ export default function WorkPage() {
     for (const id of e.itemIds ?? []) set.add(id);
   }
 
-  const poolPods = pods.filter((p) => chosen.some((s) => s.podIds?.includes(p.id) && items.some((i) => i.sprint === s.name && i.podId === p.id)));
   const sprintNames = chosen.map((s) => s.name).join(", ");
 
   function setSprints(ids: string[]) {
@@ -270,10 +275,11 @@ export default function WorkPage() {
       editing={editing}
       today={today}
       closed={formSprint.status === "Closed"}
+      kinds={kinds}
       kind={kind}
       onKindChange={setKindPick}
       otherWork={otherWork}
-      onHoursChange={setDraftHours}
+      onDraftChange={setDraft}
       onRemoveTask={(t) => toggleTask({ id: selection?.sprintId ?? "" }, selectedPod ?? ({ id: selection?.podId ?? "", name: "" } as Pod), t)}
       onSubmit={submit}
       onCancelEdit={() => (setEditing(null), setKindPick(null), setSelection(null), setOtherWork(false), setFormKey((k) => k + 1))}
@@ -289,27 +295,6 @@ export default function WorkPage() {
 
       <SprintPicker sprints={datedSprints} selectedIds={chosen.map((s) => s.id)} onChange={setSprints} />
 
-      <ScopeTabs scope={scope} onChange={setScope} />
-
-      {everyone ? (
-        <EveryoneView
-          sprints={chosen}
-          entries={inSprints}
-          people={[...new Set(users.map((u) => u.name))]}
-          pods={poolPods}
-          tasks={items.filter((i) => chosenSet.has(chosen.find((s) => s.name === i.sprint)?.id ?? ""))}
-          allTasks={[...items, ...hiddenItems]}
-          allEntries={work.entries}
-          allSprints={sprints}
-          podNames={Object.fromEntries(allPods.map((p) => [p.id, p.name]))}
-          // A User (or a Disabled Admin) sees role labels for nobody but themselves.
-          details={Object.fromEntries(users.filter((u) => !restricted || u.name === person).map((u) => [u.name, u.role]))}
-          perPerson={perPerson}
-          sprintTotal={sprintLimit}
-          updatedAt={work.updatedAt}
-          onRefresh={work.refresh}
-        />
-      ) : (
         <>
           <section className={`${card} grid gap-4 sm:grid-cols-2`}>
             <SearchableSelect
@@ -335,7 +320,7 @@ export default function WorkPage() {
               <div key={s.id} className="border-t border-border pt-5">
                 <SprintGlance
                   sprint={s}
-                  entries={scoped.filter((e) => e.sprintId === s.id)}
+                  entries={draftEntries.filter((e) => e.sprintId === s.id)}
                   showPerson={false}
                   title={chosen.length === 1 ? undefined : `${s.name} at a glance`}
                 />
@@ -388,7 +373,6 @@ export default function WorkPage() {
             </div>
           </section>
         </>
-      )}
 
       {/* Opened from Your Logged Work with ?edit=<id>: starts changing that entry here, where the form is. */}
       <StartEditFromUrl entries={work.entries} onEntry={startEditing} />

@@ -1,4 +1,6 @@
 import { usersStore } from "@/lib/auth/userStore";
+import { teamOptions } from "@/lib/auth/teams";
+import { useTeamStore } from "@/stores/teamStore";
 import type { BacklogItemData, ItemType, Priority, Sprint, Status } from "@/types/backlog";
 import type { Pod, WorkEntry, WorkKind } from "@/types/work";
 
@@ -41,12 +43,25 @@ export const priorityFromApi = (v: unknown) => from(PRIORITY, v, "Not set");
 export const priorityToApi = (v: Priority) => to(PRIORITY, v) ?? "NOT_SET";
 export const typeFromApi = (v: unknown): ItemType | undefined => (v == null ? undefined : from(TYPE, v, "Task"));
 export const typeToApi = (v: ItemType | undefined) => (v ? to(TYPE, v) : undefined) ?? "TASK";
-export const kindFromApi = (v: unknown): WorkKind => from(KIND, v, "Backend");
-// Only the kinds the backend accepts are ever sent, in its capitals. Anything else (e.g. a team name) is refused here
-// instead of being sent as, or turned into, something else.
+/** A team name as the backend writes a kind: capitals, words joined by "_" (Product Management -> PRODUCT_MANAGEMENT). */
+const kindWire = (name: string) => name.trim().replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "").toUpperCase();
+const teamNames = () => {
+  const { renames, deleted, custom } = useTeamStore.getState();
+  return teamOptions(usersStore.read(), [], { renames, deleted, custom });
+};
+/** The five listed kinds keep their labels; any other value is shown as the team it names, else in words (PRODUCT_MANAGEMENT -> Product Management). */
+export const kindFromApi = (v: unknown): WorkKind => {
+  const known = KIND.find(([label, api]) => api === norm(v) || norm(label) === norm(v));
+  if (known) return known[0];
+  const raw = typeof v === "string" ? v.trim() : "";
+  if (!raw) return "Backend";
+  return teamNames().find((t) => kindWire(t) === kindWire(raw)) ?? raw.toLowerCase().split(/[\s_]+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+};
+// The five listed kinds are sent as the backend lists them; any other team is sent in the same capitals form, and the backend decides whether it accepts it
+// (a refusal is shown to the person as the backend's message, never turned into another kind).
 export const kindToApi = (v: WorkKind): string => {
-  const api = to(KIND, v);
-  if (!api) throw new Error(`"${v}" isn't a kind of work the server accepts. Choose Backend, Frontend, Mobile, Testing or Design.`);
+  const api = to(KIND, v) ?? kindWire(v);
+  if (!api) throw new Error("Choose a kind of work.");
   return api;
 };
 
