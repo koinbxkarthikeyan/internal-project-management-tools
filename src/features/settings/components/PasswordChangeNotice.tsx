@@ -20,7 +20,7 @@ export default function PasswordChangeNotice({ onContinue }: { onContinue: () =>
       aria-labelledby="password-notice-title"
       aria-describedby="password-notice-text"
       onCancel={(e) => e.preventDefault()}
-      className="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-border bg-surface p-6 text-foreground shadow-2xl backdrop:bg-black/60"
+      className="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-border bg-surface p-6 text-foreground shadow-modal backdrop:bg-black/60"
     >
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-3">

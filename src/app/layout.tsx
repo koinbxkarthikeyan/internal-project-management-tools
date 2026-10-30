@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 };
 
 // Applies the saved (or system) theme before first paint to avoid a flash.
-const themeScript = `try{var t=localStorage.getItem("theme");if(t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark")}catch(e){}`;
+const themeScript = `try{var t=localStorage.getItem("theme");if(t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark");if(localStorage.getItem("sidebar")==="collapsed")document.documentElement.dataset.sidebar="collapsed"}catch(e){}`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

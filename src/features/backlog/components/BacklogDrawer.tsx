@@ -21,10 +21,12 @@ type BacklogDrawerProps = {
   canSubmit?: boolean;
   onClose: () => void;
   children: ReactNode;
+  /** A second column shown beside `children` when the panel is wide enough (below that it goes under them): the panel is then wider, and each side scrolls on its own. */
+  aside?: ReactNode;
 };
 
 /** Right-hand slide-over panel (native <dialog>) shared by the Create and Edit backlog forms. */
-export default function BacklogDrawer({ heading, submitLabel, onSubmit, onClose, compact = false, danger = false, viewOnly = false, canSubmit = true, children }: BacklogDrawerProps) {
+export default function BacklogDrawer({ heading, submitLabel, onSubmit, onClose, compact = false, danger = false, viewOnly = false, canSubmit = true, children, aside }: BacklogDrawerProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -72,7 +74,7 @@ export default function BacklogDrawer({ heading, submitLabel, onSubmit, onClose,
       data-closing={closing || undefined}
       onClick={(e) => e.target === ref.current && requestClose()}
       aria-label="Backlog item"
-      className={`drawer fixed inset-y-0 right-0 m-0 ml-auto h-dvh max-h-dvh w-full ${compact ? "max-w-md" : expanded ? "max-w-none" : "max-w-3xl"} border-l border-border bg-surface p-0 text-foreground shadow-2xl backdrop:bg-black/50`}
+      className={`drawer fixed inset-y-0 right-0 m-0 ml-auto h-dvh max-h-dvh w-full ${compact ? "max-w-md" : expanded ? "max-w-none" : aside ? "max-w-5xl" : "max-w-3xl"} border-l border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-black/50`}
     >
       <form
         noValidate
@@ -106,7 +108,17 @@ export default function BacklogDrawer({ heading, submitLabel, onSubmit, onClose,
           </div>
         </header>
 
-        <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-6 py-5">{children}</div>
+        {aside ? (
+          // Wide: the details on the left (55%) and the aside on the right (45%) with a hairline between, each scrolling by itself. Narrow: one scroll, the aside under the details.
+          <div className="@container flex min-h-0 flex-1 flex-col overflow-y-auto @3xl:overflow-hidden">
+            <div className="flex flex-col @3xl:min-h-0 @3xl:flex-1 @3xl:flex-row">
+              <div className="flex flex-col gap-4 px-6 py-5 @3xl:basis-[55%] @3xl:overflow-y-auto">{children}</div>
+              <div className="flex flex-col border-t border-border @3xl:min-h-0 @3xl:basis-[45%] @3xl:border-l @3xl:border-t-0">{aside}</div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-6 py-5">{children}</div>
+        )}
 
         <footer className="flex justify-end gap-2 border-t border-border px-6 py-3">
           <button

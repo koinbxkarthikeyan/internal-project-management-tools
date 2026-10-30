@@ -159,7 +159,7 @@ export default function ActionsMenu({ label, actions }: ActionsMenuProps) {
           aria-label={label}
           onKeyDown={onMenuKeyDown}
           style={pos}
-          className={`fixed z-20 w-44 rounded-xl border border-border bg-surface p-1 shadow-lg ${
+          className={`fixed z-20 w-44 rounded-xl border border-border bg-surface p-1 shadow-menu ${
             pos.bottom !== undefined ? "origin-bottom-right" : "origin-top-right"
           } ${leaving ? "anim-menu-out" : "anim-menu-in"}`}
         >

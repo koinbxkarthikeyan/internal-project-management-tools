@@ -96,7 +96,7 @@ function Chip({ bucket, person }: { bucket: Bucket; person: string }) {
         id={id}
         role="tooltip"
         popover="manual"
-        className="pointer-events-none m-0 max-h-[calc(100dvh-1rem)] w-72 max-w-[calc(100vw-1rem)] overflow-auto rounded-xl border border-border bg-surface p-3 text-xs text-foreground shadow-lg"
+        className="pointer-events-none m-0 max-h-[calc(100dvh-1rem)] w-72 max-w-[calc(100vw-1rem)] overflow-auto rounded-xl border border-border bg-surface p-3 text-xs text-foreground shadow-menu"
         style={{ position: "fixed", inset: "auto" }}
       >
         <span className="flex items-center gap-1.5 text-sm font-semibold">

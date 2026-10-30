@@ -82,7 +82,7 @@ export default function SprintSummary({ logged, limit, expected, hasPerson }: Sp
         <div
           id="hours-tooltip"
           role="tooltip"
-          className="pointer-events-none invisible absolute left-0 top-full z-20 mt-3 w-60 rounded-xl border border-border bg-surface p-3 text-xs opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100"
+          className="pointer-events-none invisible absolute left-0 top-full z-20 mt-3 w-60 rounded-xl border border-border bg-surface p-3 text-xs opacity-0 shadow-menu transition-opacity group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100"
         >
           <p className="flex justify-between gap-3">
             <span className={`flex items-center gap-1.5 font-medium ${BLUE.text}`}>

@@ -2,30 +2,30 @@
 
 import { useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LOGIN_PATH } from "@/constants/auth";
-import { MY_TASK_HREF, WORK_HREF } from "@/constants/work";
+import { ACCOUNT_DISABLED_PATH, LOGIN_PATH } from "@/constants/auth";
+import { MY_TASK_HREF, OVERVIEW_HREF, WORK_HREF } from "@/constants/work";
 import { sessionStore } from "@/lib/auth/sessionStore";
-import { resetSharedData } from "@/lib/auth/authService";
+import { resetSharedData, signOut } from "@/lib/auth/authService";
 import { refreshUsers } from "@/lib/auth/userStore";
 import { getMe } from "@/services/authApi";
 import { useAuth } from "../hooks/useAuth";
 
-const isWorkPath = (pathname: string) => [WORK_HREF, MY_TASK_HREF, "/settings"].some((href) => pathname === href || pathname.startsWith(`${href}/`));
+const isWorkPath = (pathname: string) => [OVERVIEW_HREF, WORK_HREF, MY_TASK_HREF, "/settings"].some((href) => pathname === href || pathname.startsWith(`${href}/`));
 
 /**
  * Keeps the whole app behind the login:
  * - not signed in (or not a registered user): nothing is rendered and the visitor goes to the login page;
  * - signed in but the backend says the account must choose its own password (`mustChangePassword`): only Settings is reachable (settingsOnly),
  *   whatever the URL, until the change succeeds;
- * - signed in with access Disabled: only "What are you working on? > My sprint" and "My Task" are available, every other
- *   page redirects there;
+ * - an Admin with access Disabled: signed out and sent to the account-disabled page;
+ * - a normal User with access Disabled: only Settings is available, every other page redirects there;
  * - signed in with access Enabled: everything permitted is available.
  */
 export default function AuthGate({ children }: { children: ReactNode }) {
-  const { status, restricted, settingsOnly } = useAuth();
+  const { status, restricted, settingsOnly, disabledAdmin } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  // A normal User may only open My sprint, My Task and Settings; a Disabled account may not be in the app at all.
+  // A normal User may only open Overview (their own), My sprint, My Task and Settings; a Disabled account may not be in the app at all.
   const onSettings = pathname === "/settings" || pathname.startsWith("/settings/");
   const blocked = settingsOnly ? !onSettings : restricted && !isWorkPath(pathname);
 
@@ -61,14 +61,20 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   }, [status]);
 
   useEffect(() => {
+    // A Disabled Admin never sees the application: the saved login is dropped and they are told why (also when it was switched off while they were signed in).
+    if (status === "signedIn" && disabledAdmin) {
+      signOut();
+      router.replace(ACCOUNT_DISABLED_PATH);
+      return;
+    }
     if (status === "signedOut") {
       resetSharedData(); // also when the login simply expired (401), not only on Sign out
       router.replace(LOGIN_PATH);
     }
     else if (status === "signedIn" && blocked) router.replace(settingsOnly ? "/settings" : WORK_HREF);
-  }, [status, blocked, settingsOnly, router]);
+  }, [status, blocked, settingsOnly, disabledAdmin, router]);
 
-  if (status !== "signedIn" || blocked) {
+  if (status !== "signedIn" || blocked || disabledAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center" role="status" aria-label="Checking sign-in">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-border border-t-accent" />

@@ -6,11 +6,12 @@ import { TextAreaField, TextField } from "@/components/ui/FormControls";
 import { useToast } from "@/components/ui/Toast";
 import { checkRequiredFields, clearFilled } from "@/lib/formValidation";
 import { CloseIcon } from "@/components/ui/icons";
-import { FOCUS_HOURS_PER_DAY, HOUR_PRESETS, WORK_KINDS, isPseudoPod } from "@/constants/work";
+import { FOCUS_HOURS_PER_DAY, HOUR_PRESETS, isPseudoPod } from "@/constants/work";
 import type { BacklogItemData, Sprint } from "@/types/backlog";
 import type { Pod, WorkEntry, WorkEntryInput, WorkKind } from "@/types/work";
 import { addDays, plannedHours, workingDays } from "../utils";
 import { FieldError } from "@/components/ui/FieldError";
+import KindTabs from "./KindTabs";
 
 type WorkFormProps = {
   /** The sprint the time is logged against (its dates bound From and To). */
@@ -26,13 +27,15 @@ type WorkFormProps = {
   today: string;
   /** The sprint is closed: time can't be logged against it. */
   closed?: boolean;
-  /** Called with the hours in the field once the dates or hours have been changed (null until then), so the sprint bar can follow them. */
-  onHoursChange?: (hours: number | null) => void;
+  /** Called with what is in the form (its dates and hours) as it changes, so the hours bar and timeline on the page can follow it. */
+  onDraftChange?: (draft: { from: string; to: string; hours: number }) => void;
   onRemoveTask: (item: BacklogItemData) => void;
   onSubmit: (input: WorkEntryInput) => Promise<boolean>;
   onCancelEdit: () => void;
   /** The person has no Team yet: it is picked at the top of the page first. */
   /** The kind of work for the entry, chosen in the form (it starts as the kind that matches the person's Team). */
+  /** Every kind that can be picked (the team list), shown as tabs left to right; a long list scrolls sideways. */
+  kinds: readonly string[];
   kind: WorkKind | null;
   onKindChange: (kind: WorkKind) => void;
   /** "Other Work" is ticked: the entry has a short description instead of tasks. */
@@ -47,7 +50,7 @@ const KIND_REQUIRED = "Choose the kind of work.";
 
 const clamp = (d: string, min: string, max: string) => (d < min ? min : d > max ? max : d);
 
-export default function WorkForm({ sprint, pod, tasks, person, editing, today, closed = false, onHoursChange, onRemoveTask, onSubmit, onCancelEdit, kind: pickedKind, onKindChange, otherWork = false }: WorkFormProps) {
+export default function WorkForm({ sprint, pod, tasks, person, editing, today, closed = false, onDraftChange, onRemoveTask, onSubmit, onCancelEdit, kinds, kind: pickedKind, onKindChange, otherWork = false }: WorkFormProps) {
   const toast = useToast();
   // An entry being changed keeps its own kind unless it is changed here; a new one uses the chosen kind.
   const kind = pickedKind;
@@ -59,26 +62,23 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
   const [hours, setHours] = useState(String(editing?.hours ?? 0));
   // Once the user types their own hours, changing the dates no longer rewrites them.
   const [hoursTouched, setHoursTouched] = useState(!!editing);
-  // Set once the dates or hours are changed; until then the form holds only its defaults.
-  const [changed, setChanged] = useState(false);
   const [notes, setNotes] = useState(editing?.notes ?? "");
   const [details, setDetails] = useState(editing?.otherWork ? editing.task : "");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    onHoursChange?.(changed ? (Number(hours) > 0 ? Number(hours) : 0) : null);
-  }, [hours, changed, onHoursChange]);
+    onDraftChange?.({ from, to, hours: Number(hours) > 0 ? Number(hours) : 0 });
+  }, [from, to, hours, onDraftChange]);
 
   function setRange(f: string, t: string) {
-    setChanged(true);
     setFrom(f);
     setTo(t);
     setError("");
     if (!hoursTouched) setHours(String(plannedHours(f, t)));
   }
 
-  const setPreset = (h: number) => (setHours(String(h)), setHoursTouched(true), setChanged(true));
+  const setPreset = (h: number) => (setHours(String(h)), setHoursTouched(true));
   const clampedToday = lastLoggable;
   const week2Start = addDays(sprint.start, 7);
   const wd = workingDays(from, to);
@@ -100,6 +100,16 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
     notes.trim() === (editing.notes ?? "").trim() &&
     kind === editing.kind &&
     (editing.otherWork ? otherWork && details.trim() === editing.task.trim() : !otherWork && (legacy || sameTasks));
+
+  // The button stays off until every mandatory field is filled; the tip names what is still missing.
+  const missing = [
+    !person && "your name",
+    !canLog && "a task (or Something else)",
+    otherWork && !details.trim() && "the work details",
+    !kind && "the kind of work",
+    (!from || !to) && "the dates",
+    !(Number(hours) > 0) && "the hours",
+  ].filter((m): m is string => !!m);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -184,7 +194,7 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
       </div>
       )}
 
-      <fieldset>
+      <fieldset className="min-w-0">
         <legend className="mb-1.5 text-xs font-medium text-muted">
           Kind of work
           <span aria-hidden="true" className="text-red-500">
@@ -192,26 +202,9 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
             *
           </span>
         </legend>
-        <div
-          role="group"
-          aria-label="Kind of work"
-          aria-invalid={(!kind && error === KIND_REQUIRED) || undefined}
-          className={`grid grid-cols-2 gap-1 rounded-xl border bg-background p-1 sm:grid-cols-5 ${!kind && error === KIND_REQUIRED ? "border-red-500" : "border-border"}`}
-        >
-          {WORK_KINDS.map((k) => (
-            <button
-              key={k}
-              type="button"
-              aria-pressed={kind === k}
-              onClick={() => onKindChange(k)}
-              className={`rounded-lg px-3 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-accent ${
-                kind === k ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-hover hover:text-foreground"
-              }`}
-            >
-              {k}
-            </button>
-          ))}
-        </div>
+        <DisabledTip reason={!canLog && NEEDS_TASK} className="block">
+          <KindTabs kinds={kinds} value={kind} onChange={onKindChange} invalid={!kind && error === KIND_REQUIRED} disabled={!canLog} />
+        </DisabledTip>
       </fieldset>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -225,7 +218,7 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
           disabled={!canLog}
           disabledReason={NEEDS_TASK}
           value={hours}
-          onChange={(v) => (setHours(v.replace(/^0+(?=\d)/, "")), setHoursTouched(true), setChanged(true), setError(""))}
+          onChange={(v) => (setHours(v.replace(/^0+(?=\d)/, "")), setHoursTouched(true), setError(""))}
         />
       </div>
       <p className="-mt-2 text-xs text-muted">
@@ -283,10 +276,10 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
       )}
 
       <div className="flex flex-col gap-2 sm:flex-row">
-        <DisabledTip reason={!saving && (closed ? `${sprint.name} is closed. Select the running sprint to log time.` : unchanged && "No changes to save.")} className="flex w-full sm:flex-1">
+        <DisabledTip reason={!saving && (closed ? `${sprint.name} is closed. Select the running sprint to log time.` : unchanged ? "No changes to save." : missing.length > 0 && `Fill in ${missing.join(", ")} first.`)} className="flex w-full sm:flex-1">
         <button
           type="submit"
-          disabled={saving || closed || unchanged}
+          disabled={saving || closed || unchanged || missing.length > 0}
           className="h-11 w-full shrink-0 rounded-xl btn-brand px-4 text-sm font-semibold  focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:w-auto sm:flex-1"
         >
           {saving ? "Saving…" : editing ? "Save changes" : "Add to my sprint"}
