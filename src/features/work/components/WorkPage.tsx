@@ -11,6 +11,7 @@ import { FOCUS_HOURS_PER_DAY, WORK_KINDS, SPRINT_TASKS_POD, UNPLANNED_POD, WORK_
 import ConfirmDeleteDrawer from "@/features/backlog/components/ConfirmDeleteDrawer";
 import { Field, SearchableSelect } from "@/components/ui/FormControls";
 import { refreshUsers } from "@/lib/auth/userStore";
+import { teamOptions } from "@/lib/auth/teams";
 import { resolveTeam, useTeamStore } from "@/stores/teamStore";
 import { useUsers } from "@/features/users/hooks/useUsers";
 import { useMyTasksStore } from "@/stores/myTasksStore";
@@ -64,7 +65,11 @@ export default function WorkPage() {
   // The kind of work: the supported kind that matches the person's Team when there is one, otherwise none until one is chosen; it can be changed in
   // the form at any time. The Team itself (e.g. Marketing) is never sent as the kind; it stays on the profile.
   const [kindPick, setKindPick] = useState<WorkKind | null>(null);
-  const kindFromTeam = WORK_KINDS.find((k) => k.toLowerCase() === (rawTeam || myTeam).trim().toLowerCase());
+  // Every kind is a team from the same list the Team Members form offers (plus the five the backend lists), so none is left out.
+  const teamDeleted = useTeamStore((s) => s.deleted);
+  const teamCustom = useTeamStore((s) => s.custom);
+  const kinds = teamOptions(users, WORK_KINDS, { renames, deleted: teamDeleted, custom: teamCustom });
+  const kindFromTeam = kinds.find((k) => k.toLowerCase() === (rawTeam || myTeam).trim().toLowerCase());
   const kind: WorkKind | null = kindPick ?? kindFromTeam ?? null;
   // Hours currently in the form, so the bar follows what is being entered.
   const [draft, setDraft] = useState<{ from: string; to: string; hours: number } | null>(null);
@@ -270,6 +275,7 @@ export default function WorkPage() {
       editing={editing}
       today={today}
       closed={formSprint.status === "Closed"}
+      kinds={kinds}
       kind={kind}
       onKindChange={setKindPick}
       otherWork={otherWork}

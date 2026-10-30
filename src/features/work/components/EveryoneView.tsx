@@ -10,7 +10,6 @@ import { downloadWorkExcel } from "../exportWorkExcel";
 import TaskHistoryModal from "./TaskHistoryModal";
 import { carriedChain } from "./TaskSprintHours";
 import { useUsers } from "@/features/users/hooks/useUsers";
-import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useItemDetailStore } from "@/stores/itemDetailStore";
 import { eachDay, formatDay, formatHours, isWeekend, percentOfTotal } from "../utils";
 import { sprintLabel } from "@/constants/backlog-options";
@@ -82,14 +81,15 @@ export default function EveryoneView({ sprints, entries: teamEntries, people: te
   const allUsers = useUsers();
   // For anyone but a Super Admin or enabled Admin: only their own entries and assigned tasks, in every breakdown and the summary.
   const mine = ownOnly;
-  const entries = mine === undefined ? teamEntries : teamEntries.filter((e) => e.person === mine);
-  const allEntries = mine === undefined ? teamAllEntries : teamAllEntries.filter((e) => e.person === mine);
   // Their tasks: those the backend lists as theirs or that name them, and any they logged time on.
-  const loggedOn = new Set(entries.flatMap((e) => e.itemIds ?? []));
-  const tasks =
-    mine === undefined
-      ? teamTasks
-      : teamTasks.filter((t) => ownTaskIds?.has(t.id) || assigneeKeys(t.assignees).includes(mine.toLowerCase()) || loggedOn.has(t.id));
+  const named = (t: BacklogItemData) => !!ownTaskIds?.has(t.id) || (mine !== undefined && assigneeKeys(t.assignees).includes(mine.toLowerCase()));
+  const loggedOn = new Set(mine === undefined ? [] : teamEntries.filter((e) => e.person === mine).flatMap((e) => e.itemIds ?? []));
+  const tasks = mine === undefined ? teamTasks : teamTasks.filter((t) => named(t) || loggedOn.has(t.id));
+  // On those tasks (and only those) everyone's logged hours show, so the people who worked on the same task are visible; other tasks stay out of view.
+  const mineTaskIds = new Set(tasks.map((t) => t.id));
+  const onMine = (e: WorkEntry) => e.person === mine || !!e.itemIds?.some((id) => mineTaskIds.has(id));
+  const entries = mine === undefined ? teamEntries : teamEntries.filter(onMine);
+  const allEntries = mine === undefined ? teamAllEntries : teamAllEntries.filter(onMine);
   const people = mine === undefined ? teamPeople : [mine];
 
   const logged = sum(entries);
@@ -140,9 +140,9 @@ export default function EveryoneView({ sprints, entries: teamEntries, people: te
       </section>
 
       <ul aria-label="Hours by kind of work" className="flex flex-wrap gap-2">
-        {WORK_KINDS.map((k) => (
+        {[...WORK_KINDS, ...new Set(entries.map((e) => e.kind).filter((k) => !WORK_KINDS.includes(k)))].map((k) => (
           <li key={k} className="flex items-center gap-2 rounded-full border border-border bg-surface px-2.5 py-1 text-xs">
-            <span className="rounded border px-1.5 font-mono text-[10px]" style={{ color: KIND_COLORS[k], borderColor: KIND_COLORS[k] }}>
+            <span className="rounded border px-1.5 font-mono text-[10px]" style={{ color: KIND_COLORS[k] ?? colorFor(k), borderColor: KIND_COLORS[k] ?? colorFor(k) }}>
               {k}
             </span>
             <span className="font-mono font-semibold tabular-nums">{formatHours(sum(entries.filter((e) => e.kind === k)))}</span>
@@ -415,7 +415,7 @@ function ByPod({
     }
     for (const t of podTasks) {
       // Someone who sees only their own work still sees a task's people on its card, but only they appear in the hours rows.
-      const names = assigneeKeys(t.assignees).map(display).filter((n) => !own || people.includes(n));
+      const names = assigneeKeys(t.assignees).map(display);
       if (own && names.length === 0) continue; // a task of one's own with nobody assigned: no placeholder row
       for (const who of names.length ? names : ["Unassigned"]) {
         const covered = entries.some((e) => e.person === who && e.itemIds?.includes(t.id));
@@ -666,8 +666,7 @@ function PodTask({
   const mine = [...new Map(entries.filter((e) => e.itemIds?.includes(task.id) && (task.sprint === "Unplanned" || e.sprintId === sprint.id)).map((e) => [e.id, e])).values()];
   const byPerson = [...mine.reduce((m, e) => m.set(e.person, (m.get(e.person) ?? 0) + e.hours), new Map<string, number>())].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   const split = byPerson.length > 1;
-  const me = useAuth().user?.name.toLowerCase();
-  const waiting = assigned.filter((n) => !byPerson.some(([p]) => p.toLowerCase() === n.toLowerCase()) && (!own || n.toLowerCase() === me));
+  const waiting = assigned.filter((n) => !byPerson.some(([p]) => p.toLowerCase() === n.toLowerCase()));
 
   return (
     <li className="py-3 first:pt-0 last:pb-0">
@@ -698,18 +697,13 @@ function PodTask({
           <div className="h-full rounded-full" style={{ width: `${top > 0 ? (hours / top) * 100 : 0}%`, background: color }} />
         )}
       </div>
-      <p className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-3 text-[11px] text-muted">
-        <span className="min-w-0">
-          Lead: <span className={lead ? "text-foreground" : ""}>{lead || "Not assigned"}</span>
-        </span>
+      {/* Hours per sprint (a carried-over task lists each sprint it was in), then the total. */}
+      <p className="mt-1.5 flex flex-wrap items-baseline justify-end gap-x-3 text-[11px] text-muted">
         <span className="font-mono" title="Hours on this task, per sprint">
-          {parts.map((p) => `${unplannedAs(p.name, own)}: ${formatHours(p.hours)}`).join(" | ")}
+          {parts.map((p) => `${unplannedAs(p.name, own)}: ${formatHours(p.hours)}`).join(" | ")} = {formatHours(total)}
         </span>
       </p>
-      <p className="flex flex-wrap items-baseline justify-between gap-x-3 text-[11px] text-muted">
-        <span className="min-w-0">
-          Assigned Users: <span className={assigned.length ? "text-foreground" : ""}>{assigned.length ? assigned.join(", ") : "Not assigned"}</span>
-        </span>
+      <p className="text-right text-[11px] text-muted">
         <span className="font-mono font-semibold text-foreground">Total: {formatHours(total)}</span>
       </p>
       {(byPerson.length > 0 || waiting.length > 0) && (
