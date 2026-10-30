@@ -6,6 +6,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import { FOCUS_HOURS_PER_DAY, WORK_KINDS } from "@/constants/work";
 import type { BacklogItemData, Sprint } from "@/types/backlog";
 import type { Pod, WorkEntry } from "@/types/work";
+import { downloadWorkExcel } from "../exportWorkExcel";
 import TaskHistoryModal from "./TaskHistoryModal";
 import { carriedChain } from "./TaskSprintHours";
 import { useUsers } from "@/features/users/hooks/useUsers";
@@ -32,6 +33,8 @@ type EveryoneViewProps = {
   ownOnly?: string;
   /** The ids of the tasks the backend says are the person's (assigned to them or led by them), used with `ownOnly`. */
   ownTaskIds?: ReadonlySet<string>;
+  /** Offers an Excel download of everyone's working details (the By person view). */
+  exportable?: boolean;
   /** Every sprint, so the History view can follow a carried-over task. */
   allSprints?: readonly Sprint[];
   /** POD names by id, for the assigned tasks. */
@@ -72,9 +75,11 @@ function Stat({ value, total, label, valueClass = "", totalClass = "text-muted" 
 }
 
 /** Team-wide view for the "Everyone" tab: who has logged time, where it went, and how it spreads over the sprint. */
-export default function EveryoneView({ sprints, entries: teamEntries, people: teamPeople, pods, tasks: teamTasks, allTasks = [], allEntries: teamAllEntries = [], allSprints = [], ownOnly, ownTaskIds, podNames, details = {}, perPerson, sprintTotal, updatedAt, onRefresh }: EveryoneViewProps) {
+export default function EveryoneView({ sprints, entries: teamEntries, people: teamPeople, pods, tasks: teamTasks, allTasks = [], allEntries: teamAllEntries = [], allSprints = [], ownOnly, ownTaskIds, exportable = false, podNames, details = {}, perPerson, sprintTotal, updatedAt, onRefresh }: EveryoneViewProps) {
   const colorOf = makeTaskColor(allTasks, allSprints);
   const [breakdown, setBreakdown] = useQueryState<Breakdown>("by", ["person", "pod", "sprint"], "person");
+  const [downloading, setDownloading] = useState(false);
+  const allUsers = useUsers();
   // For anyone but a Super Admin or enabled Admin: only their own entries and assigned tasks, in every breakdown and the summary.
   const mine = ownOnly;
   const entries = mine === undefined ? teamEntries : teamEntries.filter((e) => e.person === mine);
@@ -96,11 +101,30 @@ export default function EveryoneView({ sprints, entries: teamEntries, people: te
 
   return (
     <div className="flex flex-col gap-5">
-      <p className="text-right text-xs text-muted">
+      <p className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-right text-xs text-muted">
+        {exportable && breakdown === "person" && (
+          <button
+            type="button"
+            disabled={downloading}
+            onClick={async () => {
+              setDownloading(true);
+              try {
+                await downloadWorkExcel({ people: everyPerson, entries, sprints, teams: Object.fromEntries(allUsers.map((u) => [u.name, u.team ?? ""])), expectedSoFar: perPerson, sprintTotal });
+              } finally {
+                setDownloading(false);
+              }
+            }}
+            className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-hover disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            {downloading ? "Preparing…" : "Download Excel"}
+          </button>
+        )}
+        <span>
         {updatedAt && <>updated {timeFormat.format(updatedAt)} · </>}
         <button type="button" onClick={onRefresh} className="text-accent hover:underline focus-visible:outline-2 focus-visible:outline-accent">
           refresh
         </button>
+        </span>
       </p>
 
       <section aria-label="Team summary" className="grid grid-cols-1 gap-3 sm:grid-cols-3">

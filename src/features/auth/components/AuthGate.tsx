@@ -3,14 +3,14 @@
 import { useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ACCOUNT_DISABLED_PATH, LOGIN_PATH } from "@/constants/auth";
-import { MY_TASK_HREF, WORK_HREF } from "@/constants/work";
+import { MY_TASK_HREF, OVERVIEW_HREF, WORK_HREF } from "@/constants/work";
 import { sessionStore } from "@/lib/auth/sessionStore";
 import { resetSharedData, signOut } from "@/lib/auth/authService";
 import { refreshUsers } from "@/lib/auth/userStore";
 import { getMe } from "@/services/authApi";
 import { useAuth } from "../hooks/useAuth";
 
-const isWorkPath = (pathname: string) => [WORK_HREF, MY_TASK_HREF, "/settings"].some((href) => pathname === href || pathname.startsWith(`${href}/`));
+const isWorkPath = (pathname: string) => [OVERVIEW_HREF, WORK_HREF, MY_TASK_HREF, "/settings"].some((href) => pathname === href || pathname.startsWith(`${href}/`));
 
 /**
  * Keeps the whole app behind the login:
@@ -25,7 +25,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const { status, restricted, settingsOnly, disabledAdmin } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  // A normal User may only open My sprint, My Task and Settings; a Disabled account may not be in the app at all.
+  // A normal User may only open Overview (their own), My sprint, My Task and Settings; a Disabled account may not be in the app at all.
   const onSettings = pathname === "/settings" || pathname.startsWith("/settings/");
   const blocked = settingsOnly ? !onSettings : restricted && !isWorkPath(pathname);
 

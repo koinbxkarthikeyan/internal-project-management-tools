@@ -67,7 +67,7 @@ export default function WorkPage() {
   const kindFromTeam = WORK_KINDS.find((k) => k.toLowerCase() === (rawTeam || myTeam).trim().toLowerCase());
   const kind: WorkKind | null = kindPick ?? kindFromTeam ?? null;
   // Hours currently in the form, so the bar follows what is being entered.
-  const [draftHours, setDraftHours] = useState<number | null>(null);
+  const [draft, setDraft] = useState<{ from: string; to: string; hours: number } | null>(null);
   const [selection, setSelection] = useState<TaskSelection | null>(null);
   const [editing, setEditing] = useState<WorkEntry | null>(null);
   // "Other Work": time that is not on a sprint task. Ticking it clears the task ticks; ticking a task clears it.
@@ -137,11 +137,18 @@ export default function WorkPage() {
 
   // The form logs against the sprint of the ticked tasks, or the first chosen sprint until something is ticked.
   const formSprint = chosen.find((s) => s.id === selection?.sprintId) ?? chosen[0];
-  // Once the dates or hours in the form are changed, they count too (an entry being changed is replaced by them).
-  const logged = draftHours !== null && person && formSprint.status !== "Closed" ? savedHours - (editing?.hours ?? 0) + draftHours : savedHours;
+  // This page's hours bar and timeline show only what is in the form now: nothing until a task is ticked, and empty again once the entry is saved
+  // (everything already logged is on Your Logged Work).
+  const formActive = (!!selection || otherWork) && formSprint.status !== "Closed";
+  const logged = formActive && draft ? draft.hours : 0;
   const selectedTasks = selection
     ? selection.itemIds.flatMap((id) => items.filter((i) => i.id === id))
     : [];
+  // The entry being filled in, drawn on the timeline as one bar.
+  const draftEntries: WorkEntry[] =
+    formActive && draft
+      ? [{ id: "draft", sprintId: formSprint.id, person, pod: "", kind: kind ?? "Backend", task: otherWork ? "Something else" : selectedTasks.map((t) => t.title).join(", ") || "New entry", from: draft.from, to: draft.to, hours: draft.hours, createdAt: "" }]
+      : [];
   // The entry is filed under the POD of the ticked tasks plus "Sprint tasks" / "Unplanned" for tasks without a POD.
   const realPod = selection && !isPseudoPod(selection.podId) ? (pods.find((p) => p.id === selection.podId) ?? null) : null;
   const podLabel = [
@@ -266,7 +273,7 @@ export default function WorkPage() {
       kind={kind}
       onKindChange={setKindPick}
       otherWork={otherWork}
-      onHoursChange={setDraftHours}
+      onDraftChange={setDraft}
       onRemoveTask={(t) => toggleTask({ id: selection?.sprintId ?? "" }, selectedPod ?? ({ id: selection?.podId ?? "", name: "" } as Pod), t)}
       onSubmit={submit}
       onCancelEdit={() => (setEditing(null), setKindPick(null), setSelection(null), setOtherWork(false), setFormKey((k) => k + 1))}
@@ -307,7 +314,7 @@ export default function WorkPage() {
               <div key={s.id} className="border-t border-border pt-5">
                 <SprintGlance
                   sprint={s}
-                  entries={scoped.filter((e) => e.sprintId === s.id)}
+                  entries={draftEntries.filter((e) => e.sprintId === s.id)}
                   showPerson={false}
                   title={chosen.length === 1 ? undefined : `${s.name} at a glance`}
                 />

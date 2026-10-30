@@ -13,6 +13,9 @@ export const HOUR_PRESETS = [
   { label: "A day", hours: FOCUS_HOURS_PER_DAY },
 ] as const;
 
+export const OVERVIEW_HREF = "/overview";
+/** Set at sign-in for a Team Member: the Overview reads it once, and sends someone with no hours logged straight to the Log Work form. */
+export const AFTER_LOGIN_KEY = "koinbx.afterLogin";
 export const WORK_HREF = "/my-sprint";
 export const WORK_LOGGED_HREF = "/my-sprint/logged";
 export const WORK_TEAM_HREF = "/my-sprint/team";

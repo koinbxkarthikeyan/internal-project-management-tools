@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
@@ -37,7 +37,7 @@ function Breakdown({ title, rows }: { title: string; rows: { label: string; valu
   );
 }
 
-export default function OverviewPage() {
+export default function OverviewPage({ tabs }: { /** Shown in the page header (a Super Admin / Admin switching between Team and Personal). */ tabs?: ReactNode } = {}) {
   const { items } = useBacklog();
   const upcoming = items
     .filter((i) => i.status !== "Completed")
@@ -46,7 +46,7 @@ export default function OverviewPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Overview" description="A snapshot of backlog health across all sprints." />
+      <PageHeader title="Overview" description="A snapshot of backlog health across all sprints." actions={tabs} />
       <BacklogSummary items={items} />
 
       <div className="grid gap-4 lg:grid-cols-2">

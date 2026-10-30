@@ -59,6 +59,7 @@ export default function TeamWorkView({ work, chosen, mineOnly = false }: { work:
         // Only a Super Admin or an enabled Admin sees every person and task; everyone else sees their own.
         ownOnly={everyone ? undefined : person}
         ownTaskIds={ownTaskIds}
+        exportable={everyone}
         podNames={Object.fromEntries(allPods.map((p) => [p.id, p.name]))}
         // A User (or a Disabled Admin) sees role labels for nobody but themselves.
         details={Object.fromEntries(users.filter((u) => !(restricted || mineOnly) || u.name === person).map((u) => [u.name, u.role]))}

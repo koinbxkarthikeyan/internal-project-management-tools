@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import RailTip from "@/components/ui/RailTip";
-import { CheckCircleIcon, ClockIcon, ListIcon, UsersIcon } from "@/components/ui/icons";
-import { MY_TASK_HREF, WORK_HREF, WORK_LOGGED_HREF, WORK_TEAM_HREF } from "@/constants/work";
+import { CheckCircleIcon, ClockIcon, ListIcon, OverviewIcon, UsersIcon } from "@/components/ui/icons";
+import { MY_TASK_HREF, OVERVIEW_HREF, WORK_HREF, WORK_LOGGED_HREF, WORK_TEAM_HREF } from "@/constants/work";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 
 /**
@@ -13,7 +13,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
  */
 export default function WorkSidebarSection() {
   const pathname = usePathname();
-  const { isAdmin } = useAuth();
+  const { isAdmin, restricted } = useAuth();
   // Log Work is only its own page: Your Logged Work lives under the same path but is a different menu item.
   const on = (href: string) => (href === WORK_HREF ? pathname === href : pathname === href || pathname.startsWith(`${href}/`));
 
@@ -25,6 +25,8 @@ export default function WorkSidebarSection() {
       <p className="sb-label mt-1 text-xs leading-relaxed text-muted">{isAdmin ? "Log your hours and follow the team's work." : "Log your hours against the sprint."}</p>
       <div className="mt-3 flex flex-col gap-1">
         {[
+          // Everyone else's Overview is in the Backlog menu; a Team Member's own is here.
+          ...(restricted ? [{ href: OVERVIEW_HREF, label: "My Overview", Icon: OverviewIcon }] : []),
           { href: WORK_HREF, label: "Log Work Sprint", Icon: ClockIcon },
           // Everyone's PODs and work: only for a Super Admin and an enabled Admin.
           ...(isAdmin ? [{ href: WORK_TEAM_HREF, label: "Team Work Details", Icon: UsersIcon }] : []),

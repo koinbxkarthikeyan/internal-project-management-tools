@@ -18,6 +18,8 @@ import { todayISO } from "@/features/backlog/utils";
 import { myHoursBySprint, recentSprints, sprintHours } from "../utils";
 import { useBacklog } from "@/features/backlog/context/BacklogContext";
 import HoursSummaryLine from "./HoursSummaryLine";
+import SprintGlance from "./SprintGlance";
+import SprintSummary from "./SprintSummary";
 import SprintPicker from "./SprintPicker";
 import WorkEntriesList from "./WorkEntriesList";
 import TeamWorkView from "./TeamWorkView";
@@ -103,7 +105,15 @@ export default function WorkLoggedPage() {
         ))}
       </div>
       {view === "entries" && (
-      <section className={card}>
+      <section className={`${card} flex flex-col gap-5`}>
+        {/* Everything logged: the hours against the sprint's, and the day-by-day timeline of the entries below. */}
+        <SprintSummary logged={loggedHours} limit={total} expected={soFar} hasPerson={!!person} />
+        {chosen.map((s) => (
+          <div key={s.id} className="border-t border-border pt-5">
+            <SprintGlance sprint={s} entries={mine.filter((e) => e.sprintId === s.id)} showPerson={false} title={chosen.length === 1 ? undefined : `${s.name} at a glance`} />
+          </div>
+        ))}
+        <div className="border-t border-border pt-5">
         <WorkEntriesList
           title="Your Logged Work"
           entries={mine}
@@ -114,6 +124,7 @@ export default function WorkLoggedPage() {
           onView={setViewing}
           onRemove={setRemoving}
         />
+        </div>
       </section>
       )}
       {view === "pods" && <TeamWorkView work={work} chosen={chosen} mineOnly />}

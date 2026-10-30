@@ -26,8 +26,8 @@ type WorkFormProps = {
   today: string;
   /** The sprint is closed: time can't be logged against it. */
   closed?: boolean;
-  /** Called with the hours in the field once the dates or hours have been changed (null until then), so the sprint bar can follow them. */
-  onHoursChange?: (hours: number | null) => void;
+  /** Called with what is in the form (its dates and hours) as it changes, so the hours bar and timeline on the page can follow it. */
+  onDraftChange?: (draft: { from: string; to: string; hours: number }) => void;
   onRemoveTask: (item: BacklogItemData) => void;
   onSubmit: (input: WorkEntryInput) => Promise<boolean>;
   onCancelEdit: () => void;
@@ -47,7 +47,7 @@ const KIND_REQUIRED = "Choose the kind of work.";
 
 const clamp = (d: string, min: string, max: string) => (d < min ? min : d > max ? max : d);
 
-export default function WorkForm({ sprint, pod, tasks, person, editing, today, closed = false, onHoursChange, onRemoveTask, onSubmit, onCancelEdit, kind: pickedKind, onKindChange, otherWork = false }: WorkFormProps) {
+export default function WorkForm({ sprint, pod, tasks, person, editing, today, closed = false, onDraftChange, onRemoveTask, onSubmit, onCancelEdit, kind: pickedKind, onKindChange, otherWork = false }: WorkFormProps) {
   const toast = useToast();
   // An entry being changed keeps its own kind unless it is changed here; a new one uses the chosen kind.
   const kind = pickedKind;
@@ -59,26 +59,23 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
   const [hours, setHours] = useState(String(editing?.hours ?? 0));
   // Once the user types their own hours, changing the dates no longer rewrites them.
   const [hoursTouched, setHoursTouched] = useState(!!editing);
-  // Set once the dates or hours are changed; until then the form holds only its defaults.
-  const [changed, setChanged] = useState(false);
   const [notes, setNotes] = useState(editing?.notes ?? "");
   const [details, setDetails] = useState(editing?.otherWork ? editing.task : "");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    onHoursChange?.(changed ? (Number(hours) > 0 ? Number(hours) : 0) : null);
-  }, [hours, changed, onHoursChange]);
+    onDraftChange?.({ from, to, hours: Number(hours) > 0 ? Number(hours) : 0 });
+  }, [from, to, hours, onDraftChange]);
 
   function setRange(f: string, t: string) {
-    setChanged(true);
     setFrom(f);
     setTo(t);
     setError("");
     if (!hoursTouched) setHours(String(plannedHours(f, t)));
   }
 
-  const setPreset = (h: number) => (setHours(String(h)), setHoursTouched(true), setChanged(true));
+  const setPreset = (h: number) => (setHours(String(h)), setHoursTouched(true));
   const clampedToday = lastLoggable;
   const week2Start = addDays(sprint.start, 7);
   const wd = workingDays(from, to);
@@ -225,7 +222,7 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
           disabled={!canLog}
           disabledReason={NEEDS_TASK}
           value={hours}
-          onChange={(v) => (setHours(v.replace(/^0+(?=\d)/, "")), setHoursTouched(true), setChanged(true), setError(""))}
+          onChange={(v) => (setHours(v.replace(/^0+(?=\d)/, "")), setHoursTouched(true), setError(""))}
         />
       </div>
       <p className="-mt-2 text-xs text-muted">

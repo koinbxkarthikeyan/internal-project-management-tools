@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ACCOUNT_DISABLED_PATH, DEFAULT_REDIRECT } from "@/constants/auth";
-import { WORK_HREF } from "@/constants/work";
+import { AFTER_LOGIN_KEY, OVERVIEW_HREF } from "@/constants/work";
 import { peekLoginHandoff, signOut, type DeniedReason, type StartLoginResult } from "@/lib/auth/authService";
 import { useAuth } from "../hooks/useAuth";
 import AccessNotGranted from "./AccessNotGranted";
@@ -38,7 +38,14 @@ export default function LoginPage() {
       router.replace(ACCOUNT_DISABLED_PATH);
       return;
     }
-    router.replace(settingsOnly ? "/settings" : restricted ? WORK_HREF : DEFAULT_REDIRECT);
+    if (restricted && !settingsOnly) {
+      try {
+        sessionStorage.setItem(AFTER_LOGIN_KEY, "1");
+      } catch {
+        // without it the person simply lands on the Overview
+      }
+    }
+    router.replace(settingsOnly ? "/settings" : restricted ? OVERVIEW_HREF : DEFAULT_REDIRECT);
   }, [status, restricted, settingsOnly, disabledAdmin, router]);
 
   if (status === "loading" || status === "signedIn") {

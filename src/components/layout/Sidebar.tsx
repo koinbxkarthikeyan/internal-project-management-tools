@@ -8,7 +8,7 @@ import ThemeMenu from "@/components/ui/ThemeMenu";
 import NotificationBell from "@/features/notifications/components/NotificationBell";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, MenuIcon } from "@/components/ui/icons";
 import { DEFAULT_REDIRECT } from "@/constants/auth";
-import { WORK_HREF } from "@/constants/work";
+import { OVERVIEW_HREF } from "@/constants/work";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useSidebarStore } from "@/stores/sidebarStore";
 
@@ -19,7 +19,7 @@ type SidebarProps = {
 /** The logo, as a link to Overview. A User, or an account with access Disabled, cannot open Overview, so for them it goes to the page they can use (as after sign-in). */
 function LogoLink() {
   const { restricted, settingsOnly } = useAuth();
-  const href = settingsOnly ? "/settings" : restricted ? WORK_HREF : DEFAULT_REDIRECT;
+  const href = settingsOnly ? "/settings" : restricted ? OVERVIEW_HREF : DEFAULT_REDIRECT;
   return (
     <Link href={href} aria-label="Go to Overview" title="Overview" className="rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
       <span className="sb-full inline-flex"><Logo /></span>
