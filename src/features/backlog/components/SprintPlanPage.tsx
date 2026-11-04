@@ -371,11 +371,11 @@ export default function SprintPlanPage() {
                   </dl>
                 )}
                 <div className="flex flex-col gap-1 border-b border-border px-5 pb-1 pt-3">
-                  <h3 className="text-sm font-semibold">Completed tasks <span className="font-normal text-muted">({finished.length})</span></h3>
+                  <h3 className="text-sm font-semibold">Done tasks <span className="font-normal text-muted">({finished.length})</span></h3>
                 </div>
                 <SprintItemsTable items={finished} onOpen={setViewing} onView={setViewing} readOnly carryNote={carryNote} />
                 <p className="px-5 py-3 text-sm text-muted">
-                  Closing ends this sprint today. Its finished tasks and logged hours stay in it as history. {remaining.length} unfinished {remaining.length === 1 ? "task is" : "tasks are"} handed on by the server when you close it; none is marked Completed.
+                  Closing ends this sprint today. Its finished tasks and logged hours stay in it as history. {remaining.length} unfinished {remaining.length === 1 ? "task is" : "tasks are"} handed on by the server when you close it; none is marked Done.
                 </p>
               </section>
             )}
@@ -384,7 +384,7 @@ export default function SprintPlanPage() {
 
           {unplannedClosedCount > 0 && (
             <div className="flex flex-col gap-2">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Closed Backlog Tasks</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Done Backlog Tasks</h2>
               <div className="grid gap-4">{renderSprint(unplannedSprint, 0, (i) => i.status === "Completed")}</div>
             </div>
           )}

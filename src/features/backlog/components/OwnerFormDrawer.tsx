@@ -56,7 +56,7 @@ export default function OwnerFormDrawer({
   const clear = <T,>(set: (v: T) => void) => (v: T) => (set(v), setError(""));
 
   return (
-    <BacklogDrawer heading={heading} submitLabel={submitLabel} onSubmit={submit} canSubmit={!unchanged} onClose={onClose} compact>
+    <BacklogDrawer heading={heading} subtitle="Owners are the people or teams that work belongs to." submitLabel={submitLabel} onSubmit={submit} canSubmit={!unchanged} onClose={onClose} compact>
       <TextField label="Name" required value={name} onChange={clear(setName)} placeholder="e.g. Jordan Blake" />
       {showRole && (
         <ComboField

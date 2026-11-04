@@ -132,7 +132,7 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
               ["Sprint", item.sprint],
               ["Expected deadline", item.deadline ? formatDeadline(item.deadline) : undefined],
               ["Lead Deadline", item.leadDeadline ? formatDeadline(item.leadDeadline) : undefined],
-              ["Completed", item.completed ? formatDeadline(item.completed) : undefined],
+              ["Done on", item.completed ? formatDeadline(item.completed) : undefined],
               ["Created", whenOrUnavailable(item.created, item.createdAt)],
               ["Last updated", whenOrUnavailable(undefined, item.updatedAt)],
             ]

@@ -84,11 +84,11 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
     { label: "Assignees", value: isLead ? undefined : assignees.join(", ") },
     { label: "Expected deadline", value: item.deadline ? formatDeadline(item.deadline) : undefined },
     { label: "Lead Deadline", value: isLead ? undefined : item.leadDeadline ? formatDeadline(item.leadDeadline) : undefined },
-    { label: "Completed", value: item.completed ? formatDeadline(item.completed) : undefined },
+    { label: "Done on", value: item.completed ? formatDeadline(item.completed) : undefined },
   ];
 
   return (
-    <BacklogDrawer heading="Task details" submitLabel="Save changes" onSubmit={isLead ? save : () => {}} canSubmit={taskChanged} onClose={onClose} viewOnly={!isLead}>
+    <BacklogDrawer heading="Task details" subtitle="Everything about this task in one place." submitLabel="Save changes" onSubmit={isLead ? save : () => {}} canSubmit={taskChanged} onClose={onClose} viewOnly={!isLead}>
       {detailError && (
         <FieldError>
           Couldn&apos;t load the latest details ({detailError}). What you see may be out of date.

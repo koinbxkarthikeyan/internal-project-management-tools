@@ -30,7 +30,7 @@ export default function CloseSprintDrawer({ sprint, planned, onConfirm, onClose 
   }
 
   return (
-    <BacklogDrawer heading="Close sprint" submitLabel="Confirm Close Sprint" onSubmit={confirm} onClose={onClose} compact>
+    <BacklogDrawer heading="Close sprint" subtitle="Unfinished tasks are carried over to the next sprint." submitLabel="Confirm Close Sprint" onSubmit={confirm} onClose={onClose} compact>
       <div role="alertdialog" aria-label="Close sprint" className="flex flex-col gap-2">
         <p className="text-sm">
           Are you sure you want to close <strong className="font-semibold">{sprint.name}</strong>?

@@ -133,7 +133,7 @@ export default function UserFormDrawer({ user, isSelf = false, onSaved, onCreate
   }
 
   return (
-    <BacklogDrawer heading={user ? "Edit user" : "Add Team Member"} submitLabel={user ? "Save user" : "Add Team Member"} compact canSubmit={!unchanged} onClose={onClose} onSubmit={submit}>
+    <BacklogDrawer heading={user ? "Edit user" : "Add Team Member"} subtitle={user ? "Update this person's details and access." : "Add someone who can sign in to the tracker."} submitLabel={user ? "Save user" : "Add Team Member"} compact canSubmit={!unchanged} onClose={onClose} onSubmit={submit}>
       <TextField label="Name" required value={name} onChange={changeName} placeholder="e.g. Jordan Blake" />
       <EmailField label="Email" required value={email} onChange={clear(setEmail)} placeholder={`name@${ALLOWED_EMAIL_DOMAIN}`} />
       <SelectField
@@ -215,6 +215,7 @@ function RenameTeamDrawer({ name, existing, onClose, onRenamed }: { name: string
   return (
     <BacklogDrawer
       heading="Rename team"
+      subtitle="The new name applies to everyone in the team."
       submitLabel="Save team"
       canSubmit={cleanTeam(value) !== cleanTeam(name)}
       compact

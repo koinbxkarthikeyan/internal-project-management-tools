@@ -160,7 +160,7 @@ export default function PersonalOverviewPage({ tabs }: { /** Shown in the page h
       <section aria-label="Summary">
         <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <StatCard label="Assigned tasks" value={counts.total} hint="Assigned to you or led by you" />
-          <StatCard label="Completed" value={counts.completed} tone="text-emerald-600 dark:text-emerald-300" />
+          <StatCard label="Done" value={counts.completed} tone="text-emerald-600 dark:text-emerald-300" />
           <StatCard label="In progress" value={counts.inProgress} tone="text-violet-600 dark:text-violet-300" />
           <StatCard label="To Do" value={counts.todo} tone="text-blue-600 dark:text-blue-300" />
           <StatCard label="Overdue" value={counts.overdue} tone={counts.overdue ? "text-red-600 dark:text-red-300" : undefined} hint="Past deadline, not completed" />

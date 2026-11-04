@@ -51,7 +51,7 @@ export default function SprintFormDrawer({ heading, submitLabel, initial, editin
   }
 
   return (
-    <BacklogDrawer heading={heading} submitLabel={submitLabel} onSubmit={submit} canSubmit={!unchanged && !problem} onClose={onClose} compact>
+    <BacklogDrawer heading={heading} subtitle="Set the sprint's name, dates and goal." submitLabel={submitLabel} onSubmit={submit} canSubmit={!unchanged && !problem} onClose={onClose} compact>
       <TextField label="Name" required value={name} onChange={(v) => (setName(v), setError(""))} />
       <div className="grid grid-cols-2 gap-4">
         <TextField label="Start" type="date" required value={start} onChange={(v) => (setStart(v), setError(""))} />
