@@ -8,6 +8,7 @@ import { useLiveTaskUpdates } from "../hooks/useLiveTaskUpdates";
 import { resolveTeam, useTeamStore } from "@/stores/teamStore";
 import { useWorkStore } from "@/stores/workStore";
 import { useBacklogStore } from "@/stores/backlogStore";
+import { socketEnabled } from "@/lib/socketClient";
 import { getErrorCode, getErrorMessage, getErrorStatus } from "@/lib/apiClient";
 import * as backlogService from "@/services/backlogService";
 import * as ownerService from "@/services/ownerService";
@@ -46,7 +47,7 @@ type BacklogContextValue = {
   addItem: (input: NewItemInput) => Promise<BacklogItemData | null>;
   updateItem: (id: string, patch: ItemPatch) => Promise<boolean>;
   /** What the task's Lead may change from My Task: status, assigned users and the Lead Deadline. */
-  leadUpdateItem: (id: string, patch: Pick<ItemPatch, "status" | "assignees" | "leadDeadline">) => Promise<boolean>;
+  leadUpdateItem: (id: string, patch: Pick<ItemPatch, "status" | "assignees" | "leadDeadline"> & { comment?: string }) => Promise<boolean>;
   /** My Task, normal users: a status change with the required work details (BACKEND-DEPENDENT, see backlogService.changeStatusWithDetails). */
   changeStatusWithDetails: (id: string, status: Status, details: string) => Promise<boolean>;
   deleteItem: (id: string) => Promise<boolean>;
@@ -203,12 +204,33 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
       return closed;
     };
 
+    // A comment typed with a status change is saved with it, through the server's status-change call (BACKEND-DEPENDENT, see backlogService.changeStatusWithDetails).
+    // Where that isn't available the status still saves as before and the person is told the comment did not, never that it was kept.
+    const COMMENT_NOT_SAVED = "Status saved, but the comment was not: the server can't store a comment with a status change yet.";
+    const statusChangeOf = (id: string, status: Status | undefined, comment: string | undefined) => {
+      const current = all.find((i) => i.id === id);
+      const text = comment?.trim() ?? "";
+      const changed = !!current && status !== undefined && status !== current.status && !!text;
+      return { text, changed, together: changed && socketEnabled };
+    };
+
     const updateItem = async (id: string, patch: ItemPatch) => {
       if (lockedBySprint(id)) return false;
       if (savingItems.has(id)) return false; // already being saved: a repeated click must not send it twice
       savingItems.add(id);
       try {
-        const saved = await backlogService.updateItem(id, patch);
+        const change = statusChangeOf(id, patch.status, patch.blockedReason);
+        let saved: BacklogItemData;
+        if (change.together) {
+          const others = { ...patch };
+          delete others.status;
+          delete others.blockedReason;
+          await backlogService.updateItem(id, others);
+          saved = await backlogService.changeStatusWithDetails(id, patch.status!, change.text);
+        } else {
+          saved = await backlogService.updateItem(id, patch);
+          if (change.changed) toast.show(COMMENT_NOT_SAVED, "warning");
+        }
         setAll((prev) => prev.map((i) => (i.id === id ? saved : i)));
         return true;
       } catch (err) {
@@ -239,10 +261,20 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
         }
       },
       updateItem,
-      leadUpdateItem: async (id, patch) => {
+      leadUpdateItem: async (id, { comment, ...fields }) => {
         if (lockedBySprint(id)) return false;
         try {
-          const saved = await backlogService.updateItemAsLead(id, patch);
+          const change = statusChangeOf(id, fields.status, comment);
+          let saved: BacklogItemData;
+          if (change.together) {
+            const others = { ...fields };
+            delete others.status;
+            if (Object.keys(others).length) await backlogService.updateItemAsLead(id, others);
+            saved = await backlogService.changeStatusWithDetails(id, fields.status!, change.text);
+          } else {
+            saved = await backlogService.updateItemAsLead(id, fields);
+            if (change.changed) toast.show(COMMENT_NOT_SAVED, "warning");
+          }
           setAll((prev) => prev.map((i) => (i.id === id ? saved : i)));
           return true;
         } catch (err) {

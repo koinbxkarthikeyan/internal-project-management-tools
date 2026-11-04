@@ -68,9 +68,9 @@ export default function SprintItemsTable({ items, onOpen, onView, onStep, onDrop
 
   return (
     // About 10 rows are visible; the rest scroll inside the table, with the header kept in view.
-    <div className="table-scroll" style={{ "--row-h": "3.1rem" } as CSSProperties}>
+    <div className="rt-box"><div className="table-scroll" style={{ "--row-h": "3.1rem" } as CSSProperties}>
       {dragTip.bubble}
-      <table className="w-full min-w-[44rem] text-sm">
+      <table className="rt w-full min-w-[44rem] text-sm">
         <caption className="sr-only">Tasks in this sprint</caption>
         <thead className="sticky top-0 z-10 bg-surface">
           <tr className="border-b border-border bg-background/60 text-xs font-medium uppercase tracking-wide text-muted">
@@ -131,7 +131,7 @@ export default function SprintItemsTable({ items, onOpen, onView, onStep, onDrop
               aria-label={`${readOnly ? "View" : "Edit"} ${item.title}`}
               className={`group/row cursor-pointer transition-[background-color,opacity,box-shadow] duration-150 hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-accent ${draggable ? "active:cursor-grabbing" : ""} ${draggingId === item.id ? "bg-accent-soft/50 opacity-50 shadow-[inset_0_0_0_1px_var(--accent)]" : ""} ${target ? `bg-accent-soft ${target.after ? "shadow-[inset_0_-2px_0_var(--accent)]" : "shadow-[inset_0_2px_0_var(--accent)]"}` : ""}`}
             >
-              <td className="max-w-xs px-4 py-2 font-medium">
+              <td data-primary className="max-w-xs px-4 py-2 font-medium">
                 <div className="flex items-center gap-2">
                   {/* The grip: a row with it is dragged (anywhere on the row) to a new place in the list. */}
                   {draggable && (
@@ -143,14 +143,14 @@ export default function SprintItemsTable({ items, onOpen, onView, onStep, onDrop
                   </div>
                 </div>
               </td>
-              <td className="whitespace-nowrap px-4 py-2 text-muted">{item.type ?? "–"}</td>
-              <td className="px-4 py-2">
+              <td data-label="Type" className="whitespace-nowrap px-4 py-2 text-muted">{item.type ?? "–"}</td>
+              <td data-label="Priority" className="px-4 py-2">
                 <PriorityBadge priority={item.priority} />
               </td>
-              <td className="px-4 py-2">
+              <td data-label="Status" className="px-4 py-2">
                 <StatusBadge status={item.status} />
               </td>
-              <td className="px-4 py-2">
+              <td data-label="Owner" className="px-4 py-2">
                 <span className="flex items-center gap-2">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[10px] font-medium text-accent" aria-hidden="true">
                     {initials(item.owner)}
@@ -158,11 +158,11 @@ export default function SprintItemsTable({ items, onOpen, onView, onStep, onDrop
                   <span className="truncate">{item.owner}</span>
                 </span>
               </td>
-              <td className="whitespace-nowrap px-4 py-2 text-muted">
+              <td data-label="Deadline" className="whitespace-nowrap px-4 py-2 text-muted">
                 <time dateTime={item.deadline}>{formatDeadline(item.deadline)}</time>
               </td>
               {onView && (
-                <td className="whitespace-nowrap px-4 py-2 text-right">
+                <td data-actions className="whitespace-nowrap px-4 py-2 text-right">
                   {/* Stops the row's own click, which opens the edit panel. */}
                   <button
                     type="button"
@@ -181,6 +181,7 @@ export default function SprintItemsTable({ items, onOpen, onView, onStep, onDrop
         </tbody>
       </table>
     </div>
+</div>
   );
 }
 

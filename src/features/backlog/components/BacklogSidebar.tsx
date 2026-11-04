@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useBacklog } from "../context/BacklogContext";
+import RailTip from "@/components/ui/RailTip";
 import SignOutBlock from "@/features/auth/components/SignOutBlock";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import WorkSidebarSection from "@/features/work/components/WorkSidebarSection";
@@ -33,8 +34,8 @@ export default function BacklogSidebar() {
   // Only the menu scrolls; who is signed in, Settings and Sign out stay fixed at the bottom of the sidebar.
   const shell = (menu: ReactNode) => (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4 pt-4">{menu}</div>
-      <div className="shrink-0 px-4 pb-4">
+      <div className="sb-pad flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4 pt-4">{menu}</div>
+      <div className="sb-pad shrink-0 px-4 pb-4">
         <SignOutBlock />
       </div>
     </div>
@@ -48,12 +49,12 @@ export default function BacklogSidebar() {
 
   return shell(
     <>
-      <header className="rounded-xl border border-border bg-background/60 p-3">
-        <h2 className="text-base font-semibold">Backlog tracker</h2>
-        <p className="mt-1 text-xs leading-relaxed text-muted">{summary}</p>
-        <div className="mt-3">
+      <header className="sb-card rounded-xl border border-border bg-background/60 p-3">
+        <h2 className="sb-label text-base font-semibold">Backlog tracker</h2>
+        <p className="sb-label mt-1 text-xs leading-relaxed text-muted">{summary}</p>
+        <RailTip label="Create backlog" className="mt-3 sb-create">
           <CreateBacklogButton />
-        </div>
+        </RailTip>
       </header>
       <BacklogNavigation between={<WorkSidebarSection />} />
     </>,

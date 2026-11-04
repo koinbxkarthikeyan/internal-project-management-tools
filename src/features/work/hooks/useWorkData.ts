@@ -16,6 +16,7 @@ export function useWorkData() {
   const status = useWorkStore((st) => st.status);
   const error = useWorkStore((st) => st.error);
   const entries = useWorkStore((st) => st.entries);
+  const teamUnavailable = useWorkStore((st) => st.teamUnavailable);
   const updatedAt = useWorkStore((st) => st.updatedAt);
   const { setEntries, load } = useWorkStore.getState();
 
@@ -43,6 +44,7 @@ export function useWorkData() {
     refresh,
     updatedAt,
     entries,
+    teamUnavailable,
 
     addEntry: async (input: WorkEntryInput): Promise<boolean> => {
       try {
@@ -76,3 +78,5 @@ export function useWorkData() {
     },
   };
 }
+
+export type WorkData = ReturnType<typeof useWorkData>;

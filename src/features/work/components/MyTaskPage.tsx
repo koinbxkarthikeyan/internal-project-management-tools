@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, type KeyboardEvent } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useToast } from "@/components/ui/Toast";
 import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
@@ -32,6 +34,10 @@ export default function MyTaskPage() {
   const { items: shared, activeSprint } = useBacklog();
   const { user } = useAuth();
   const [open, setOpen] = useState<BacklogItemData | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const toast = useToast();
+  const taskParam = useSearchParams().get("task");
   const [tab, setTab] = useQueryState<Tab>("tab", ["mine", "lead", "unassigned"], "mine");
 
   // The three lists come from `GET /items/mine` (lead, assigned, unassigned). Each task is shown as its newest copy from the shared
@@ -46,6 +52,22 @@ export default function MyTaskPage() {
   const mineFailed = mineStore.scope === scope && mineStore.status === "error";
   const fresh = (list: BacklogItemData[]) => list.map((m) => shared.find((s) => s.id === m.id) ?? m);
   const all = [...mineStore.buckets.lead, ...mineStore.buckets.assigned, ...mineStore.buckets.unassigned];
+
+  // A notification opens its task as `/my-task?task=<code>`: it opens (only if this person can see it) and the code is then taken out of the address.
+  const linked = taskParam && mineReady ? (shared.find((t) => t.id === taskParam) ?? all.find((t) => t.id === taskParam) ?? null) : null;
+  useEffect(() => {
+    if (!taskParam || !mineReady) return;
+    router.replace(pathname, { scroll: false });
+    if (!linked) toast.show("That task isn't available to you, or it no longer exists.", "info");
+    // Only the address and the load decide when this runs; the code is read once and then removed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskParam, mineReady]);
+  // The task is picked up once per code (state set while rendering, so it survives the code leaving the address).
+  const [pickedUp, setPickedUp] = useState<string | null>(null);
+  if (taskParam && mineReady && pickedUp !== taskParam) {
+    setPickedUp(taskParam);
+    if (linked) setOpen(linked);
+  }
 
   // A task that was copied into the next sprint when its sprint closed is left out (the copy is the live one).
   const carried = new Set([...shared, ...all].flatMap((t) => (t.carriedFrom ? [t.carriedFrom] : [])));
@@ -115,7 +137,7 @@ export default function MyTaskPage() {
               }`}
             >
               {t.label}
-              <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${active ? "bg-[#425df3] font-semibold text-white dark:bg-accent dark:text-accent-foreground" : "bg-hover text-muted"}`}>{lists[t.id].length}</span>
+              <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${active ? "bg-accent font-semibold text-accent-foreground" : "bg-hover text-muted"}`}>{lists[t.id].length}</span>
             </button>
             </DisabledTip>
           );
@@ -125,8 +147,8 @@ export default function MyTaskPage() {
         {shown.length === 0 ? (
           <EmptyState title={copy.title} description={copy.description} />
         ) : (
-          <div className="table-scroll" style={{ "--row-h": "3.1rem" } as React.CSSProperties}>
-            <table className="w-full min-w-[48rem] text-sm">
+          <div className="rt-box"><div className="table-scroll" style={{ "--row-h": "3.1rem" } as React.CSSProperties}>
+            <table className="rt w-full min-w-[48rem] text-sm">
               <caption className="sr-only">{copy.caption}</caption>
               <thead className="sticky top-0 z-10 bg-surface">
                 <tr className="border-b border-border bg-background/60 text-xs font-medium uppercase tracking-wide text-muted">
@@ -149,19 +171,19 @@ export default function MyTaskPage() {
                     aria-label={`View ${item.title}`}
                     className="cursor-pointer transition-colors duration-150 hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-accent"
                   >
-                    <td className="max-w-xs truncate px-4 py-2 font-medium">{item.title}</td>
-                    <td className="whitespace-nowrap px-4 py-2 text-muted">{item.type ?? "–"}</td>
-                    <td className="px-4 py-2">
+                    <td data-primary className="max-w-xs truncate px-4 py-2 font-medium">{item.title}</td>
+                    <td data-label="Type" className="whitespace-nowrap px-4 py-2 text-muted">{item.type ?? "–"}</td>
+                    <td data-label="Priority" className="px-4 py-2">
                       <PriorityBadge priority={item.priority} />
                     </td>
-                    <td className="px-4 py-2">
+                    <td data-label="Status" className="px-4 py-2">
                       <StatusBadge status={item.status} />
                     </td>
-                    <td className="whitespace-nowrap px-4 py-2 text-muted">{sprintLabel(item.sprint)}</td>
-                    <td className="whitespace-nowrap px-4 py-2 text-muted">
+                    <td data-label="Sprint" className="whitespace-nowrap px-4 py-2 text-muted">{sprintLabel(item.sprint)}</td>
+                    <td data-label="Expected deadline" className="whitespace-nowrap px-4 py-2 text-muted">
                       {item.deadline ? <time dateTime={item.deadline}>{formatDeadline(item.deadline)}</time> : "–"}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-2 text-muted">
+                    <td data-label="Lead Deadline" className="whitespace-nowrap px-4 py-2 text-muted">
                       {item.leadDeadline ? <time dateTime={item.leadDeadline}>{formatDeadline(item.leadDeadline)}</time> : "–"}
                     </td>
                   </tr>
@@ -169,6 +191,7 @@ export default function MyTaskPage() {
               </tbody>
             </table>
           </div>
+</div>
         )}
       </section>
       {open && <ViewTaskDrawer key={open.id} item={shared.find((i) => i.id === open.id) ?? open} onClose={() => setOpen(null)} />}

@@ -13,7 +13,7 @@
   --row-hover: color-mix(in srgb, var(--muted) 20%, transparent); /* the grey a table row takes on hover (20% of the muted text colour) */
   --accent: #425df3; /* logo blue */
   --accent-foreground: #ffffff;
-  --accent-soft: #e8ecff;
+  --accent-soft: #eef1ff; /* 4.5:1 with the accent text on it (the old #e8ecff gave 4.4:1) */
   /* Form feedback: errors and the "this field is valid" state. */
   --danger: #dc2626;
   --danger-text: #b91c1c;
@@ -29,6 +29,10 @@
   --brand-to: #00b8f0;
   --brand-border-gradient: linear-gradient(135deg, #00c5f6, #425df3, #182b96, #425df3, #00c5f6); /* the sign-in card border; */
   --shadow-card: 0 10px 30px -12px rgb(30 40 90 / 0.18);
+  /* Elevation by role, so every floating layer reads the same: tooltips, menus and dropdowns, modals and side panels. */
+  --elev-tip: 0 4px 12px -4px rgb(20 30 70 / 0.2), 0 1px 3px rgb(20 30 70 / 0.08);
+  --elev-menu: 0 14px 30px -10px rgb(20 30 70 / 0.24), 0 2px 6px -2px rgb(20 30 70 / 0.1);
+  --elev-modal: 0 28px 64px -18px rgb(20 30 70 / 0.38), 0 4px 12px -4px rgb(20 30 70 / 0.12);
   /* Scrollbars: transparent track and corner; the thumb is a neutral grey from the theme's muted colour, a little stronger on hover. */
   --scrollbar-thumb: color-mix(in srgb, var(--muted) 75%, transparent); /* solid thumb for browsers that can't draw an outline (Firefox) */
   --scrollbar-thumb-fill: color-mix(in srgb, var(--muted) 35%, transparent);
@@ -57,6 +61,9 @@
   --brand-from: #3447d8;
   --brand-to: #00a8dc;
   --shadow-card: 0 14px 34px -14px rgb(0 0 0 / 0.55);
+  --elev-tip: 0 4px 12px -4px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.3);
+  --elev-menu: 0 16px 34px -10px rgb(0 0 0 / 0.6), 0 2px 6px -2px rgb(0 0 0 / 0.35);
+  --elev-modal: 0 30px 70px -18px rgb(0 0 0 / 0.7), 0 4px 12px -4px rgb(0 0 0 / 0.4);
   color-scheme: dark;
 }
 
@@ -84,6 +91,9 @@
   --color-tone-above: var(--tone-above);
   --color-tone-below: var(--tone-below);
   --color-tone-over: var(--tone-over);
+  --shadow-tip: var(--elev-tip);
+  --shadow-menu: var(--elev-menu);
+  --shadow-modal: var(--elev-modal);
   --font-sans: var(--font-plex-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -525,4 +535,60 @@ input[type="radio"] {
 /* Reduced motion: no press scaling either (the colour changes stay, so every state is still visible). Last, so it wins over the press rule above. */
 @media (prefers-reduced-motion: reduce) {
   button:not(:disabled):active { transform: none; }
+}
+
+/* Collapsed desktop sidebar: an icon rail. Labels, the descriptive card text and the theme button go; every icon and link stays. Below `lg` the sidebar is a drawer and none of this applies. */
+.sb-mini { display: none; }
+@media (min-width: 1024px) {
+  .sb-rail { transition: transform 200ms ease-in-out, width 200ms ease-in-out; }
+  .sb-main { transition: padding-left 200ms ease-in-out; }
+  html[data-sidebar="collapsed"] .sb-rail { width: 4.5rem; }
+  html[data-sidebar="collapsed"] .sb-main { padding-left: 6.5rem; }
+  html[data-sidebar="collapsed"] .sb-rail .sb-label { display: none; }
+  html[data-sidebar="collapsed"] .sb-rail .sb-full { display: none; }
+  html[data-sidebar="collapsed"] .sb-rail .sb-mini { display: inline-flex; }
+  html[data-sidebar="collapsed"] .sb-rail .sb-pad { padding-left: 0.5rem; padding-right: 0.5rem; }
+  html[data-sidebar="collapsed"] .sb-rail .sb-head { flex-direction: column; gap: 0.75rem; align-items: center; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+  html[data-sidebar="collapsed"] .sb-rail .sb-head button[aria-haspopup] { border-color: transparent; }
+  html[data-sidebar="collapsed"] .sb-rail .sb-controls { flex-direction: column; }
+  html[data-sidebar="collapsed"] .sb-rail .sb-theme { display: none; }
+  html[data-sidebar="collapsed"] .sb-rail .sb-item { justify-content: center; gap: 0; padding-left: 0; padding-right: 0; }
+  html[data-sidebar="collapsed"] .sb-rail .sb-card { border-color: transparent; background: transparent; padding: 0; }
+  /* Without their headings the sections would run together, so each keeps its own mark: the "What are you working on?" card stays a bordered card, and a hairline starts the Backlog and Workspace groups. */
+  html[data-sidebar="collapsed"] .sb-rail .sb-section { padding: 0.25rem; }
+  html[data-sidebar="collapsed"] .sb-rail .sb-group { border-top: 1px solid var(--border); padding-top: 0.5rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sb-rail, .sb-main { transition: none; }
+}
+
+/* Responsive tables: a table with class `rt` inside a `.rt-box` becomes a list of cards when the box is narrow (measured on the box, not the screen), laid out exactly like
+   a row of the All Items list: the title on the left and the actions on the right, a hairline, then one label / value line per column, rows divided by hairlines.
+   The cell marked `data-primary` is the title and the one marked `data-actions` holds the actions; every other cell becomes a label / value line, the label
+   coming from the cell's `data-label`. The cells themselves (badges, avatars, buttons, handlers) are the ones the table shows, so nothing is rebuilt.
+   The header row stays in the page for screen readers only. */
+.rt-box { container-type: inline-size; }
+@container (max-width: 46rem) {
+  .rt-box .table-scroll { max-height: none; overflow: visible; }
+  table.rt, table.rt > tbody { display: block; width: auto; min-width: 0; }
+  table.rt > thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  table.rt > tbody > tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 0.75rem; row-gap: 0.375rem;
+    padding: 0.75rem 1rem; border: 0; border-bottom: 1px solid var(--border);
+  }
+  table.rt > tbody > tr:last-child { border-bottom: 0; }
+  table.rt > tbody > tr > :is(td, th) {
+    display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; grid-column: 1 / -1;
+    padding: 0; max-width: none; text-align: right; white-space: normal; border: 0; font-size: 0.875rem;
+  }
+  table.rt > tbody > tr > :is(td, th)::before {
+    content: attr(data-label); flex: none; color: var(--muted); font-size: 0.75rem; font-weight: 400; text-align: left;
+  }
+  table.rt > tbody > tr > [data-primary] {
+    display: block; grid-column: 1; grid-row: 1; text-align: left; font-weight: 500;
+    overflow: visible; text-overflow: clip; overflow-wrap: anywhere;
+  }
+  table.rt > tbody > tr > [data-actions] { grid-column: 2; grid-row: 1; justify-content: flex-end; align-self: start; }
+  table.rt > tbody > tr > [data-primary]::before, table.rt > tbody > tr > [data-actions]::before { content: none; }
+  table.rt > tbody > tr > [data-primary] + :is(td, th):not([data-actions]) { border-top: 1px solid var(--border); padding-top: 0.5rem; margin-top: 0.125rem; }
 }

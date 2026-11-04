@@ -100,8 +100,8 @@ export default function OwnersSprintsPage() {
 
       <section className="overflow-hidden rounded-2xl border border-border bg-surface">
         {/* About 10 rows are visible; the rest scroll inside, with the header kept in view. */}
-        <div className="table-scroll" style={{ "--row-h": "3.3rem" } as React.CSSProperties}>
-        <table className="w-full min-w-[40rem] text-sm">
+        <div className="rt-box"><div className="table-scroll" style={{ "--row-h": "3.3rem" } as React.CSSProperties}>
+        <table className="rt w-full min-w-[40rem] text-sm">
           <caption className="sr-only">Number of items per owner and sprint</caption>
           <thead className="sticky top-0 z-10 bg-surface">
             <tr className="border-b border-border bg-background/60 text-xs font-medium uppercase tracking-wide text-muted">
@@ -116,7 +116,7 @@ export default function OwnersSprintsPage() {
           <tbody className="divide-y divide-border">
             {shownOwners.map((owner) => (
               <tr key={owner} className="transition-colors duration-150 hover:bg-row-hover">
-                <th scope="row" className="px-4 py-2 text-left font-medium">
+                <th scope="row" data-primary className="px-4 py-2 text-left font-medium">
                   <span className="flex items-center gap-2">
                     <span
                       className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-soft text-xs font-medium text-accent"
@@ -135,13 +135,13 @@ export default function OwnersSprintsPage() {
                   </span>
                 </th>
                 {sprintNames.map((s) => (
-                  <td key={s} className="px-4 py-2 text-center tabular-nums text-muted">
+                  <td key={s} data-label={sprintLabel(s)} className="px-4 py-2 text-center tabular-nums text-muted">
                     {count(owner, s) || "–"}
                   </td>
                 ))}
-                <td className="px-4 py-2 text-center font-medium tabular-nums">{count(owner)}</td>
+                <td data-label="Total" className="px-4 py-2 text-center font-medium tabular-nums">{count(owner)}</td>
                 {isAdmin && (
-                  <td className="px-4 py-2">
+                  <td data-actions className="px-4 py-2">
                     {owner !== "Unassigned" && (
                       <div className="flex justify-end text-muted">
                         <ActionsMenu
@@ -160,6 +160,7 @@ export default function OwnersSprintsPage() {
           </tbody>
         </table>
         </div>
+</div>
         {owners.length > 0 && shownOwners.length === 0 && <EmptyState compact title="No matching owners" description="Try changing your search or filters." />}
         {owners.every((o) => o === "Unassigned") && (
           <EmptyState compact title="No owners yet" description="Use Create Owner to add the first owner." />

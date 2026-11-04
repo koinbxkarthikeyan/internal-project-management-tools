@@ -14,6 +14,7 @@ import {
   UsersIcon,
 } from "@/components/ui/icons";
 import { DisabledTip } from "@/components/ui/DisabledTip";
+import RailTip from "@/components/ui/RailTip";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useBacklog } from "../context/BacklogContext";
 import { BACKLOG_NAV_ITEMS, type BacklogNavId } from "@/constants/backlog-sidebar";
@@ -41,7 +42,7 @@ const isActive = (pathname: string, href: string) =>
   pathname === href || pathname.startsWith(`${href}/`);
 
 const itemClass = (active: boolean) =>
-  `group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-accent ${
+  `sb-item group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-accent ${
     active
       ? "bg-accent-soft font-medium text-accent"
       : "text-muted hover:bg-hover hover:text-foreground"
@@ -79,8 +80,8 @@ export default function BacklogNavigation({ between }: BacklogNavigationProps) {
 
   return (
     <nav aria-label="Main" className="flex flex-col gap-2">
-      <div>
-        <p id="sidebar-backlog-nav" className="mb-2 px-3 text-xs font-medium uppercase tracking-wide text-muted">
+      <div className="sb-group">
+        <p id="sidebar-backlog-nav" className="sb-label mb-2 px-3 text-xs font-medium uppercase tracking-wide text-muted">
           Backlog
         </p>
         <ul aria-labelledby="sidebar-backlog-nav" className="flex flex-col gap-1">
@@ -93,11 +94,11 @@ export default function BacklogNavigation({ between }: BacklogNavigationProps) {
             const content = (
               <>
                 <Icon className="shrink-0 transition-transform duration-200 group-hover:scale-110" />
-                <span className="flex-1 truncate">{label}</span>
+                <span className="sb-label flex-1 truncate">{label}</span>
                 {count !== undefined && (
                   <span
-                    className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${
-                      active ? "bg-[#425df3] font-semibold text-white dark:bg-accent dark:text-accent-foreground" : "bg-hover text-muted"
+                    className={`sb-label rounded-full px-2 py-0.5 text-xs tabular-nums ${
+                      active ? "bg-accent font-semibold text-accent-foreground" : "bg-hover text-muted"
                     }`}
                   >
                     {count}
@@ -107,18 +108,20 @@ export default function BacklogNavigation({ between }: BacklogNavigationProps) {
             );
             return (
               <li key={id}>
+                <RailTip label={label} off={disabled}>
                 <DisabledTip reason={disabled && `There are no ${label.toLowerCase()} to show yet.`} className="block">
                 {disabled ? (
                   <span aria-disabled="true" className={`${itemClass(false)} cursor-not-allowed opacity-50 hover:bg-transparent hover:text-muted`}>
                     {content}
                   </span>
                 ) : (
-                  <Link href={href} aria-current={active ? "page" : undefined} className={itemClass(active)}>
+                  <Link href={href} aria-label={label} aria-current={active ? "page" : undefined} className={itemClass(active)}>
                     {active && <ActiveIndicator />}
                     {content}
                   </Link>
                 )}
                 </DisabledTip>
+                </RailTip>
               </li>
             );
           })}
@@ -129,8 +132,8 @@ export default function BacklogNavigation({ between }: BacklogNavigationProps) {
 
       {/* Only Users is listed here (Admins only); Dashboard, Projects and Settings keep their pages but have no menu item. */}
       {workspaceItems.length > 0 && (
-      <div>
-        <p className="mb-2 px-3 text-xs font-medium uppercase tracking-wide text-muted">
+      <div className="sb-group">
+        <p className="sb-label mb-2 px-3 text-xs font-medium uppercase tracking-wide text-muted">
           Workspace
         </p>
         <ul className="flex flex-col gap-1">
@@ -139,15 +142,18 @@ export default function BacklogNavigation({ between }: BacklogNavigationProps) {
             const active = isActive(pathname, href);
             return (
               <li key={href}>
+                <RailTip label={label}>
                 <Link
                   href={href}
+                  aria-label={label}
                   aria-current={active ? "page" : undefined}
                   className={itemClass(active)}
                 >
                   {active && <ActiveIndicator />}
                 <Icon className="shrink-0 transition-transform duration-200 group-hover:scale-110" />
-                  <span className="truncate">{label}</span>
+                  <span className="sb-label truncate">{label}</span>
                 </Link>
+                </RailTip>
               </li>
             );
           })}

@@ -251,7 +251,7 @@ export default function SprintPlanPage() {
               }`}
             >
               {t.label}
-              <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${on ? "bg-[#425df3] font-semibold text-white dark:bg-accent dark:text-accent-foreground" : "bg-hover text-muted"}`}>{t.count}</span>
+              <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${on ? "bg-accent font-semibold text-accent-foreground" : "bg-hover text-muted"}`}>{t.count}</span>
             </button>
             </DisabledTip>
           );

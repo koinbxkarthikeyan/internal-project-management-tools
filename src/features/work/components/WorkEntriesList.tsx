@@ -47,27 +47,10 @@ export default function WorkEntriesList({ title, entries, showPerson, sprintTota
       {entries.length === 0 ? (
         <EmptyState compact title="Nothing added yet" description="What you add will be listed here with its dates and hours." />
       ) : (
-        <ul className="mt-3 divide-y divide-border">
-          {entries.map((e) => (
-            <li
-              key={e.id}
-              // Clicking the card opens its full details (the buttons inside keep doing their own thing; the View Full Details button is the keyboard way in).
-              onClick={onView ? (ev) => !(ev.target as HTMLElement).closest("button, a") && onView(e) : undefined}
-              className={`flex flex-wrap items-start justify-between gap-x-4 gap-y-2 py-3 ${onView ? "-mx-2 cursor-pointer rounded-lg px-2 transition-colors hover:bg-hover/60" : ""}`}
-            >
-              <div className="min-w-0 flex-1 basis-64">
-                <p className="text-sm font-semibold text-foreground">{e.task}</p>
-                <p className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                  {showPerson && <span className={`${tag} text-foreground`}>{e.person}</span>}
-                  <span className={tag}>{e.pod}</span>
-                  <span className={tag}>{e.kind}</span>
-                </p>
-                <p className="mt-1.5 text-xs tabular-nums text-muted">
-                  {formatDay(e.from)} → {formatDay(e.to)} · <span className="font-semibold text-foreground">{formatHours(e.hours)}</span>
-                </p>
-                {e.notes && <p className="mt-1 whitespace-pre-line break-words text-xs text-muted">{e.notes}</p>}
-              </div>
-              <div className="flex items-center gap-1">
+        <ul className="@container mt-3 divide-y divide-border">
+          {entries.map((e) => {
+            const actionButtons = (
+              <>
                 {onView && (
                   <button type="button" className={textButton} onClick={() => onView(e)} aria-label={`View full details of ${e.task}`}>
                     View Full Details
@@ -84,9 +67,54 @@ export default function WorkEntriesList({ title, entries, showPerson, sprintTota
                 >
                   remove
                 </button>
+              </>
+            );
+            const line = (label: string, value: ReactNode) => (
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-xs text-muted">{label}</dt>
+                <dd className="min-w-0 text-right">{value}</dd>
               </div>
-            </li>
-          ))}
+            );
+            return (
+              <li
+                key={e.id}
+                // Clicking the card opens its full details (the buttons inside keep doing their own thing; the View Full Details button is the keyboard way in).
+                onClick={onView ? (ev) => !(ev.target as HTMLElement).closest("button, a") && onView(e) : undefined}
+                className={`py-3 ${onView ? "-mx-2 cursor-pointer rounded-lg px-2 transition-colors hover:bg-hover/60" : ""}`}
+              >
+                {/* Narrow: the same card as every other list: the task on the left, the actions on the right, then one label / value line per field. */}
+                <div className="@xl:hidden">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="min-w-0 break-words text-sm font-medium text-foreground">{e.task}</p>
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">{actionButtons}</div>
+                  </div>
+                  <dl className="mt-2 flex flex-col gap-1.5 border-t border-border pt-2 text-sm">
+                    {showPerson && line("Person", e.person)}
+                    {line("POD", e.pod)}
+                    {line("Type", e.kind)}
+                    {line("Dates", <span className="tabular-nums">{formatDay(e.from)} → {formatDay(e.to)}</span>)}
+                    {line("Hours", <span className="font-semibold tabular-nums">{formatHours(e.hours)}</span>)}
+                    {e.notes && line("Notes", <span className="whitespace-pre-line break-words text-muted">{e.notes}</span>)}
+                  </dl>
+                </div>
+                <div className="hidden flex-wrap items-start justify-between gap-x-4 gap-y-2 @xl:flex">
+                  <div className="min-w-0 flex-1 basis-64">
+                    <p className="text-sm font-semibold text-foreground">{e.task}</p>
+                    <p className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      {showPerson && <span className={`${tag} text-foreground`}>{e.person}</span>}
+                      <span className={tag}>{e.pod}</span>
+                      <span className={tag}>{e.kind}</span>
+                    </p>
+                    <p className="mt-1.5 text-xs tabular-nums text-muted">
+                      {formatDay(e.from)} → {formatDay(e.to)} · <span className="font-semibold text-foreground">{formatHours(e.hours)}</span>
+                    </p>
+                    {e.notes && <p className="mt-1 whitespace-pre-line break-words text-xs text-muted">{e.notes}</p>}
+                  </div>
+                  <div className="flex items-center gap-1">{actionButtons}</div>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>

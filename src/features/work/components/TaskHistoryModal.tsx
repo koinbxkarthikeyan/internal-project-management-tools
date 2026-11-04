@@ -313,7 +313,7 @@ export function HistoryDialog({ title, label, onClose, children }: { title: stri
       onCancel={(e) => e.target === e.currentTarget && (e.preventDefault(), ref.current?.close())}
       onClick={(e) => e.target === ref.current && ref.current?.close()}
       aria-label={label}
-      className={`fixed m-auto flex flex-col overflow-hidden border border-border bg-surface p-0 text-foreground shadow-2xl backdrop:bg-black/50 ${
+      className={`fixed m-auto flex flex-col overflow-hidden border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-black/50 ${
         full ? "h-dvh max-h-dvh w-screen max-w-none rounded-none" : "h-[85vh] w-[min(64rem,calc(100vw-2rem))] max-w-none rounded-2xl"
       }`}
     >

@@ -52,6 +52,8 @@ export function readOutcome(data: unknown, sent: number): BulkOutcome {
 
 /** The most rows the backend accepts in one request. */
 export const BULK_MAX_ROWS = 200;
+/** The fewest filled records a bulk upload may be submitted with. */
+export const BULK_MIN_ROWS = 2;
 
 /**
  * Sends the rows of one tab as `{ rows: [...] }`, in requests of at most BULK_MAX_ROWS. Rejects (with the server's message) when the first request fails,

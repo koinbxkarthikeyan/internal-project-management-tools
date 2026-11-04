@@ -11,11 +11,12 @@ export default function CreateBacklogButton({ gradient = false }: { gradient?: b
     <button
       type="button"
       onClick={openCreate}
+      aria-label="Create backlog"
       data-close-sidebar
       className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-[filter] hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${gradient ? "btn-brand" : "bg-accent text-accent-foreground"}`}
     >
       <PlusIcon />
-      Create backlog
+      <span className="sb-label">Create backlog</span>
     </button>
   );
 }

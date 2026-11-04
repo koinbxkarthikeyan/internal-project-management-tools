@@ -75,7 +75,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <div
               key={t.id}
               role={t.tone === "danger" || t.tone === "warning" ? "alert" : undefined}
-              className={`pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium shadow-lg ring-1 ring-black/10 ${STYLE[t.tone]} ${
+              className={`pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium shadow-menu ring-1 ring-black/10 ${STYLE[t.tone]} ${
                 t.leaving ? "anim-toast-out" : "anim-toast-in"
               }`}
             >
