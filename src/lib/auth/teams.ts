@@ -5,6 +5,9 @@ import type { AppUser } from "@/types/auth";
 /** Trims and collapses repeated spaces. */
 export const cleanTeam = (name: string): string => name.replace(/\s+/g, " ").trim();
 
+/** A team's identity for filtering: its cleaned name in lower case (teams are names in this app, so spelling and case do not make two teams). */
+export const teamId = (name: string): string => cleanTeam(name).toLowerCase();
+
 const same = (a: string, b: string) => cleanTeam(a).toLowerCase() === cleanTeam(b).toLowerCase();
 
 /**

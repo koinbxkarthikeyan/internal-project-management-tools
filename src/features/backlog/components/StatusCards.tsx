@@ -15,11 +15,13 @@ type StatusCardsProps = {
 };
 
 const TONES: Record<Status, string> = {
-  Open: "text-blue-600 dark:text-blue-300",
-  "In progress": "text-violet-600 dark:text-violet-300",
-  Blocked: "text-red-600 dark:text-red-300",
-  "On hold": "text-amber-600 dark:text-amber-300",
-  Completed: "text-emerald-600 dark:text-emerald-300",
+  Open: "text-blue-700 dark:text-blue-300",
+  "In progress": "text-indigo-700 dark:text-indigo-300",
+  "Ready for QA": "text-teal-700 dark:text-teal-300",
+  Testing: "text-violet-700 dark:text-violet-300",
+  Blocked: "text-red-700 dark:text-red-300",
+  "On hold": "text-amber-700 dark:text-amber-300",
+  Done: "text-emerald-700 dark:text-emerald-300",
 };
 
 /** One card per task status (named as the app names it) with how many of the listed tasks have it, and a Total card. Give it the tasks that match the search and filters (leaving the status filter out): a card filters the table to its status. */
@@ -31,7 +33,7 @@ export default function StatusCards({ items, selected, onSelect, partial = false
 
   return (
     <section aria-label="Backlog summary">
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
         {stats.map((s, i) => {
           const on = selected === s.key;
           return (

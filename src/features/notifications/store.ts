@@ -1,3 +1,5 @@
+import type { BacklogItemData } from "@/types/backlog";
+import { unreadNoticesForTask } from "./forTask";
 import { create } from "zustand";
 import { notificationService } from ".";
 import type { NotificationFilter } from "./service";
@@ -16,6 +18,8 @@ type State = {
   /** Starts following this person's notifications; returns the way to stop. Calling it again for another person switches over. */
   start: (userId: string) => () => void;
   markRead: (id: string) => void;
+  /** Opening a task card reads the notices about it (and its Tickets). */
+  markTaskRead: (task: Pick<BacklogItemData, "id" | "ticketStats">) => void;
   markAllRead: () => void;
   loadMore: () => void;
   setFilter: (filter: NotificationFilter) => void;
@@ -47,6 +51,10 @@ export const useNotificationStore = create<State>((set, get) => ({
   markRead: (id) => {
     const { userId, items } = get();
     if (userId && items.some((n) => n.id === id && !n.read)) void notificationService.markRead(userId, id);
+  },
+
+  markTaskRead: (task) => {
+    for (const n of unreadNoticesForTask(get().items, task)) get().markRead(n.id);
   },
 
   markAllRead: () => {

@@ -13,7 +13,7 @@ import { FieldError } from "@/components/ui/FieldError";
 type EmailStepProps = {
   initialEmail?: string;
   onSent: (result: Extract<StartLoginResult, { ok: true }>) => void;
-  /** The backend doesn't know this email. */
+  /** No account has this email. */
   onDenied?: (email: string, reason: DeniedReason) => void;
 };
 

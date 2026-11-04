@@ -1,8 +1,5 @@
 import { apiClient } from "@/lib/apiClient";
-import { SOCKET_EVENTS } from "@/constants/socketEvents";
-import { emitWithAck, socketEnabled } from "@/lib/socketClient";
-import type { BacklogItemData, ItemPatch, NewItemInput, Status } from "@/types/backlog";
-import type { ChangeStatusAck, ChangeStatusRequest } from "@/types/socket";
+import type { BacklogItemData, ItemPatch, NewItemInput, Priority, Status } from "@/types/backlog";
 import {
   apiIdForCode,
   itemFromApi,
@@ -70,7 +67,7 @@ export async function getMyItems(): Promise<BacklogItemData[]> {
 }
 
 /** The three lists `GET /items/mine` answers with, each as tasks. A task may be in more than one (e.g. one I lead and am assigned to). */
-export type MyTaskBuckets = { lead: BacklogItemData[]; assigned: BacklogItemData[]; unassigned: BacklogItemData[] };
+export type MyTaskBuckets = { lead: BacklogItemData[]; assigned: BacklogItemData[]; unassigned: BacklogItemData[]; tickets: BacklogItemData[] };
 
 /**
  * The My Task page's lists, kept as the server sends them: `lead`, `assigned` and `unassigned`. Unlike `getMyItems` it doesn't replace
@@ -83,11 +80,11 @@ export async function getMyTaskBuckets(): Promise<MyTaskBuckets> {
     const seen = new Set<unknown>();
     return list(rec(data)?.[key]).flatMap((r) => (rec(r) && !seen.has(rec(r)!.id) && seen.add(rec(r)!.id) ? [rec(r)!] : []));
   };
-  const rows = { lead: rowsOf("lead"), assigned: rowsOf("assigned"), unassigned: rowsOf("unassigned") };
+  const rows = { lead: rowsOf("lead"), assigned: rowsOf("assigned"), unassigned: rowsOf("unassigned"), tickets: rowsOf("tickets") };
   // One id-to-code table across the lists, so "carried from" resolves whichever list the original is in.
-  const codeById = new Map([...rows.lead, ...rows.assigned, ...rows.unassigned].flatMap((r) => (typeof r.code === "string" ? [[Number(r.id), r.code] as [number, string]] : [])));
+  const codeById = new Map([...rows.lead, ...rows.assigned, ...rows.unassigned, ...rows.tickets].flatMap((r) => (typeof r.code === "string" ? [[Number(r.id), r.code] as [number, string]] : [])));
   const map = (rs: Rec[]) => rs.map((r) => itemFromApi(r, codeById));
-  return { lead: map(rows.lead), assigned: map(rows.assigned), unassigned: map(rows.unassigned) };
+  return { lead: map(rows.lead), assigned: map(rows.assigned), unassigned: map(rows.unassigned), tickets: map(rows.tickets) };
 }
 
 /** One task with its activity and what the signed-in user may do with it (`canLeadEdit`, `readOnly`). Reused by the screens through src/stores/itemDetailStore.ts. */
@@ -118,11 +115,12 @@ function bodyFrom(input: ItemPatch): Rec {
   if (input.owner !== undefined && input.owner !== "Unassigned") {
     const ownerId = ownerIdByName(input.owner);
     // Not sent as a guess: the owner has to be an owner record on the backend, otherwise the old owner would stay.
-    if (ownerId === undefined) throw new Error(`${input.owner} has no owner record on the backend yet, so they can't be set as the owner.`);
+    if (ownerId === undefined) throw new Error(`${input.owner} has no owner record yet, so they can't be set as the owner.`);
     body.ownerId = ownerId;
   }
   if (input.sprint !== undefined) body.sprintId = input.sprint === "Unplanned" ? null : (sprintIdByName(input.sprint) ?? null);
   if (input.podId !== undefined || input.sprint === "Unplanned") body.podId = input.podId ? Number(input.podId) : null;
+  if (input.parent !== undefined) body.parentId = input.parent ? (apiIdForCode(input.parent) ?? null) : null;
   if (input.lead !== undefined) body.leadId = input.lead ? (userIdByName(input.lead) ?? null) : null;
   if (input.assignees !== undefined) {
     body.assigneeIds = input.assignees
@@ -141,7 +139,7 @@ function bodyFrom(input: ItemPatch): Rec {
 export function newItemBody(input: NewItemInput): Rec {
   const body = bodyFrom(input);
   body.type = typeToApi(input.type);
-  delete body.status; // a new task starts Open; the backend sets that
+  delete body.status; // a new task starts Open
   delete body.completedAt;
   if (body.ownerId === undefined) body.ownerId = ownerIdByName(input.owner);
   return body;
@@ -166,7 +164,7 @@ export async function updateItem(id: string, patch: ItemPatch): Promise<BacklogI
   return fetchItem(apiId);
 }
 
-/** What the task's Lead may change from My Task: status, assigned users, and the Lead Deadline. */
+/** What the task's Lead may change from My Task: status, assigned users, and the Developer ETA. */
 export async function updateItemAsLead(id: string, patch: Pick<ItemPatch, "status" | "assignees" | "leadDeadline">): Promise<BacklogItemData> {
   const apiId = apiIdForCode(id);
   if (apiId == null) throw new Error("That task isn't loaded yet. Reload the page and try again.");
@@ -178,33 +176,82 @@ export async function updateItemAsLead(id: string, patch: Pick<ItemPatch, "statu
   return fetchItem(apiId);
 }
 
-/** Request ids of this browser's own status changes, so the broadcast that follows one isn't applied a second time. */
-const ownRequests = new Set<string>();
-export const isOwnRequest = (requestId?: string) => !!requestId && ownRequests.has(requestId);
-const newRequestId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-/**
- * BACKEND-DEPENDENT. An assigned user changing a task's status, with the work details they typed, saved in one step over Socket.IO
- * (events and payloads: src/types/socket.ts, names: src/constants/socketEvents.ts). Nothing is applied before the server says it has
- * validated and saved it; then the task is read again over REST so the screen shows the server's status and activity, not a guess.
- * Without NEXT_PUBLIC_SOCKET_URL (or while the server doesn't answer) it refuses with a clear message and changes nothing.
- */
+/** An Assigned User, the Lead or an admin changes a task's status; the note about what was done is saved with it, in the task's activity. */
 export async function changeStatusWithDetails(id: string, status: Status, details: string): Promise<BacklogItemData> {
   const apiId = apiIdForCode(id);
   if (apiId == null) throw new Error("That task isn't loaded yet. Reload the page and try again.");
-  if (!socketEnabled) {
-    throw new Error("Saving a status change with work details isn't available yet: it needs a server update that hasn't been released. Nothing was changed.");
-  }
-  const requestId = newRequestId();
-  ownRequests.add(requestId);
-  try {
-    const ack = await emitWithAck<ChangeStatusRequest, ChangeStatusAck>(SOCKET_EVENTS.changeStatus, { requestId, itemId: apiId, status: statusToApi(status), details });
-    if (!ack?.ok) throw new Error(ack?.message || "The server did not accept the change.");
-  } catch (err) {
-    ownRequests.delete(requestId); // it failed, so a later broadcast with this id can't be ours
-    throw err;
-  }
+  await apiClient.patch(`/items/${apiId}/status`, { status: statusToApi(status), details });
   return fetchItem(apiId);
+}
+
+/** What the Ready for QA section shows: every task in that status (the original records). */
+export async function getQaQueue(): Promise<BacklogItemData[]> {
+  const { data } = await apiClient.get<unknown>("/items/qa");
+  const rows = list(rec(data)?.queue).flatMap((r) => (rec(r) ? [rec(r)!] : []));
+  const codeById = new Map(rows.flatMap((r) => (typeof r.code === "string" ? [[Number(r.id), r.code] as [number, string]] : [])));
+  const items = rows.map((r) => itemFromApi(r, codeById));
+  items.forEach(rememberItem);
+  return items;
+}
+
+/** The Tickets under a task (by its code), oldest first. */
+export async function getTickets(code: string): Promise<BacklogItemData[]> {
+  const apiId = apiIdForCode(code);
+  if (apiId == null) throw new Error("That task isn't loaded yet. Reload the page and try again.");
+  const { data } = await apiClient.get<unknown>(`/items/${apiId}/tickets`);
+  const rows = list(rec(data)?.tickets).flatMap((r) => (rec(r) ? [rec(r)!] : []));
+  const items = rows.map((r) => itemFromApi(r));
+  items.forEach(rememberItem);
+  return items;
+}
+
+export type NewTicket = { title: string; priority: Priority; assignee?: string; description?: string; /** The status it starts in (To Do when left out). */ status?: Status; /** The people @mentioned in the description (they are told). */ mentionIds?: string[] };
+
+/** QA adds a Ticket directly under a task (by the task's code). It stays linked to that task. */
+export async function createTicket(taskCode: string, input: NewTicket): Promise<BacklogItemData> {
+  const apiId = apiIdForCode(taskCode);
+  if (apiId == null) throw new Error("That task isn't loaded yet. Reload the page and try again.");
+  const assigneeId = input.assignee ? userIdByName(input.assignee) : undefined;
+  const { data } = await apiClient.post<Rec>(`/items/${apiId}/tickets`, { title: input.title, priority: priorityToApi(input.priority), ...(input.description ? { description: input.description } : {}), ...(assigneeId !== undefined ? { assigneeId } : {}), ...(input.status && input.status !== "Open" ? { status: statusToApi(input.status) } : {}), ...(input.mentionIds?.length ? { mentionIds: input.mentionIds.map(Number) } : {}) });
+  const item = itemFromApi(data);
+  rememberItem(item);
+  return item;
+}
+
+/** One task or Ticket by its numeric id (what a full-page address carries), with its activity. */
+export async function getItemByApiId(apiId: number): Promise<BacklogItemData> {
+  const item = await fetchItem(apiId);
+  return item;
+}
+
+export type TicketPatch = { title?: string; description?: string; priority?: Priority; assignee?: string };
+
+/** QA edits a Ticket's title, description, priority or assignee ("" = unassigned). */
+export async function updateTicket(code: string, patch: TicketPatch): Promise<BacklogItemData> {
+  const apiId = apiIdForCode(code);
+  if (apiId == null) throw new Error("That Ticket isn't loaded yet. Reload the page and try again.");
+  const body: Rec = {};
+  if (patch.title !== undefined) body.title = patch.title;
+  if (patch.description !== undefined) body.description = patch.description;
+  if (patch.priority !== undefined) body.priority = priorityToApi(patch.priority);
+  if (patch.assignee !== undefined) body.assigneeIds = patch.assignee ? (userIdByName(patch.assignee) !== undefined ? [userIdByName(patch.assignee)] : []) : [];
+  await apiClient.patch(`/items/${apiId}/ticket`, body);
+  return fetchItem(apiId);
+}
+
+/** Reopens a completed task (it goes back to where it was before it was completed) or Ticket (to the chosen status). `details` is the reason, which is optional. */
+export async function reopenItem(id: string, input: { status?: Status; details?: string }): Promise<BacklogItemData> {
+  const apiId = apiIdForCode(id);
+  if (apiId == null) throw new Error("That task isn't loaded yet. Reload the page and try again.");
+  await apiClient.post(`/items/${apiId}/reopen`, { details: input.details ?? "", ...(input.status ? { status: statusToApi(input.status) } : {}) });
+  return fetchItem(apiId);
+}
+
+/** Permanently removes every hidden task with its child Tickets. `skipped` counts hidden tasks left because their sprint is closed. */
+export async function removeHiddenItems(): Promise<{ tasks: number; tickets: number; skipped: number }> {
+  const { data } = await apiClient.delete<unknown>("/items/hidden");
+  const r = rec(data) ?? {};
+  return { tasks: Number(r.tasks) || 0, tickets: Number(r.tickets) || 0, skipped: Number(r.skipped) || 0 };
 }
 
 export async function deleteItem(id: string): Promise<void> {

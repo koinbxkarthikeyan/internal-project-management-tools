@@ -21,7 +21,7 @@ export default function CloseSprintDrawer({ sprint, planned, onConfirm, onClose 
   const [startNow, setStartNow] = useState(false);
   const [nextId, setNextId] = useState(planned[0]?.id ?? "");
 
-  // Unfinished tasks are not listed or changed here: the server's close copies them into the next sprint (nothing is marked Completed). A failed close leaves everything as it was.
+  // Unfinished tasks are not listed or changed here: the server's close copies them into the next sprint (nothing is marked Done). A failed close leaves everything as it was.
   async function confirm() {
     setError("");
     const ok = await onConfirm(startNow ? planned.find((s) => s.id === nextId) : undefined);

@@ -7,31 +7,19 @@ import EmptyState from "@/components/ui/EmptyState";
 import { BellIcon } from "@/components/ui/icons";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { MY_TASK_HREF } from "@/constants/work";
-import { useNotificationConnection, type ConnectionStatus } from "../connection";
 import { EVENT_LABEL, describe, timeAgo } from "../describe";
+import { useMyTasksStore } from "@/stores/myTasksStore";
+import { useOpenNotification } from "../open";
 import { selectUnread, useNotificationStore } from "../store";
 import type { AppNotification } from "../types";
 
 const WIDTH = 384;
-const STATUS_TEXT: Record<ConnectionStatus, string> = {
-  unconfigured: "Live updates aren't set up · refreshes every minute",
-  connecting: "Connecting to the notification server…",
-  connected: "Live · connected to the notification server",
-  reconnecting: "Connection lost · reconnecting…",
-  disconnected: "Not connected to the notification server · refreshes every minute",
-  error: "Connection problem · retrying",
-};
-
-/** Where notifications come from, and whether the connection is up. */
+/** Where notifications come from. */
 function ConnectionLine() {
-  const status = useNotificationConnection((s) => s.status);
-  const detail = useNotificationConnection((s) => s.detail);
-  const tone = status === "connected" ? "bg-emerald-500" : status === "unconfigured" ? "bg-slate-400" : status === "connecting" || status === "reconnecting" ? "bg-amber-500" : "bg-red-500";
   return (
-    <p className="flex items-center gap-1.5 border-b border-border px-4 py-1.5 text-[11px] text-muted" role="status" data-notification-status={status}>
-      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${tone}`} aria-hidden="true" />
-      {STATUS_TEXT[status]}
-      {detail && status !== "connected" && <span className="truncate text-red-600 dark:text-red-300" title={detail}> · {detail}</span>}
+    <p className="flex items-center gap-1.5 border-b border-border px-4 py-1.5 text-[11px] text-muted" role="status" data-notification-status="local">
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" aria-hidden="true" />
+      Shared with every computer · new ones show up within seconds
     </p>
   );
 }
@@ -40,6 +28,7 @@ function ConnectionLine() {
 export default function NotificationBell() {
   const { user, settingsOnly } = useAuth();
   const router = useRouter();
+  const openNotification = useOpenNotification();
   const allItems = useNotificationStore((s) => s.items);
   const filter = useNotificationStore((s) => s.filter);
   const hasMore = useNotificationStore((s) => s.hasMore);
@@ -48,6 +37,8 @@ export default function NotificationBell() {
   // The server filters by itself; this keeps the list right while a change is still arriving.
   const items = filter === "unread" ? allItems.filter((n) => !n.read) : allItems;
   const unread = useNotificationStore(selectUnread);
+  // How many open Tickets are assigned to the signed-in person (by their user id; the lists come from the data, not from the notifications).
+  const myTickets = useMyTasksStore((s) => (s.scope === user?.id ? s.buckets.tickets.filter((t) => t.status !== "Done").length : 0));
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0, width: WIDTH });
   const button = useRef<HTMLButtonElement>(null);
@@ -80,9 +71,8 @@ export default function NotificationBell() {
   if (!user || settingsOnly) return null;
 
   function openTask(n: AppNotification) {
-    useNotificationStore.getState().markRead(n.id);
     setOpen(false);
-    router.push(`${MY_TASK_HREF}?task=${encodeURIComponent(n.taskCode)}`);
+    openNotification(n);
   }
 
   return (
@@ -125,6 +115,14 @@ export default function NotificationBell() {
                 Mark all as read
               </button>
             </div>
+            <button
+              type="button"
+              onClick={() => (setOpen(false), router.push(MY_TASK_HREF))}
+              className="flex w-full items-center justify-between gap-2 border-b border-border px-4 py-2 text-left text-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              <span className="text-muted">Tickets assigned to you</span>
+              <span className={`rounded-full px-2 py-0.5 font-semibold tabular-nums ${myTickets > 0 ? "bg-accent-soft text-accent" : "bg-hover text-muted"}`}>{myTickets}</span>
+            </button>
             <ConnectionLine />
             <div role="group" aria-label="Show notifications" className="flex gap-1 border-b border-border px-3 py-1.5">
               {(["all", "unread"] as const).map((f) => (
@@ -156,11 +154,11 @@ export default function NotificationBell() {
             ) : (
               <ul className="min-h-0 flex-1 divide-y divide-border overflow-y-auto">
                 {items.map((n) => (
-                  <li key={n.id} className={`flex items-start gap-2 px-3 py-2.5 ${n.read ? "" : "bg-accent-soft/50"}`}>
+                  <li key={n.id} onClick={() => openTask(n)} className={`flex cursor-pointer items-start gap-2 px-3 py-2.5 transition-colors hover:bg-hover ${n.read ? "" : "bg-accent-soft/50"}`}>
+                    {/* The whole card opens the item (the click bubbles up from this button too, so keyboard users get it as well). */}
                     <button
                       type="button"
-                      onClick={() => openTask(n)}
-                      className="flex min-w-0 flex-1 items-start gap-2 rounded-lg px-1 py-0.5 text-left hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
+                      className="flex min-w-0 flex-1 items-start gap-2 rounded-lg px-1 py-0.5 text-left focus-visible:outline-2 focus-visible:outline-accent"
                     >
                       <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read ? "bg-transparent" : "bg-accent"}`} aria-label={n.read ? undefined : "Unread"} />
                       <span className="min-w-0 flex-1">
@@ -181,7 +179,7 @@ export default function NotificationBell() {
                     {!n.read && (
                       <button
                         type="button"
-                        onClick={() => useNotificationStore.getState().markRead(n.id)}
+                        onClick={(e) => (e.stopPropagation(), useNotificationStore.getState().markRead(n.id))}
                         className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-accent hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
                       >
                         Mark read

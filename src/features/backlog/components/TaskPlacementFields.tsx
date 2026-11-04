@@ -51,29 +51,27 @@ export default function TaskPlacementFields({ value, onChange, current, createLa
     onChange(v === UNPLANNED ? { kind: "unplanned", choice: "" } : v ? { kind: "sprint", choice: v } : emptyPlacement);
 
   return (
-    <>
+    // One grid cell: the Sprint field with its note directly under it (not a full-width line further down the form).
+    <div className={`flex min-w-0 flex-col gap-1.5 ${createLayout ? "order-4" : ""}`}>
       <SelectField
         label="Sprint"
         required
-        className={createLayout ? "order-4" : undefined}
         value={value.kind === "sprint" ? value.choice : value.kind === "unplanned" ? UNPLANNED : ""}
         onChange={choose}
         options={[...options, { value: UNPLANNED, label: "Backlog" }]}
         placeholder="Choose sprint"
       />
       {open.length === 0 && (
-        <p className="col-span-full order-5 -mt-2 text-xs text-muted">
+        <p className="text-xs text-muted">
           No sprint is running or planned, so this task goes to Backlog. Plan a sprint on Sprint plan to add tasks to it.
         </p>
       )}
       {value.kind === "sprint" && open.some((s) => s.name === value.choice) && (
-        <p className="col-span-full order-5 -mt-2 text-xs text-muted">
+        <p className="text-xs text-muted">
           This task joins {value.choice}, {value.choice === activeSprint?.name ? "the running sprint" : "a planned sprint"}.
         </p>
       )}
-      {value.kind === "unplanned" && (
-        <p className="col-span-full order-5 -mt-2 text-xs text-muted">A Backlog task isn&apos;t part of any sprint yet.</p>
-      )}
-    </>
+      {value.kind === "unplanned" && <p className="text-xs text-muted">A Backlog task isn&apos;t part of any sprint yet.</p>}
+    </div>
   );
 }

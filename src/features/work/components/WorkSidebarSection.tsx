@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import RailTip from "@/components/ui/RailTip";
-import { CheckCircleIcon, ClockIcon, ListIcon, OverviewIcon, UsersIcon } from "@/components/ui/icons";
-import { MY_TASK_HREF, OVERVIEW_HREF, WORK_HREF, WORK_LOGGED_HREF, WORK_TEAM_HREF } from "@/constants/work";
+import { CheckCircleIcon, ClockIcon, EyeIcon, ListIcon, OverviewIcon, UsersIcon } from "@/components/ui/icons";
+import { MY_TASK_HREF, OVERVIEW_HREF, READY_FOR_QA_HREF, WORK_HREF, WORK_LOGGED_HREF, WORK_TEAM_HREF } from "@/constants/work";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 
 /**
@@ -13,7 +13,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
  */
 export default function WorkSidebarSection() {
   const pathname = usePathname();
-  const { isAdmin, restricted } = useAuth();
+  const { isAdmin, restricted, isQa } = useAuth();
   // Log Work is only its own page: Your Logged Work lives under the same path but is a different menu item.
   const on = (href: string) => (href === WORK_HREF ? pathname === href : pathname === href || pathname.startsWith(`${href}/`));
 
@@ -32,6 +32,8 @@ export default function WorkSidebarSection() {
           ...(isAdmin ? [{ href: WORK_TEAM_HREF, label: "Team Work Details", Icon: UsersIcon }] : []),
           { href: WORK_LOGGED_HREF, label: "Your Logged Work", Icon: CheckCircleIcon },
           { href: MY_TASK_HREF, label: "My Task", Icon: ListIcon },
+          // The QA team (an admin has it in the Backlog menu): what was handed over for testing.
+          ...(isQa && !isAdmin ? [{ href: READY_FOR_QA_HREF, label: "QA Workspace", Icon: EyeIcon }] : []),
         ].map(({ href, label, Icon }) => {
           const active = on(href);
           return (

@@ -1,4 +1,5 @@
 import type { ActivityEntry, BacklogItemData } from "@/types/backlog";
+import { statusLabel } from "@/constants/backlog-options";
 import { formatActivityTime } from "../utils";
 
 const hasTime = (v?: string) => !!v && /T\d{2}:\d{2}/.test(v);
@@ -39,10 +40,29 @@ export function ActivityList({ entries, className = "", compact = false, latestB
         const a = i === 0 && !entry.by && latestBy && isTheLastUpdate(entry, updatedAt) ? { ...entry, by: latestBy } : entry;
         return (
         <li key={i} className={`flex justify-between gap-3 px-3 ${compact ? "py-1.5" : "py-2"}`}>
-          <span className="min-w-0 break-words">
-            {a.text}
-            {a.by && <span className="block text-xs text-muted">by {a.by}</span>}
-          </span>
+          {a.reopen ? (
+            // A reopen is shown whole: who, when, from which status to which, and why.
+            <span className="min-w-0 break-words">
+              <strong className="font-semibold">{a.reopen.kind} Reopened</strong>
+              <dl className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-xs">
+                <dt className="text-muted">Reopened by:</dt>
+                <dd>{a.reopen.by}</dd>
+                <dt className="text-muted">Date:</dt>
+                <dd>{formatActivityTime({ date: a.date, at: a.reopen.at || a.at })}</dd>
+                <dt className="text-muted">Previous Status:</dt>
+                <dd>{statusLabel(a.reopen.from)}</dd>
+                <dt className="text-muted">Reopened Status:</dt>
+                <dd>{statusLabel(a.reopen.to)}</dd>
+                <dt className="text-muted">Reason:</dt>
+                <dd>{a.reopen.comment ?? <span className="text-muted">No reason given</span>}</dd>
+              </dl>
+            </span>
+          ) : (
+            <span className="min-w-0 break-words">
+              {a.text}
+              {a.by && <span className="block text-xs text-muted">by {a.by}</span>}
+            </span>
+          )}
           <span className="shrink-0 text-xs text-muted">{formatActivityTime(a)}</span>
         </li>
         );

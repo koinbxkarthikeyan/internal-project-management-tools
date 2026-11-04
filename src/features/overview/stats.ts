@@ -33,13 +33,13 @@ export const sumHours = (entries: readonly WorkEntry[]) => entries.reduce((s, e)
 
 export function taskCounts(tasks: readonly BacklogItemData[], today: string) {
   const by = (s: Status) => tasks.filter((t) => t.status === s).length;
-  const completed = by("Completed");
+  const completed = by("Done");
   return {
     total: tasks.length,
     completed,
     todo: by("Open"),
     inProgress: by("In progress"),
-    overdue: tasks.filter((t) => t.status !== "Completed" && !!t.deadline && t.deadline < today).length,
+    overdue: tasks.filter((t) => t.status !== "Done" && !!t.deadline && t.deadline < today).length,
     pending: tasks.length - completed,
     percent: tasks.length ? Math.round((completed / tasks.length) * 100) : 0,
     byStatus: STATUSES.map((status) => ({ status, count: by(status) })),
@@ -61,7 +61,7 @@ export function sprintFigures(sprint: DatedSprint, entries: readonly WorkEntry[]
   const { soFar, total } = sprintHours([sprint], today);
   const logged = sumHours(entries.filter((e) => e.sprintId === sprint.id));
   const inSprint = tasks.filter((t) => t.sprint === sprint.name);
-  const done = inSprint.filter((t) => t.status === "Completed").length;
+  const done = inSprint.filter((t) => t.status === "Done").length;
   return { total, soFar, logged, remaining: Math.max(0, total - logged), progress: total > 0 ? Math.round((soFar / total) * 100) : 0, done, pending: inSprint.length - done };
 }
 
@@ -114,7 +114,7 @@ export function buildActivity(entries: readonly WorkEntry[], tasks: readonly Bac
   const out: Activity[] = [];
   for (const e of entries) if (e.createdAt) out.push({ at: e.createdAt, kind: "Work logged", text: `${e.hours}h on ${e.task || "other work"}` });
   for (const t of tasks) {
-    if (t.status === "Completed" && t.completed) out.push({ at: t.completed, kind: "Task completed", text: t.title });
+    if (t.status === "Done" && t.completed) out.push({ at: t.completed, kind: "Task completed", text: t.title });
     for (const a of details[t.id] ?? []) out.push({ at: a.at ?? a.date, kind: kindOf(a.text), text: `${t.title}: ${a.text}`, ...(a.by ? { by: a.by } : {}) });
   }
   const seen = new Set<string>();

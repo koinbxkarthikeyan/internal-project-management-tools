@@ -1,6 +1,6 @@
 import { usersStore } from "@/lib/auth/userStore";
 import { teamOptions } from "@/lib/auth/teams";
-import { useTeamStore } from "@/stores/teamStore";
+import { resolveTeam, useTeamStore } from "@/stores/teamStore";
 import type { BacklogItemData, ItemType, Priority, Sprint, Status } from "@/types/backlog";
 import type { Pod, WorkEntry, WorkKind } from "@/types/work";
 
@@ -26,9 +26,9 @@ export function listFrom(data: unknown, key: string): unknown[] {
 
 const norm = (v: unknown) => String(v ?? "").toUpperCase().replace(/[\s-]+/g, "_");
 
-const STATUS: [Status, string][] = [["Open", "OPEN"], ["In progress", "IN_PROGRESS"], ["Blocked", "BLOCKED"], ["On hold", "ON_HOLD"], ["Completed", "COMPLETED"]];
+const STATUS: [Status, string][] = [["Open", "OPEN"], ["In progress", "IN_PROGRESS"], ["Ready for QA", "READY_FOR_QA"], ["Testing", "TESTING"], ["Blocked", "BLOCKED"], ["On hold", "ON_HOLD"], ["Done", "COMPLETED"]];
 const PRIORITY: [Priority, string][] = [["Critical", "CRITICAL"], ["High", "HIGH"], ["Medium", "MEDIUM"], ["Low", "LOW"], ["Not set", "NOT_SET"]];
-const TYPE: [ItemType, string][] = [["Feature", "FEATURE"], ["Enhancement", "ENHANCEMENT"], ["Task", "TASK"], ["Bug", "BUG"], ["Tech Debt", "TECH_DEBT"]];
+const TYPE: [ItemType, string][] = [["Feature", "FEATURE"], ["Enhancement", "ENHANCEMENT"], ["Task", "TASK"], ["Bug", "BUG"], ["Ticket", "TICKET"], ["Tech Debt", "TECH_DEBT"]];
 const KIND: [WorkKind, string][] = [["Backend", "BACKEND"], ["Frontend", "FRONTEND"], ["Mobile", "MOBILE"], ["Testing", "TESTING"], ["Design", "DESIGN"]];
 
 function from<T extends string>(table: [T, string][], value: unknown, fallback: T): T {
@@ -45,6 +45,8 @@ export const typeFromApi = (v: unknown): ItemType | undefined => (v == null ? un
 export const typeToApi = (v: ItemType | undefined) => (v ? to(TYPE, v) : undefined) ?? "TASK";
 /** A team name as the backend writes a kind: capitals, words joined by "_" (Product Management -> PRODUCT_MANAGEMENT). */
 const kindWire = (name: string) => name.trim().replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "").toUpperCase();
+/** A team as saved on a record, shown under its current name (follows renames). */
+const shownTeam = (name: string) => resolveTeam(name, useTeamStore.getState().renames);
 const teamNames = () => {
   const { renames, deleted, custom } = useTeamStore.getState();
   return teamOptions(usersStore.read(), [], { renames, deleted, custom });
@@ -170,7 +172,7 @@ export function itemFromApi(raw: Rec, codeById?: ReadonlyMap<number, string>): B
     owner: owner ?? "Unassigned",
     sprint: sprint ?? "Unplanned",
     ...(podId != null && podId !== "" ? { podId: String(podId) } : {}),
-    comments: 0,
+    comments: Number(raw.commentCount ?? 0) || 0,
     deadline: day(raw.expectedDeadline),
     ...(raw.hidden ? { hidden: true } : {}),
     ...(text(raw.description) ? { description: text(raw.description) } : {}),
@@ -180,13 +182,21 @@ export function itemFromApi(raw: Rec, codeById?: ReadonlyMap<number, string>): B
     ...(leadUserId != null ? { leadId: String(leadUserId) } : {}),
     ...(assigneeUserIds.length ? { assigneeIds: assigneeUserIds.map(String) } : {}),
     ...(raw.leadDeadline ? { leadDeadline: day(raw.leadDeadline) } : {}),
+    ...(raw.readyForQaDate ? { readyForQaDate: day(raw.readyForQaDate) } : {}),
+    ...(text(raw.parentCode) ? { parent: text(raw.parentCode) } : {}),
     ...(typeFromApi(raw.type) ? { type: typeFromApi(raw.type) } : {}),
     ...(raw.createdAt ? { created: day(raw.createdAt), createdAt: String(raw.createdAt) } : {}),
     ...(raw.updatedAt ? { updatedAt: String(raw.updatedAt) } : {}),
     ...(personOf(raw.createdBy, raw.createdById) ? { createdBy: personOf(raw.createdBy, raw.createdById) } : {}),
+    ...((rec(raw.createdBy)?.id ?? raw.createdById) != null ? { createdById: String(rec(raw.createdBy)?.id ?? raw.createdById) } : {}),
+    ...(text(raw.createdByTeam) ? { createdByTeam: shownTeam(text(raw.createdByTeam)!) } : {}),
+    ...(text(raw.assignedTeam) ? { assignedTeam: shownTeam(text(raw.assignedTeam)!) } : {}),
     ...(lastUpdater(raw) ? { updatedBy: lastUpdater(raw) } : {}),
     ...(raw.completedAt ? { completed: day(raw.completedAt) } : {}),
+    ...(raw.reopenedAt ? { reopenedAt: day(raw.reopenedAt) } : {}),
+    ...(raw.completedFrom ? { completedFrom: statusFromApi(raw.completedFrom) } : {}),
     ...(carriedFrom ? { carriedFrom } : {}),
+    ...(rec(raw.ticketStats) ? { ticketStats: { total: Number(rec(raw.ticketStats)!.total) || 0, done: Number(rec(raw.ticketStats)!.done) || 0, codes: list(rec(raw.ticketStats)!.codes).map(String) } } : {}),
     ...(list(rec(raw.history)?.sprintIds).length ? { historySprintIds: list(rec(raw.history)?.sprintIds).map((id) => (id == null ? null : String(id))) } : {}),
     ...(typeof raw.canLeadEdit === "boolean" ? { canLeadEdit: raw.canLeadEdit } : {}),
     ...(typeof raw.readOnly === "boolean" ? { readOnly: raw.readOnly } : {}),
@@ -198,15 +208,20 @@ export function itemFromApi(raw: Rec, codeById?: ReadonlyMap<number, string>): B
       const at = typeof when === "string" && /T\d{2}:\d{2}/.test(when) && !Number.isNaN(Date.parse(when)) ? when : undefined;
       // Who did it: whichever of the backend's person fields is present (an object with a name, a name, or a user id looked up in the users).
       const by = personIn(entry);
-      return message ? [{ date: day(when), ...(at ? { at } : {}), text: message, ...(by ? { by } : {}) }] : [];
+      const r = rec(entry?.reopen);
+      const reopen = r ? { kind: r.kind === "Ticket" ? ("Ticket" as const) : ("Task" as const), by: text(r.byName) ?? by ?? "Someone", byId: String(r.byId ?? ""), at: text(r.at) ?? "", from: statusFromApi(r.from), to: statusFromApi(r.to), ...(text(r.comment) ? { comment: text(r.comment) } : {}) } : undefined;
+      return message ? [{ date: day(when), ...(at ? { at } : {}), text: message, ...(by ? { by } : {}), ...(reopen ? { reopen } : {}) }] : [];
     }),
   };
 }
 
 /** Remembers the loaded tasks so codes can be turned into ids and back. */
 export function rememberItems(items: BacklogItemData[]) {
-  directory.itemsByCode = new Map(items.map((i) => [i.id, i]));
-  directory.itemsByApiId = new Map(items.flatMap((i) => (i.apiId != null ? [[i.apiId, i] as [number, BacklogItemData]] : [])));
+  // Tickets are not in the Backlog list (they are read inside their task), so what was learned about them is kept when the list is replaced.
+  const tickets = [...directory.itemsByCode.values()].filter((i) => i.type === "Ticket" && !items.some((n) => n.id === i.id));
+  const all = [...items, ...tickets];
+  directory.itemsByCode = new Map(all.map((i) => [i.id, i]));
+  directory.itemsByApiId = new Map(all.flatMap((i) => (i.apiId != null ? [[i.apiId, i] as [number, BacklogItemData]] : [])));
 }
 
 /** Adds one task (just created or re-read) to what the services remember. */

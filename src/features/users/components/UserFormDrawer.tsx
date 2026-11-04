@@ -6,7 +6,7 @@ import ConfirmDeleteDrawer from "@/features/backlog/components/ConfirmDeleteDraw
 import { useTeamStore } from "@/stores/teamStore";
 import { useUsers } from "../hooks/useUsers";
 import { PasswordField } from "@/components/ui/PasswordField";
-import { checkNewPassword, generatePassword } from "@/lib/auth/passwordRules";
+import { checkNewPassword } from "@/lib/auth/passwordRules";
 import { EmailField } from "@/components/ui/EmailInput";
 import { SelectField, TextField } from "@/components/ui/FormControls";
 import { useToast } from "@/components/ui/Toast";
@@ -120,7 +120,7 @@ export default function UserFormDrawer({ user, isSelf = false, onSaved, onCreate
         });
         toast.show(`${name.trim() || user.name} updated`);
       } else {
-        const created = (createdUser = await userService.createUser({ name: name.trim(), email: addr, role: ownerMode ? "User" : role, status: ownerMode ? "Enabled" : defaultOrChosen(role, status), ...(chosenTeam ? { team: chosenTeam } : {}), password: ownerMode ? generatePassword() : DEFAULT_INITIAL_PASSWORD }));
+        const created = (createdUser = await userService.createUser({ name: name.trim(), email: addr, role: ownerMode ? "User" : role, status: ownerMode ? "Enabled" : defaultOrChosen(role, status), ...(chosenTeam ? { team: chosenTeam } : {}), password: DEFAULT_INITIAL_PASSWORD }));
         toast.show(`${created.name ?? name.trim()} added`);
       }
     } catch (err) {

@@ -4,16 +4,16 @@
 
 /* Theme tokens. Light is the default; `.dark` on <html> switches to dark. */
 :root {
-  --background: #f6f7fb;
-  --foreground: #0f1226;
+  --background: #f4f6fa;
+  --foreground: #111827;
   --surface: #ffffff;
-  --border: #e4e7ef;
-  --muted: #5b6178;
-  --hover: #eef0f8;
+  --border: #dde2ec;
+  --muted: #5a6478;
+  --hover: #edf0f6;
   --row-hover: color-mix(in srgb, var(--muted) 20%, transparent); /* the grey a table row takes on hover (20% of the muted text colour) */
-  --accent: #425df3; /* logo blue */
+  --accent: #3a54d4; /* logo blue, a little deeper for text and controls (6.2:1 on white) */
   --accent-foreground: #ffffff;
-  --accent-soft: #eef1ff; /* 4.5:1 with the accent text on it (the old #e8ecff gave 4.4:1) */
+  --accent-soft: #eaeefb; /* 5.3:1 with the accent text on it */
   /* Form feedback: errors and the "this field is valid" state. */
   --danger: #dc2626;
   --danger-text: #b91c1c;
@@ -25,10 +25,10 @@
   /* The one colour of the primary buttons' hover effect: grey (a mid grey on the light theme, a lighter one on dark, both keeping the white label readable). */
   --btn-fx: #6b7280;
   /* Brand gradient (primary buttons, card borders on the sign-in screens). */
-  --brand-from: #4152e0;
-  --brand-to: #00b8f0;
-  --brand-border-gradient: linear-gradient(135deg, #00c5f6, #425df3, #182b96, #425df3, #00c5f6); /* the sign-in card border; */
-  --shadow-card: 0 10px 30px -12px rgb(30 40 90 / 0.18);
+  --brand-from: #3447c9;
+  --brand-to: #0ea5d9;
+  --brand-border-gradient: linear-gradient(135deg, #0ea5d9, #3a54d4, #1e2a8a, #3a54d4, #0ea5d9); /* the sign-in card border; */
+  --shadow-card: 0 10px 30px -12px rgb(17 24 39 / 0.16);
   /* Elevation by role, so every floating layer reads the same: tooltips, menus and dropdowns, modals and side panels. */
   --elev-tip: 0 4px 12px -4px rgb(20 30 70 / 0.2), 0 1px 3px rgb(20 30 70 / 0.08);
   --elev-menu: 0 14px 30px -10px rgb(20 30 70 / 0.24), 0 2px 6px -2px rgb(20 30 70 / 0.1);
@@ -42,15 +42,15 @@
 }
 
 .dark {
-  --background: #141b2b;
-  --foreground: #eceffd;
-  --surface: #1b2438;
-  --border: #2c3856;
-  --muted: #9aa8c7;
-  --hover: #232e47;
+  --background: #111827;
+  --foreground: #e8ecf4;
+  --surface: #1a2234;
+  --border: #2a3650;
+  --muted: #9aa6bd;
+  --hover: #222c42;
   --accent: #00c5f6; /* logo cyan */
   --accent-foreground: #061024;
-  --accent-soft: #14304f;
+  --accent-soft: #15304c;
   --danger: #ef4444;
   --danger-text: #fecaca;
   --success: #34d399;
@@ -69,6 +69,9 @@
 
 /* Tailwind's own `transition-*` and `animate-*` utilities follow the same standards. */
 @theme {
+  /* One corner-radius scale for the whole app: controls 8px (lg), cards and inputs 10px (xl), panels, menus and modals 12px (2xl); pills are fully round. */
+  --radius-xl: 0.625rem;
+  --radius-2xl: 0.75rem;
   --default-transition-duration: 150ms;
   --default-transition-timing-function: ease-out;
   --animate-spin: spin 800ms linear infinite;
@@ -203,6 +206,11 @@ body {
 .drawer::backdrop { animation: fade-in var(--menu-transition-duration) var(--ease-standard) backwards; }
 .drawer[data-closing] { animation: drawer-out var(--modal-transition-duration) var(--ease-standard) forwards; }
 .drawer[data-closing]::backdrop { animation: fade-out var(--menu-transition-duration) var(--ease-standard) forwards; }
+/* Behind every centred form and small dialog the page is blurred as well as dimmed. */
+dialog:not(.drawer)::backdrop { backdrop-filter: blur(4px); }
+/* A small form (centred card): it fades out like the other small dialogs instead of sliding. */
+.compact-modal[data-closing] { animation: fade-out var(--menu-transition-duration) var(--ease-standard) forwards; }
+.compact-modal[data-closing]::backdrop { animation: fade-out var(--menu-transition-duration) var(--ease-standard) forwards; }
 /* Other dialogs (the password notice, the task history modal): a short rise and fade, with the backdrop fading in on its own. */
 dialog:not(.drawer)[open] { animation: modal-in var(--modal-transition-duration) var(--ease-standard) backwards; }
 dialog:not(.drawer)[open]::backdrop { animation: fade-in var(--menu-transition-duration) var(--ease-standard) backwards; }
@@ -385,8 +393,7 @@ textarea[data-missing] {
 .auth-card:focus-within {
   box-shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 30px 70px -22px color-mix(in srgb, var(--brand-to) 55%, transparent);
 }
-.auth-card-body { background: linear-gradient(180deg, #ffffff, #f8fafc); }
-.dark .auth-card-body { background: linear-gradient(180deg, #1f2a3a, #1b2430); }
+.auth-card-body { background: linear-gradient(180deg, var(--surface), color-mix(in srgb, var(--surface) 94%, var(--background))); }
 /* A short brand-gradient bar under the card title ties the card to the logo. */
 .auth-title::after {
   content: "";
@@ -418,18 +425,18 @@ textarea[data-missing] {
 /* ------------------------------------------------------------------ */
 .field {
   border: 1px solid var(--border);
-  border-radius: 0.875rem;
+  border-radius: var(--radius-xl);
   background-color: color-mix(in srgb, var(--surface) 70%, var(--background));
   transition: border-color var(--input-transition-duration) var(--ease-out), box-shadow var(--input-transition-duration) var(--ease-out), background-color var(--input-transition-duration) var(--ease-out);
 }
 .field:hover:not(:disabled):not([readonly]) {
-  border-color: color-mix(in srgb, var(--brand-to) 55%, var(--border));
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
 }
 .field:focus,
 .field:focus-visible {
   outline: none;
-  border-color: var(--brand-to);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-to) 20%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 .field:disabled,
 .field[readonly] {
@@ -507,6 +514,8 @@ button[class*="hover:bg-hover"]:not(:disabled):hover {
 :where(button):disabled {
   cursor: not-allowed;
 }
+/* One disabled look for every control: the same dimming and no hover reaction (this sheet is outside Tailwind's layers, so it also settles the 50/55/60% each component used to pick). */
+:where(button, select, input, textarea):disabled { opacity: 0.55; }
 /* Every enabled button eases the same properties (Tailwind's transition-colors alone leaves out the press), and sinks a little in 100ms while pressed; it
    comes back in the hover duration. Unlayered, so it wins over the utility classes the buttons carry. */
 button:not(:disabled) {
@@ -591,4 +600,31 @@ input[type="radio"] {
   table.rt > tbody > tr > [data-actions] { grid-column: 2; grid-row: 1; justify-content: flex-end; align-self: start; }
   table.rt > tbody > tr > [data-primary]::before, table.rt > tbody > tr > [data-actions]::before { content: none; }
   table.rt > tbody > tr > [data-primary] + :is(td, th):not([data-actions]) { border-top: 1px solid var(--border); padding-top: 0.5rem; margin-top: 0.125rem; }
+}
+
+/* A task card with unread notifications flashes: a soft accent glow pulses over the card (a layer on top, so the card's own priority tint stays what it is underneath). With reduced motion it keeps a faint steady glow instead. */
+@keyframes card-flash {
+  50% { opacity: 0.16; }
+}
+.card-flash { position: relative; }
+.card-flash::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--flash, var(--accent));
+  opacity: 0;
+  pointer-events: none;
+  animation: card-flash 1.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-flash::after { animation: none; opacity: 0.07; }
+}
+/* The same flash on a list row with unread notifications: the glow pulses over each cell (the row's own priority tint stays underneath). */
+@keyframes row-flash {
+  50% { background-color: color-mix(in oklab, var(--flash, var(--accent)) 16%, transparent); }
+}
+.row-flash > td { animation: row-flash 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .row-flash > td { animation: none; background-color: color-mix(in oklab, var(--flash, var(--accent)) 7%, transparent); }
 }

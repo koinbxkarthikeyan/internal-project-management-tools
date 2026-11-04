@@ -93,7 +93,7 @@ export default function SprintItemsTable({ items, onOpen, onView, onStep, onDrop
               draggable={draggable}
               // A row that can be dragged to another sprint says so on hover (not while something is being dragged, and not on rows that can't move).
               onMouseEnter={(e) => {
-                if (draggable && onDragItem && !draggingId && item.status !== "Completed") {
+                if (draggable && onDragItem && !draggingId && item.status !== "Done") {
                   dragTip.show(item.sprint === "Unplanned" ? "Drag and drop this task into an eligible sprint." : "Drag and drop this task into another eligible sprint or Backlog.", e);
                 }
               }}

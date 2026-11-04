@@ -14,7 +14,10 @@ import AssigneeField, { cleanAssignees } from "./AssigneeField";
 import BacklogDrawer from "./BacklogDrawer";
 import LeadSelect from "./LeadSelect";
 import OwnerSelect from "./OwnerSelect";
+import TaskFamily from "@/features/work/components/TaskFamily";
+import ParentField from "./ParentField";
 import TaskPlacementFields, { placementFromItem, placementToItem, type Placement } from "./TaskPlacementFields";
+import { EXPECTED_ETA } from "@/constants/eta";
 
 type EditBacklogDrawerProps = {
   item: BacklogItemData;
@@ -31,7 +34,7 @@ const TRACKED: [keyof BacklogItemData, string][] = [
   ["deadline", "deadline"],
   ["owner", "owner"],
   ["lead", "lead"],
-  ["leadDeadline", "lead deadline"],
+  ["leadDeadline", "developer ETA (Estimated Time of Arrival)"],
 ];
 
 const norm = (v: unknown) => (v == null ? "" : String(v).trim());
@@ -41,7 +44,7 @@ function differs(draft: BacklogItemData, placement: Placement, base: BacklogItem
   const placed = placementToItem(placement, { sprint: base.sprint, podId: base.podId });
   const commenting = draft.status !== base.status || draft.status === "Blocked" || draft.status === "On hold";
   return (
-    (["title", "description", "status", "type", "priority", "deadline", "owner", "lead", "leadDeadline", "notes", "created", "completed"] as const).some((k) => norm(draft[k]) !== norm(base[k])) ||
+    (["title", "description", "status", "type", "parent", "priority", "deadline", "owner", "lead", "leadDeadline", "notes", "created", "completed"] as const).some((k) => norm(draft[k]) !== norm(base[k])) ||
     placed.sprint !== base.sprint ||
     norm(placed.podId) !== norm(base.podId) ||
     cleanAssignees(draft.assignees ?? "") !== cleanAssignees(base.assignees ?? "") ||
@@ -110,6 +113,7 @@ export default function EditBacklogDrawer({ item, onSave, onClose }: EditBacklog
 
   return (
     <BacklogDrawer
+      side
       heading={
         <span className="flex items-center gap-2 text-xs font-medium text-muted">
           {base.title}
@@ -130,21 +134,22 @@ export default function EditBacklogDrawer({ item, onSave, onClose }: EditBacklog
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
         <SelectField label="Status" value={draft.status} onChange={(v) => set("status", v as Status)} options={statusOptions} />
-        <SelectField label="Type" value={draft.type ?? ""} onChange={(v) => set("type", v as ItemType)} options={ITEM_TYPES} placeholder="Choose type" />
+        <SelectField label="Type" value={draft.type ?? ""} onChange={(v) => setDraft((d) => ({ ...d, type: v as ItemType, parent: "" }))} options={ITEM_TYPES} placeholder="Choose type" />
+        <ParentField type={draft.type} value={draft.parent ?? ""} onChange={(v) => set("parent", v)} selfId={base.id} />
         <TaskPlacementFields value={placement} onChange={setPlacement} current={{ sprint: base.sprint, podId: base.podId }} />
         <SelectField label="Priority" value={draft.priority} onChange={(v) => set("priority", v as Priority)} options={PRIORITIES} />
-        <TextField label="Expected deadline" type="date" value={draft.deadline} onChange={(v) => set("deadline", v)} />
+        <TextField label={EXPECTED_ETA} type="date" value={draft.deadline} onChange={(v) => set("deadline", v)} />
         <LeadSelect value={draft.lead ?? ""} onChange={(v) => setDraft((d) => ({ ...d, lead: v, ...(v !== (d.lead ?? "") ? { leadDeadline: "" } : {}) }))} />
       </div>
 
       {commenting && (
         <TextAreaField
-          label={needsReason ? "Why is it blocked or on hold?" : "Comment (optional)"}
+          label={needsReason ? "Why is it blocked or on hold?" : "Comment"}
           required={needsReason}
           invalid={needsReason && !reason.trim()}
           value={reason}
           onChange={(v) => set("blockedReason", v)}
-          placeholder={needsReason ? "What's it waiting on, and who can unblock it?" : "Add a note about this status change"}
+          placeholder={needsReason ? "What's it waiting on, and who can unblock it?" : "What did you do? Add a note about this status change"}
         />
       )}
 
@@ -156,7 +161,8 @@ export default function EditBacklogDrawer({ item, onSave, onClose }: EditBacklog
         <TextField label="Completed" type="date" value={draft.completed ?? ""} onChange={(v) => set("completed", v)} />
       </div>
 
-      <div className="border-t border-border pt-3">
+      <div className="flex flex-col gap-4 border-t border-border pt-3">
+        <TaskFamily item={base} skipTickets />
         <ActivityTimeline compact item={base} activity={base.activity} />
       </div>
     </BacklogDrawer>

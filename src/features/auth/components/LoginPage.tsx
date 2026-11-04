@@ -4,17 +4,18 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ACCOUNT_DISABLED_PATH, DEFAULT_REDIRECT } from "@/constants/auth";
 import { AFTER_LOGIN_KEY, OVERVIEW_HREF } from "@/constants/work";
-import { peekLoginHandoff, signOut, type DeniedReason, type StartLoginResult } from "@/lib/auth/authService";
+import { needsSetup, peekLoginHandoff, signOut, type DeniedReason } from "@/lib/auth/authService";
 import { useAuth } from "../hooks/useAuth";
 import AccessNotGranted from "./AccessNotGranted";
 import AuthShell from "./AuthShell";
 import EmailStep from "./EmailStep";
-import OtpStep from "./OtpStep";
 import PasswordStep from "./PasswordStep";
+import ImportBrowserData from "./ImportBrowserData";
+import SetupStep from "./SetupStep";
 
 type Step =
   | { kind: "email"; email: string }
-  | { kind: "otp"; result: Extract<StartLoginResult, { ok: true }> }
+  | { kind: "setup" }
   | { kind: "password"; email: string }
   | { kind: "denied"; email: string; reason: DeniedReason };
 
@@ -27,6 +28,17 @@ export default function LoginPage() {
     handoff?.email && handoff.withPassword ? { kind: "password", email: handoff.email } : { kind: "email", email: handoff?.email ?? "" },
   );
   const notice = handoff?.notice ?? "";
+
+  // An empty app has no accounts: the first visit creates the first Super Admin instead of asking for an email.
+  useEffect(() => {
+    let cancelled = false;
+    void needsSetup().then((needed) => {
+      if (needed && !cancelled) setStep({ kind: "setup" });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Once signed in (just now, or already), go to Overview.
   useEffect(() => {
@@ -62,7 +74,7 @@ export default function LoginPage() {
 
   if (step.kind === "password") {
     return (
-      <AuthShell title="Enter your password" description="Admins sign in with their email and password.">
+      <AuthShell title="Enter your password" description="Sign in with your email and password.">
         {notice && step.email === handoff?.email && (
           <p role="status" className="mb-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
             {notice}
@@ -76,15 +88,11 @@ export default function LoginPage() {
     );
   }
 
-  if (step.kind === "otp") {
+  if (step.kind === "setup") {
     return (
-      <AuthShell title="Enter your code" description="Check your inbox for the 6-digit code.">
-        <OtpStep
-          email={step.result.email}
-          initialDemoCode={step.result.demoCode}
-          initialResendAt={step.result.resendAvailableAt}
-          onChangeEmail={() => setStep({ kind: "email", email: step.result.email })}
-        />
+      <AuthShell title="Set up the app" description="No one has an account yet. Create the first account, a Super Admin; it can then add everyone else.">
+        <ImportBrowserData />
+        <SetupStep />
       </AuthShell>
     );
   }
@@ -96,7 +104,7 @@ export default function LoginPage() {
           {notice}
         </p>
       )}
-      <EmailStep initialEmail={step.email} onSent={(result) => setStep(result.next === "PASSWORD" ? { kind: "password", email: result.email } : { kind: "otp", result })}
+      <EmailStep initialEmail={step.email} onSent={(result) => setStep({ kind: "password", email: result.email })}
         onDenied={(email, reason) => setStep({ kind: "denied", email, reason })}
       />
     </AuthShell>

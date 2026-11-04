@@ -15,7 +15,10 @@ import BacklogHeader from "./BacklogHeader";
 import BacklogList from "./BacklogList";
 import StatusCards from "./StatusCards";
 import BacklogViewTabs, { type BacklogView } from "./BacklogViewTabs";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import * as backlogService from "@/services/backlogService";
 import ConfirmDeleteDrawer from "./ConfirmDeleteDrawer";
+import RemoveHiddenDialog from "./RemoveHiddenDialog";
 import EditBacklogDrawer from "./EditBacklogDrawer";
 
 const STATIC_FILTER_OPTIONS = {
@@ -24,7 +27,9 @@ const STATIC_FILTER_OPTIONS = {
 };
 
 export default function BacklogPage() {
-  const { owners, sprintNames, items, hiddenItems, itemsPaging, updateItem, deleteItem, hideItem, restoreItem } = useBacklog();
+  const { owners, sprintNames, items, hiddenItems, itemsPaging, updateItem, deleteItem, hideItem, restoreItem, refreshItems } = useBacklog();
+  const { isAdmin } = useAuth();
+  const [removingHidden, setRemovingHidden] = useState(false);
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [editing, setEditing] = useState<BacklogItemData | null>(null);
   const [deleting, setDeleting] = useState<BacklogItemData | null>(null);
@@ -92,8 +97,13 @@ export default function BacklogPage() {
       <BacklogHeader />
       <StatusCards items={matching} selected={filters.status} onSelect={(status) => setFilters({ ...filters, status })} partial={!itemsPaging.complete} partialTotal={otherFilters ? undefined : itemsPaging.totalShown} />
       <BacklogFilters filters={filters} onChange={setFilters} options={{ ...STATIC_FILTER_OPTIONS, owner: owners, sprint: sprintNames.map((n) => ({ value: n, label: sprintLabel(n) })) }} />
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <BacklogViewTabs view={view} onChange={setView} counts={counts} />
+        {isAdmin && view === "hidden" && counts.hidden > 0 && (
+          <button type="button" onClick={() => setRemovingHidden(true)} className="h-9 rounded-lg border border-red-500/40 px-3 text-sm font-medium text-red-700 transition-colors hover:bg-red-500/10 focus-visible:outline-2 focus-visible:outline-red-600 dark:text-red-300">
+            Remove all hidden
+          </button>
+        )}
       </div>
       <BacklogList
         items={visible}
@@ -115,6 +125,7 @@ export default function BacklogPage() {
           key={deleting.id}
           title="Delete backlog item"
           name={deleting.title}
+          consequence={deleting.ticketStats && deleting.ticketStats.total > 0 ? `Its ${deleting.ticketStats.total} child ${deleting.ticketStats.total === 1 ? "Ticket" : "Tickets"}, with their comments and images, will be deleted with it.` : undefined}
           onClose={() => setDeleting(null)}
           onConfirm={() => {
             const target = deleting;
@@ -133,6 +144,18 @@ export default function BacklogPage() {
           onSave={async (saved) => {
             if (!(await updateItem(saved.id, saved))) return false;
             toast.show(`${saved.title} updated`);
+          }}
+        />
+      )}
+      {removingHidden && (
+        <RemoveHiddenDialog
+          count={counts.hidden}
+          onClose={() => setRemovingHidden(false)}
+          onConfirm={async () => {
+            const r = await backlogService.removeHiddenItems();
+            refreshItems();
+            setView("visible");
+            toast.show(`Removed ${r.tasks} hidden ${r.tasks === 1 ? "task" : "tasks"} and ${r.tickets} ${r.tickets === 1 ? "Ticket" : "Tickets"}${r.skipped ? `; ${r.skipped} in a closed sprint ${r.skipped === 1 ? "was" : "were"} kept` : ""}`);
           }}
         />
       )}

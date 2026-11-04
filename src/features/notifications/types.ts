@@ -26,6 +26,8 @@ export type NotificationEvent = {
   changes?: NotificationChange[];
   /** An optional ready-made sentence from the sender; the screen builds its own from the type and changes when it is absent. */
   message?: string;
+  /** For a comment notice: the comment it is about, so opening the notice goes to it. */
+  commentId?: string;
 };
 
 /** A notification as the bell shows it. */

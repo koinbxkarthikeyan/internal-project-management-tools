@@ -17,6 +17,7 @@ import { refreshUsers } from "@/lib/auth/userStore";
 import { changePassword } from "@/services/authApi";
 import { updateUser } from "@/services/userService";
 import { FieldError } from "@/components/ui/FieldError";
+import DataBackupCard from "./DataBackupCard";
 import PasswordChangeNotice from "./PasswordChangeNotice";
 
 const NEEDS_NEW = `Enter your new password (at least ${MIN_PASSWORD_LENGTH} characters) first.`;
@@ -39,7 +40,7 @@ const Problem = ({ text }: { text: string }) =>
 
 /** The signed-in user's own settings: their name and their password. */
 export default function SettingsPage() {
-  const { user, mustChangePassword: forced } = useAuth();
+  const { user, mustChangePassword: forced, isSuperAdmin } = useAuth();
   const toast = useToast();
   const router = useRouter();
 
@@ -257,6 +258,8 @@ export default function SettingsPage() {
           </footer>
         </form>
       </div>
+
+      {isSuperAdmin && !forced && <DataBackupCard />}
     </div>
   );
 }

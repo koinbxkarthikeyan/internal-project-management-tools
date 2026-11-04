@@ -4,8 +4,8 @@ import type { Meta, NotificationFilter, NotificationService } from "./service";
 import type { AppNotification } from "./types";
 
 /**
- * WebSocket mode: the server owns the notifications. REST gives the list (20 a page, newest first), the unread count and the read state; the WebSocket only brings new ones
- * in live; this file keeps one in-memory copy per person for the bell. Nothing is saved in the browser. Endpoints (all under the API base, with the user's token):
+ * The notifications of the signed-in person, read from the local data layer (src/lib/localApi): the list (20 a page, newest first), the unread count and the read state.
+ * This file keeps one in-memory copy per person for the bell. The requests are:
  *
  *   GET   /notifications/unread-count
  *   GET   /notifications?page=1&limit=20            and   GET /notifications?unread=true&page=1&limit=20
@@ -46,7 +46,7 @@ function merge(into: AppNotification[], more: AppNotification[]): AppNotificatio
 }
 
 export const serverNotificationService: NotificationService & {
-  /** A live event from the WebSocket (already turned into a notification): added once, counted unread. */
+  /** A notification that arrived while the app is open (already turned into a notification): added once, counted unread. */
   ingest(userId: string, n: AppNotification): void;
   /** Another device of this person read these (or everything): applied here without calling the server again. */
   applyRead(userId: string, ids: readonly string[] | "all"): void;

@@ -9,6 +9,7 @@ import * as userService from "@/services/userService";
 import type { AppUser, AssignableRole, AccessStatus } from "@/types/auth";
 import type { ItemType, Owner, Priority } from "@/types/backlog";
 import { DUPLICATE_TASK_MESSAGE, taskNameKey, taskNameTaken } from "@/features/backlog/taskNames";
+import { EXPECTED_ETA } from "@/constants/eta";
 
 /**
  * What each upload type is made of: its columns (the same labels, options and rules as the Create backlog, Create owner and
@@ -100,7 +101,7 @@ const UNPLANNED = "Unplanned";
 
 const backlog: BulkSpec = {
   label: "Backlog",
-  hint: "Each row creates one backlog item with the same fields and options as the Create backlog form. New items start as Backlog; the ID is given by the server. Owner, Lead and Team Members are optional here: leave them empty and nobody is assigned (the server decides whether it accepts an item without an owner).",
+  hint: "Each row creates one backlog item with the same fields and options as the Create backlog form. New items start as Backlog; the ID is given by the app. Owner, Lead and Team Members are optional here: leave them empty and nobody is assigned.",
   columns: [
     { key: "owner", label: "Owner", control: "pick", width: 190, emptyLabel: "No owner", create: "owner", options: ownerChoices },
     { key: "title", label: "Title", control: "text", required: true, width: 220, placeholder: "Short name for the work" },
@@ -108,7 +109,7 @@ const backlog: BulkSpec = {
     { key: "type", label: "Type", control: "select", required: true, width: 150, options: () => options(ITEM_TYPES) },
     { key: "priority", label: "Priority", control: "select", width: 130, options: () => options(["Not set", ...PRIORITIES.filter((p) => p !== "Not set")]) },
     { key: "sprint", label: "Sprint", control: "select", required: true, width: 170, options: (c) => c.sprintOptions },
-    { key: "deadline", label: "Expected deadline", control: "date", width: 160 },
+    { key: "deadline", label: EXPECTED_ETA, control: "date", width: 160 },
     { key: "lead", label: "Lead", control: "pick", width: 190, emptyLabel: "No lead", create: "member", options: memberChoices },
     { key: "assignees", label: "Team Members", control: "multi", width: 230, emptyLabel: "No team members", create: "member", options: memberChoices },
     { key: "notes", label: "Notes", control: "text", width: 200 },
@@ -141,7 +142,7 @@ const backlog: BulkSpec = {
     const memberNames = tokens(v.assignees ?? "").flatMap((t) => resolveOne(memberChoices(c), t)?.label ?? []);
     return backlogService.newItemBody({
       title: clean(v.title),
-      owner: ownerName ?? "Unassigned", // no owner chosen: the record carries no ownerId (the server accepts or refuses it)
+      owner: ownerName ?? "Unassigned", // no owner chosen: the record carries no ownerId
       priority: (v.priority || "Not set") as Priority,
       type: v.type as ItemType,
       status: "Open",
@@ -187,7 +188,7 @@ const ROLES: AssignableRole[] = ["Admin", "User"];
 
 const users: BulkSpec = {
   label: "Team Member",
-  hint: `Each row adds one team member, as Add Team Member does (only ${ALLOWED_DOMAINS_TEXT} addresses). No password is entered or shown here; new accounts get the standard initial password and Users sign in with an emailed code.`,
+  hint: `Each row adds one team member, as Add Team Member does (only ${ALLOWED_DOMAINS_TEXT} addresses). No password is entered or shown here; new accounts get the standard initial password and must choose their own when they first sign in.`,
   columns: [
     { key: "name", label: "Name", control: "text", required: true, width: 220, format: titleCase, placeholder: "e.g. Jordan Blake" },
     { key: "email", label: "Email", control: "text", required: true, width: 250, placeholder: `name@${ALLOWED_EMAIL_DOMAIN}`, format: (v) => v.toLowerCase(), liveProblem: (v) => emailProblem(v), optionsFor: emailSuggestions },

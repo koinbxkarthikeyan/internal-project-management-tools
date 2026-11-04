@@ -136,6 +136,9 @@ export async function readRows(file: File, type: BulkType, ctx: Ctx): Promise<Va
 
   const cols = columnsOf(type);
   const byHeader = new Map(cols.map((c) => [norm(c.label), c]));
+  // Sheets downloaded before the rename still say "Expected deadline".
+  const legacy = cols.find((c) => c.key === "deadline");
+  if (legacy) byHeader.set(norm("Expected deadline"), legacy);
   const at = new Map<number, Column>(); // sheet column number -> table column
   const unknown: string[] = [];
   ws.getRow(1).eachCell((cell, n) => {

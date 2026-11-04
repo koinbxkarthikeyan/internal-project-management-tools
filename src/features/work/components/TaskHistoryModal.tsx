@@ -12,6 +12,7 @@ import type { ActivityEntry, BacklogItemData, Sprint } from "@/types/backlog";
 import type { WorkEntry } from "@/types/work";
 import { formatDay, formatHours, plannedHours } from "../utils";
 import { sprintLabel } from "@/constants/backlog-options";
+import { DEVELOPER_ETA, EXPECTED_ETA } from "@/constants/eta";
 
 type TaskHistoryModalProps = {
   item: BacklogItemData;
@@ -91,12 +92,11 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
   }, [chain]);
 
   const teamOf = (name: string) => users.find((u) => u.name === name)?.team;
-  /** "Name (Team · email)": what is known about a person, for Owner / Lead / Assignees. */
+  /** "Name (Team)": what is shown about a person, for Owner / Lead / Assignees (no email, only the team). */
   const person = (name?: string) => {
     if (!name) return undefined;
     const u = users.find((x) => x.name.toLowerCase() === name.toLowerCase());
-    const extra = [u?.team, u?.email].filter(Boolean).join(" · ");
-    return extra ? `${name} (${extra})` : name;
+    return u?.team ? `${name} (${u.team})` : name;
   };
 
   const records = chain.map((t, index) => {
@@ -130,9 +130,11 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
               ["Assignees", item.assignees ? item.assignees.split(",").map((n) => person(n.trim())).filter(Boolean).join("; ") : undefined],
               ["Type", item.type],
               ["Sprint", item.sprint],
-              ["Expected deadline", item.deadline ? formatDeadline(item.deadline) : undefined],
-              ["Lead Deadline", item.leadDeadline ? formatDeadline(item.leadDeadline) : undefined],
-              ["Completed", item.completed ? formatDeadline(item.completed) : undefined],
+              [EXPECTED_ETA, item.deadline ? formatDeadline(item.deadline) : undefined],
+              [DEVELOPER_ETA, item.status === "Ready for QA" || item.status === "Testing" ? undefined : item.leadDeadline ? formatDeadline(item.leadDeadline) : undefined],
+              ["Ready for QA Date", item.readyForQaDate ? formatDeadline(item.readyForQaDate) : undefined],
+              [item.status === "Done" ? "Completed" : "Last completed", item.completed ? formatDeadline(item.completed) : undefined],
+              ["Reopened", item.status !== "Done" && item.reopenedAt ? formatDeadline(item.reopenedAt) : undefined],
               ["Created", whenOrUnavailable(item.created, item.createdAt)],
               ["Last updated", whenOrUnavailable(undefined, item.updatedAt)],
             ]
@@ -289,7 +291,7 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
             })}
           </ol>
           <p className="mt-3 text-xs text-muted">
-            Not available from the backend, so not shown: comments, the reason a task was carried over or moved, remaining work per sprint, and daily progress notes.
+            Not recorded by the app, so not shown: the reason a task was carried over or moved, remaining work per sprint, and daily progress notes.
           </p>
         </section>
     </>

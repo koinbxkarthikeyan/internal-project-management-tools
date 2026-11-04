@@ -2,14 +2,10 @@ import { apiClient, getErrorMessage } from "@/lib/apiClient";
 import { list, rec } from "./mappers";
 
 /**
- * The Bulk Upload calls: one request per tab, to the route for that tab, through the app's one Axios client (its base URL already ends in /api).
- *
- * ASSUMED CONTRACT (nothing in this project describes it; adjust here, and only here, to match the backend):
- *  - Request: the body is `{ rows: [...] }` (the backend rejects a bare array and any other top-level property), one record per row, each record exactly as
- *    the matching single-create call sends it (POST /items, /owners, /users), in row order, at most 200 rows per request.
- *  - Response: a non-2xx answer means nothing was saved. A 2xx answer means the rows were saved, except those it reports as failed, either as one result per
- *    row in the same order (`[{ ... }]` or `{ results: [...] }`, a failed one having `success: false`, `ok: false`, an `error`, or a 4xx/5xx `statusCode`), or as a
- *    list of `{ index, message }` under `failed`, `failures` or `errors` (index counted from 0).
+ * The Bulk Upload calls: one request per tab, to the route for that tab, answered by the local data layer (src/lib/localApi/handlers/bulk.ts).
+ *  - Request: the body is `{ rows: [...] }`, one record per row, each exactly as the matching single-create call sends it (POST /items, /owners, /users), in row order,
+ *    at most 200 rows per request.
+ *  - Response: `{ results: [...] }`, one result per row in the same order; a row that was refused has `success: false` and a `message`. The other rows are saved.
  */
 export type BulkKind = "backlog" | "owner" | "users";
 
@@ -28,7 +24,7 @@ function failureOf(item: unknown): string | undefined {
   const r = rec(item);
   if (!r) return undefined;
   const bad = r.success === false || r.ok === false || !!r.error || (Array.isArray(r.errors) && r.errors.length > 0) || (typeof r.statusCode === "number" && r.statusCode >= 400) || (typeof r.status === "string" && /^(fail|error)/i.test(r.status));
-  return bad ? (textOf(r.message) ?? textOf(r.error) ?? textOf(r.errors) ?? "The server did not save this row.") : undefined;
+  return bad ? (textOf(r.message) ?? textOf(r.error) ?? textOf(r.errors) ?? "This row could not be saved.") : undefined;
 }
 
 /** Reads what the server said about each row. An answer it cannot read as a failure list means every row was saved (it was a 2xx). */
@@ -43,7 +39,7 @@ export function readOutcome(data: unknown, sent: number): BulkOutcome {
       failed: listed.flatMap((entry) => {
         const e = rec(entry);
         const index = Number(e?.index ?? e?.row ?? e?.rowIndex);
-        return Number.isInteger(index) && index >= 0 && index < sent ? [{ index, message: textOf(e?.message) ?? textOf(e?.error) ?? "The server did not save this row." }] : [];
+        return Number.isInteger(index) && index >= 0 && index < sent ? [{ index, message: textOf(e?.message) ?? textOf(e?.error) ?? "This row could not be saved." }] : [];
       }),
     };
   }

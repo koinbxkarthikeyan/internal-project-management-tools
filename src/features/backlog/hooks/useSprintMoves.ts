@@ -19,7 +19,7 @@ export function useSprintMoves() {
   const sections = useMemo(() => orderedSections(sprints), [sprints]);
 
   /** Can this task be moved at all? Not once it is completed, and not out of a closed sprint. */
-  const movable = (item: BacklogItemData) => item.status !== "Completed" && !item.readOnly && sections.includes(item.sprint);
+  const movable = (item: BacklogItemData) => item.status !== "Done" && !item.readOnly && sections.includes(item.sprint);
   const canDrop = (item: BacklogItemData, section: string) => movable(item) && item.sprint !== section && canReceive(sprints, section);
 
   async function move(item: BacklogItemData, section: string): Promise<boolean> {

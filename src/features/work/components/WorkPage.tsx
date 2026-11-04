@@ -259,7 +259,7 @@ export default function WorkPage() {
 
   const rangeText =
     chosen.length === 1
-      ? `${chosen[0].name} sprint · ${formatDay(chosen[0].start)} to ${formatDay(chosen[0].end)}`
+      ? `${chosen[0].name} · ${formatDay(chosen[0].start)} to ${formatDay(chosen[0].end)}`
       : `${chosen.length} sprints · ${sprintNames}`;
 
   // Other Work and a ticked task are exclusive: any ticked task locks Other Work (a closed sprint locks it too).

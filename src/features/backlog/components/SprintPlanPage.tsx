@@ -174,12 +174,12 @@ export default function SprintPlanPage() {
   const running = sprints.filter((s) => s.name !== "Unplanned" && s.status !== "Closed");
   // Unplanned tasks: the open ones sit under the running sprint on Active Sprint, the completed ones have their own tab
   // (the Unplanned sprint record, or a stand-in while the backend sends none).
-  // Completed unplanned tasks are listed apart from the ones still open.
+  // Done unplanned tasks are listed apart from the ones still open.
   // The running sprint, and the sprints planned to follow it (waiting to start).
   const current = running.filter((s) => s.status === "Active");
   const planned = running.filter((s) => s.status !== "Active");
   const unplannedAll = allItems.filter((i) => i.sprint === "Unplanned");
-  const unplannedClosedCount = unplannedAll.filter((i) => i.status === "Completed").length;
+  const unplannedClosedCount = unplannedAll.filter((i) => i.status === "Done").length;
   const unplannedSprint: Sprint = sprints.find((s) => s.name === "Unplanned") ?? { id: "unplanned", name: "Unplanned" };
   const closed = sprints
     .filter((s) => s.name !== "Unplanned" && s.status === "Closed")
@@ -189,8 +189,8 @@ export default function SprintPlanPage() {
   // The running sprint's tasks for the Close Sprint tab: still open, and finished.
   const cur = current[0];
   const curItems = cur ? allItems.filter((i) => i.sprint === cur.name) : [];
-  const remaining = curItems.filter((i) => i.status !== "Completed");
-  const finished = curItems.filter((i) => i.status === "Completed");
+  const remaining = curItems.filter((i) => i.status !== "Done");
+  const finished = curItems.filter((i) => i.status === "Done");
 
   // Close Sprint is available only while there is a running sprint with tasks still open (the work to review before closing). Until the data has loaded
   // it is not available either: missing data is never read as "nothing to close". It is worked out from the current sprint and task data on every render.
@@ -310,7 +310,7 @@ export default function SprintPlanPage() {
           ))}
           <div className="flex flex-col gap-2">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Backlog (not completed)</h2>
-            <div className="grid gap-4">{renderSprint(unplannedSprint, current.length + planned.length, (i) => i.status !== "Completed")}</div>
+            <div className="grid gap-4">{renderSprint(unplannedSprint, current.length + planned.length, (i) => i.status !== "Done")}</div>
           </div>
         </section>
       </div>
@@ -335,7 +335,7 @@ export default function SprintPlanPage() {
               )}
             </>
           )}
-          <div className="grid gap-4">{renderSprint(unplannedSprint, running.length, (i) => i.status !== "Completed")}</div>
+          <div className="grid gap-4">{renderSprint(unplannedSprint, running.length, (i) => i.status !== "Done")}</div>
         </section>
       </div>
       {activeTab === "closed" && (
@@ -371,11 +371,11 @@ export default function SprintPlanPage() {
                   </dl>
                 )}
                 <div className="flex flex-col gap-1 border-b border-border px-5 pb-1 pt-3">
-                  <h3 className="text-sm font-semibold">Completed tasks <span className="font-normal text-muted">({finished.length})</span></h3>
+                  <h3 className="text-sm font-semibold">Done tasks <span className="font-normal text-muted">({finished.length})</span></h3>
                 </div>
                 <SprintItemsTable items={finished} onOpen={setViewing} onView={setViewing} readOnly carryNote={carryNote} />
                 <p className="px-5 py-3 text-sm text-muted">
-                  Closing ends this sprint today. Its finished tasks and logged hours stay in it as history. {remaining.length} unfinished {remaining.length === 1 ? "task is" : "tasks are"} handed on by the server when you close it; none is marked Completed.
+                  Closing ends this sprint today. Its finished tasks and logged hours stay in it as history. {remaining.length} unfinished {remaining.length === 1 ? "task is" : "tasks are"} carried over when you close it; none is marked Done.
                 </p>
               </section>
             )}
@@ -385,7 +385,7 @@ export default function SprintPlanPage() {
           {unplannedClosedCount > 0 && (
             <div className="flex flex-col gap-2">
               <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Closed Backlog Tasks</h2>
-              <div className="grid gap-4">{renderSprint(unplannedSprint, 0, (i) => i.status === "Completed")}</div>
+              <div className="grid gap-4">{renderSprint(unplannedSprint, 0, (i) => i.status === "Done")}</div>
             </div>
           )}
 

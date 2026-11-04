@@ -6,7 +6,7 @@ export type NotificationFilter = "all" | "unread";
 /** What a list carries besides its items: the real unread total (not just what is loaded), whether more pages exist, and what is shown. */
 export type Meta = { unread: number; hasMore: boolean; loading: boolean; error: boolean; filter: NotificationFilter };
 
-/** What the screens use. The one implementation is `serverService.ts` (the backend's REST API, with live additions from the WebSocket). */
+/** What the screens use. The one implementation is `serverService.ts` (the local data layer in src/lib/localApi). */
 export interface NotificationService {
   /** The person's notifications, newest first (the first page); rejects when the server cannot be reached. */
   list(userId: string): Promise<AppNotification[]>;

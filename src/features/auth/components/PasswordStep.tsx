@@ -17,12 +17,12 @@ type PasswordStepProps = {
 const linkButton =
   "text-sm font-medium text-accent hover:underline focus-visible:outline-2 focus-visible:outline-accent";
 
-/** Password sign-in for Super Admin and Admin (no one-time code). */
+/** Password sign-in, for every role. */
 export default function PasswordStep({ email, onChangeEmail }: PasswordStepProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  // A usability check only: Sign in waits for the minimum length; the backend still decides whether the password is right.
+  // A usability check only: Sign in waits for the minimum length; the saved account decides whether the password is right.
   const tooShort = password.length < MIN_PASSWORD_LENGTH;
   // Nothing is flagged when the step opens: an empty password is reported once the person has left the field (clicked or
   // tabbed outside the form) or tried to continue, and the message goes as soon as something is typed.

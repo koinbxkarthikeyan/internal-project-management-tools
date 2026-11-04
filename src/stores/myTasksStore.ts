@@ -16,7 +16,7 @@ type State = {
   reset: () => void;
 };
 
-const EMPTY: backlogService.MyTaskBuckets = { lead: [], assigned: [], unassigned: [] };
+const EMPTY: backlogService.MyTaskBuckets = { lead: [], assigned: [], unassigned: [], tickets: [] };
 
 let inflight: { scope: string; promise: Promise<void> } | null = null;
 

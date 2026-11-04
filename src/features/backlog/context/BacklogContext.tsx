@@ -8,7 +8,6 @@ import { useLiveTaskUpdates } from "../hooks/useLiveTaskUpdates";
 import { resolveTeam, useTeamStore } from "@/stores/teamStore";
 import { useWorkStore } from "@/stores/workStore";
 import { useBacklogStore } from "@/stores/backlogStore";
-import { socketEnabled } from "@/lib/socketClient";
 import { getErrorCode, getErrorMessage, getErrorStatus } from "@/lib/apiClient";
 import * as backlogService from "@/services/backlogService";
 import * as ownerService from "@/services/ownerService";
@@ -37,6 +36,8 @@ type BacklogContextValue = {
   status: LoadStatus;
   error: string;
   reload: () => void;
+  /** Reads the tasks again without the loading screen (after something outside the lists changed a task, like a Ticket being created). */
+  refreshItems: () => void;
 
   /** Items shown in the normal views (not hidden). */
   items: BacklogItemData[];
@@ -46,9 +47,9 @@ type BacklogContextValue = {
   nextId: string;
   addItem: (input: NewItemInput) => Promise<BacklogItemData | null>;
   updateItem: (id: string, patch: ItemPatch) => Promise<boolean>;
-  /** What the task's Lead may change from My Task: status, assigned users and the Lead Deadline. */
+  /** What the task's Lead may change from My Task: status, assigned users and the Developer ETA. */
   leadUpdateItem: (id: string, patch: Pick<ItemPatch, "status" | "assignees" | "leadDeadline"> & { comment?: string }) => Promise<boolean>;
-  /** My Task, normal users: a status change with the required work details (BACKEND-DEPENDENT, see backlogService.changeStatusWithDetails). */
+  /** My Task, normal users: a status change with the required work details (see backlogService.changeStatusWithDetails). */
   changeStatusWithDetails: (id: string, status: Status, details: string) => Promise<boolean>;
   deleteItem: (id: string) => Promise<boolean>;
   /** How much of the task list is loaded. The All Items table reads 10 tasks at a time; every other screen has the whole list. */
@@ -150,8 +151,8 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
     if (status === "ready" && !lazyItems && !itemsComplete) void completeItems(ctx);
   }, [status, lazyItems, itemsComplete, ctx, completeItems]);
 
-  // Status changes saved by other people arrive live (only when a socket URL is configured; see src/lib/socketClient.ts).
-  useLiveTaskUpdates(status === "ready");
+  // Changes saved from another tab of this browser are read again when they happen.
+  useLiveTaskUpdates(status === "ready", () => void refreshParts(["sprints", "items", "owners", "pods"], ctx));
 
   // A sprint closes by itself when its end date passes, so check the sprints now and then (every few minutes, and when the
   // tab comes back into view). Only if they changed are the tasks read again.
@@ -169,6 +170,7 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
   }, [status, ctx, syncSprints]);
 
   const reload = useCallback(() => void load(ctx, { force: true }), [ctx, load]);
+  const refreshItems = useCallback(() => void refreshParts(["items"], ctx), [ctx, refreshParts]);
 
   const loadedShown = all.filter((i) => !i.hidden).length;
   const loadedHidden = all.length - loadedShown;
@@ -194,7 +196,7 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
       ...s,
       podIds: s.name === "Unplanned" ? [] : [...new Set(all.filter((i) => i.sprint === s.name && i.podId).map((i) => i.podId as string))],
     }));
-    const maxId = all.reduce((m, i) => Math.max(m, Number(i.id.replace(/\D/g, "")) || 0), 0);
+    const maxId = all.reduce((m, i) => (i.id.startsWith("BLG-") ? Math.max(m, Number(i.id.replace(/\D/g, "")) || 0) : m), 0);
 
     // A task of a closed sprint is history: it can be viewed but not changed, hidden or deleted.
     const lockedBySprint = (id: string) => {
@@ -204,14 +206,12 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
       return closed;
     };
 
-    // A comment typed with a status change is saved with it, through the server's status-change call (BACKEND-DEPENDENT, see backlogService.changeStatusWithDetails).
-    // Where that isn't available the status still saves as before and the person is told the comment did not, never that it was kept.
-    const COMMENT_NOT_SAVED = "Status saved, but the comment was not: the server can't store a comment with a status change yet.";
+    // A comment typed with a status change is saved with it, in the task's activity (see backlogService.changeStatusWithDetails).
     const statusChangeOf = (id: string, status: Status | undefined, comment: string | undefined) => {
       const current = all.find((i) => i.id === id);
       const text = comment?.trim() ?? "";
       const changed = !!current && status !== undefined && status !== current.status && !!text;
-      return { text, changed, together: changed && socketEnabled };
+      return { text, changed, together: changed };
     };
 
     const updateItem = async (id: string, patch: ItemPatch) => {
@@ -229,7 +229,6 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
           saved = await backlogService.changeStatusWithDetails(id, patch.status!, change.text);
         } else {
           saved = await backlogService.updateItem(id, patch);
-          if (change.changed) toast.show(COMMENT_NOT_SAVED, "warning");
         }
         setAll((prev) => prev.map((i) => (i.id === id ? saved : i)));
         return true;
@@ -245,6 +244,7 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
       status,
       error,
       reload,
+      refreshItems,
 
       items: all.filter((i) => !i.hidden),
       hiddenItems: all.filter((i) => i.hidden),
@@ -273,7 +273,6 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
             saved = await backlogService.changeStatusWithDetails(id, fields.status!, change.text);
           } else {
             saved = await backlogService.updateItemAsLead(id, fields);
-            if (change.changed) toast.show(COMMENT_NOT_SAVED, "warning");
           }
           setAll((prev) => prev.map((i) => (i.id === id ? saved : i)));
           return true;
@@ -512,7 +511,7 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
       openCreate: () => setCreateOpen(true),
       closeCreate: () => setCreateOpen(false),
     };
-  }, [status, error, reload, all, itemsPaging, ownerList, rawSprints, allPods, createOpen, toast, ctx, refreshParts, setAll, setPods, setSprints, setOwnerList]);
+  }, [status, error, reload, refreshItems, all, itemsPaging, ownerList, rawSprints, allPods, createOpen, toast, ctx, refreshParts, setAll, setPods, setSprints, setOwnerList]);
 
   return <BacklogContext.Provider value={value}>{children}</BacklogContext.Provider>;
 }

@@ -4,7 +4,7 @@ const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "obj
 const text = (v: unknown, max: number): string | null => (typeof v === "string" && v.trim() !== "" && v.length <= max ? v : null);
 
 /**
- * Checks a notification event from outside (a WebSocket message, or anything not built here) and returns a clean copy, or null when it is not valid.
+ * Checks a notification event from outside (anything not built by the local data layer) and returns a clean copy, or null when it is not valid.
  * Only known fields are kept, so unexpected data never reaches the notification list. This is a shape check: who may receive an event is the server's job.
  */
 export function parseNotificationEvent(raw: unknown): NotificationEvent | null {
@@ -31,5 +31,6 @@ export function parseNotificationEvent(raw: unknown): NotificationEvent | null {
     }
   }
   const message = typeof raw.message === "string" && raw.message.length <= 500 ? raw.message : undefined;
-  return { eventId, type, taskId, taskCode, taskTitle, actor: { id: actor.id, name: actor.name }, recipientId, occurredAt, ...(changes?.length ? { changes } : {}), ...(message ? { message } : {}) };
+  const commentId = typeof raw.commentId === "string" && raw.commentId.length <= 20 ? raw.commentId : undefined;
+  return { eventId, type, taskId, taskCode, taskTitle, actor: { id: actor.id, name: actor.name }, recipientId, occurredAt, ...(changes?.length ? { changes } : {}), ...(message ? { message } : {}), ...(commentId ? { commentId } : {}) };
 }

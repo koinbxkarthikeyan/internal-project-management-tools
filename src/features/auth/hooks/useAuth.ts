@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { isQaTeam } from "@/lib/auth/qaTeam";
 import { sessionStore } from "@/lib/auth/sessionStore";
 import type { AppUser } from "@/types/auth";
 
@@ -12,6 +13,8 @@ export type Auth = {
   /** Admin or Super Admin with access Enabled: can create users and owners and manage users. */
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  /** Belongs to the QA team: sees the Ready for QA section and marks tested tasks Done. */
+  isQa: boolean;
   /** An Admin whose access is Disabled: signed out on the spot and shown the account-disabled page, never the application. */
   disabledAdmin: boolean;
   /** A normal User or a Disabled Admin: may only use "What are you working on? > My sprint / My Task" and Settings. */
@@ -45,5 +48,6 @@ export function useAuth(): Auth {
     mustChangePassword,
     isAdmin: !!user && (user.role === "Super Admin" || (user.role === "Admin" && !accountDisabled)),
     isSuperAdmin: !!user && user.role === "Super Admin",
+    isQa: !!user && !settingsOnly && !(user.role === "Admin" && accountDisabled) && isQaTeam(user.team),
   };
 }

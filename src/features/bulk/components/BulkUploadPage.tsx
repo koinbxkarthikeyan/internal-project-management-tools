@@ -333,7 +333,7 @@ export default function BulkUploadPage() {
           await refreshUsers(true);
           useUsersStore.getState().invalidateManaged();
         } else {
-          reload(); // read the new items / owners back from the server
+          reload(); // read the new items / owners back
         }
       }
       const label = (r: Row) => r.values.title || r.values.name || r.values.email || "Row";
@@ -588,7 +588,7 @@ export default function BulkUploadPage() {
         >
           <p className="text-sm">
             The file has <strong className="font-semibold">{importing.rows.length}</strong> {importing.rows.length === 1 ? NOUN[importing.tab][0] : NOUN[importing.tab][1]}, and the {BULK_SPECS[importing.tab].label} table already has{" "}
-            <strong className="font-semibold">{drafts[importing.tab].filter((r) => !isBlankValues(importing.tab, r.values)).length}</strong> entered. Nothing is sent to the server either way.
+            <strong className="font-semibold">{drafts[importing.tab].filter((r) => !isBlankValues(importing.tab, r.values)).length}</strong> entered. Nothing is saved until you create them.
           </p>
           <button
             type="button"
@@ -629,7 +629,7 @@ export default function BulkUploadPage() {
           onClose={() => setConfirming(false)}
         >
           <p className="text-sm">
-            You are about to create <strong className="font-semibold">{filled.length}</strong> {filled.length === 1 ? one : many}. They are saved one at a time, and any that the server refuses stay in the table with the reason.
+            You are about to create <strong className="font-semibold">{filled.length}</strong> {filled.length === 1 ? one : many}. They are saved one at a time, and any that are refused stay in the table with the reason.
           </p>
           <ul className="max-h-48 divide-y divide-border overflow-y-auto rounded-xl border border-border text-sm">
             {filled.map((r, i) => (

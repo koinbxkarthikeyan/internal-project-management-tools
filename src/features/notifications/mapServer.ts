@@ -2,7 +2,7 @@ import { NOTIFICATION_EVENT_TYPES, type AppNotification, type NotificationActor,
 import { parseNotificationEvent } from "./validate";
 
 /**
- * Turns what the notification server sends (REST rows and WebSocket payloads) into the shape the bell uses. The server's own field names are not fixed by this
+ * Turns the stored notification rows into the shape the bell uses. The row field names are not fixed by this
  * app, so the common spellings are accepted: a notification that already follows docs/backend-notifications.md is taken as it is, and anything else is read
  * field by field (`id`, `type`, `title` / `message`, `taskId`, `task: { id, code, title }`, `isRead` / `readAt`, `createdAt`, `actor`...). A row with no usable id is dropped.
  * The text the server wrote (`message` or `title`) is shown as it is.
@@ -65,6 +65,7 @@ export function notificationFromServer(raw: unknown, userId: string): AppNotific
     occurredAt: Number.isNaN(Date.parse(when)) ? new Date().toISOString() : when,
     ...(changes?.length ? { changes } : {}),
     ...(text ? { message: text } : {}),
+    ...(str(raw.commentId) ? { commentId: str(raw.commentId) } : {}),
     read,
     ...(readAt ? { readAt } : {}),
   };

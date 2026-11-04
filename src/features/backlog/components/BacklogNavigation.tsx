@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 import {
   CheckCircleIcon,
+  EyeIcon,
   FolderIcon,
   ListIcon,
   OverviewIcon,
@@ -26,6 +27,7 @@ const BACKLOG_ICONS: Record<BacklogNavId, IconType> = {
   overview: OverviewIcon,
   "all-items": ListIcon,
   "sprint-plan": SprintIcon,
+  "ready-for-qa": EyeIcon,
   completed: CheckCircleIcon,
   "owners-sprints": UsersIcon,
 };
@@ -67,16 +69,18 @@ export default function BacklogNavigation({ between }: BacklogNavigationProps) {
   const { status, items, itemsPaging, activeSprint } = useBacklog();
   const { isAdmin } = useAuth();
   const workspaceItems = NAV_ITEMS.filter((item) => (item.href === "/users" || item.href === "/bulk-upload") && isAdmin);
-  const completed = items.filter((i) => i.status === "Completed").length;
+  const completed = items.filter((i) => i.status === "Done").length;
+  const inQa = items.filter((i) => i.status === "Ready for QA" || i.status === "Testing").length;
   // The numbers in the menu are for the running sprint's tasks and the Backlog tasks (no planned, paused, closed or earlier sprints). Whether a list is empty (and so can't be opened)
   // is judged on every task, as before. Counts appear once the data has loaded; while only the first pages of All Items are loaded they wait for the full list.
   const mine = items.filter((i) => i.sprint === "Unplanned" || (!!activeSprint && i.sprint === activeSprint.name));
-  const mineCompleted = mine.filter((i) => i.status === "Completed").length;
+  const mineInQa = mine.filter((i) => i.status === "Ready for QA" || i.status === "Testing").length;
+  const mineCompleted = mine.filter((i) => i.status === "Done").length;
   const mineActive = mine.length - mineCompleted; // finished tasks are not active work
   const everything: Partial<Record<BacklogNavId, number>> =
-    status !== "ready" ? {} : itemsPaging.complete ? { overview: items.length - completed, "all-items": items.length, completed } : { "all-items": itemsPaging.totalShown };
+    status !== "ready" ? {} : itemsPaging.complete ? { overview: items.length - completed, "all-items": items.length, "ready-for-qa": inQa, completed } : { "all-items": itemsPaging.totalShown };
   const counts: Partial<Record<BacklogNavId, number>> =
-    status === "ready" && itemsPaging.complete ? { overview: mineActive, "all-items": mineActive, completed: mineCompleted } : {};
+    status === "ready" && itemsPaging.complete ? { overview: mineActive, "all-items": mineActive, "ready-for-qa": mineInQa, completed: mineCompleted } : {};
 
   return (
     <nav aria-label="Main" className="flex flex-col gap-2">

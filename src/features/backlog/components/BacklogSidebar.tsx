@@ -19,7 +19,7 @@ export default function BacklogSidebar() {
     summary = activeSprint ? `${activeSprint.name} active` : "No active sprint";
   } else if (status === "ready") {
     // Only the running sprint's tasks and the Backlog tasks that are still active: nothing from planned, paused, closed or earlier sprints, and no finished tasks.
-    const mine = items.filter((i) => i.status !== "Completed" && (i.sprint === "Unplanned" || (!!activeSprint && i.sprint === activeSprint.name)));
+    const mine = items.filter((i) => i.status !== "Done" && (i.sprint === "Unplanned" || (!!activeSprint && i.sprint === activeSprint.name)));
     const count = (fn: (s: string) => boolean) => mine.filter((i) => fn(i.status)).length;
     summary = [
       `${count((s) => s === "Open" || s === "In progress")} open`,

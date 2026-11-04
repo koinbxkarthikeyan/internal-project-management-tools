@@ -1,4 +1,4 @@
-import { getErrorMessage, getErrorStatus } from "@/lib/apiClient";
+import { apiClient, getErrorMessage, getErrorStatus } from "@/lib/apiClient";
 import * as authApi from "@/services/authApi";
 import type { AppUser } from "@/types/auth";
 import { validateEmail } from "./emailRules";
@@ -13,61 +13,32 @@ import { refreshUsers } from "./userStore";
 
 export { validateEmail };
 
-export type StartLoginResult =
-  | { ok: true; email: string; next: "PASSWORD" | "OTP"; resendAvailableAt: number; demoCode?: string }
-  | { ok: false; message: string; denied?: DeniedReason };
+export type StartLoginResult = { ok: true; email: string } | { ok: false; message: string; denied?: DeniedReason };
 
 /** Why a sign-in was refused outright. */
 export type DeniedReason = "not-registered";
 
-// The backend answers 403 "This email is not registered. Ask an admin to add you." for an unknown address.
 const NOT_REGISTERED = /not registered|isn't registered|no account/i;
 
-/**
- * Step 1: the backend says whether this email signs in with a password (Super Admin, Admin) or an emailed code (users),
- * and sends the code in the second case. Only `@koinbx.com` addresses are sent.
- */
+/** Step 1: the email must belong to an account. Only `@koinbx.com` and `@koinbazar.com` addresses are accepted. */
 export async function startLogin(rawEmail: string): Promise<StartLoginResult> {
   const check = validateEmail(rawEmail);
   if (!check.ok) return check;
   try {
-    const step = await authApi.signIn(check.email);
-    return {
-      ok: true,
-      email: check.email,
-      next: step.next,
-      resendAvailableAt: Date.now() + (step.resendInSeconds ?? 30) * 1000,
-      ...(step.devCode ? { demoCode: step.devCode } : {}),
-    };
+    await authApi.signIn(check.email);
+    return { ok: true, email: check.email };
   } catch (err) {
     const message = getErrorMessage(err);
-    const status = getErrorStatus(err);
-    if (status === 404 || NOT_REGISTERED.test(message)) return { ok: false, message, denied: "not-registered" };
+    if (getErrorStatus(err) === 404 || NOT_REGISTERED.test(message)) return { ok: false, message, denied: "not-registered" };
     return { ok: false, message };
   }
 }
 
-export type ResendResult = { ok: true; resendAvailableAt: number; demoCode?: string } | { ok: false; message: string; waitSeconds?: number };
-
-/** Asks the backend for a new code. Sending again within 30 seconds is refused with the time left. */
-export async function resendOtp(email: string): Promise<ResendResult> {
-  try {
-    const step = await authApi.resendOtp(email);
-    return { ok: true, resendAvailableAt: Date.now() + (step.resendInSeconds ?? 30) * 1000, ...(step.devCode ? { demoCode: step.devCode } : {}) };
-  } catch (err) {
-    const message = getErrorMessage(err);
-    const wait = getErrorStatus(err) === 429 ? Number(/(\d+)\s*s/i.exec(message)?.[1]) : NaN;
-    return { ok: false, message, ...(wait > 0 ? { waitSeconds: wait } : {}) };
-  }
-}
-
-export type CompleteLoginResult =
-  | { ok: true; user: AppUser }
-  | { ok: false; message: string; locked?: boolean; expired?: boolean };
+export type CompleteLoginResult = { ok: true; user: AppUser } | { ok: false; message: string; locked?: boolean };
 
 function failure(err: unknown): CompleteLoginResult {
   const message = getErrorMessage(err);
-  return { ok: false, message, locked: /too many|locked/i.test(message), expired: /expired|no code|request a new/i.test(message) };
+  return { ok: false, message, locked: /too many|locked/i.test(message) };
 }
 
 async function finish(login: authApi.Login): Promise<CompleteLoginResult> {
@@ -77,19 +48,22 @@ async function finish(login: authApi.Login): Promise<CompleteLoginResult> {
   return { ok: true, user: login.user };
 }
 
-/** Step 2 for users: the emailed code. The backend checks it (10 minutes, single use, 5 tries). */
-export async function completeLogin(email: string, code: string): Promise<CompleteLoginResult> {
+/** Step 2: email and password. */
+export async function completePasswordLogin(email: string, password: string): Promise<CompleteLoginResult> {
   try {
-    return await finish(await authApi.verifyOtp(email, code));
+    return await finish(await authApi.signInWithPassword(email, password));
   } catch (err) {
     return failure(err);
   }
 }
 
-/** Step 2 for Super Admin and Admin: email and password. */
-export async function completePasswordLogin(email: string, password: string): Promise<CompleteLoginResult> {
+/** On an empty app: whether the first Super Admin still has to be created. A failed check means "no" (the normal sign-in is shown). */
+export const needsSetup = () => authApi.getSetupStatus().catch(() => false);
+
+/** Creates the first Super Admin and signs them in. */
+export async function completeSetup(input: { name: string; email: string; password: string }): Promise<CompleteLoginResult> {
   try {
-    return await finish(await authApi.signInWithPassword(email, password));
+    return await finish(await authApi.createFirstAdmin(input));
   } catch (err) {
     return failure(err);
   }
@@ -105,8 +79,9 @@ export function resetSharedData() {
   useMyTasksStore.getState().reset();
 }
 
-/** Signing out is local: the token is dropped (the backend has no sign-out call) and nothing of this user is kept in the shared data. */
+/** Signing out ends the session on the server (the cookie is cleared), drops the saved login and keeps nothing of this user in the shared screens. */
 export function signOut() {
+  void apiClient.post("/auth/sign-out").catch(() => undefined);
   clearSession();
   resetSharedData();
 }
@@ -121,12 +96,12 @@ let handoff: LoginHandoff | null = null;
 export const peekLoginHandoff = (): LoginHandoff | null => handoff;
 
 /**
- * After the backend accepted a new password: sign out like the Sign out button does (token, session and cached data are
+ * After a new password was saved: sign out like the Sign out button does (token, session and cached data are
  * cleared) and leave a handoff for the login page. Admins sign in with a password, so the password step is offered
  * directly for the email they were using; everyone else gets the email step with their email filled in.
  */
 export function signOutAfterPasswordChange() {
   const user = sessionStore.read()?.user;
-  handoff = user ? { notice: PASSWORD_CHANGED_NOTICE, email: user.email, withPassword: user.role === "Super Admin" || user.role === "Admin" } : { notice: PASSWORD_CHANGED_NOTICE, email: "", withPassword: false };
+  handoff = user ? { notice: PASSWORD_CHANGED_NOTICE, email: user.email, withPassword: true } : { notice: PASSWORD_CHANGED_NOTICE, email: "", withPassword: false };
   signOut();
 }

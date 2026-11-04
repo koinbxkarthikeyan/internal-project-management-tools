@@ -3,14 +3,14 @@
 import { useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ACCOUNT_DISABLED_PATH, LOGIN_PATH } from "@/constants/auth";
-import { MY_TASK_HREF, OVERVIEW_HREF, WORK_HREF } from "@/constants/work";
+import { MY_TASK_HREF, OVERVIEW_HREF, READY_FOR_QA_HREF, WORK_HREF } from "@/constants/work";
 import { sessionStore } from "@/lib/auth/sessionStore";
 import { resetSharedData, signOut } from "@/lib/auth/authService";
 import { refreshUsers } from "@/lib/auth/userStore";
 import { getMe } from "@/services/authApi";
 import { useAuth } from "../hooks/useAuth";
 
-const isWorkPath = (pathname: string) => [OVERVIEW_HREF, WORK_HREF, MY_TASK_HREF, "/settings"].some((href) => pathname === href || pathname.startsWith(`${href}/`));
+const isWorkPath = (pathname: string, qa: boolean) => [OVERVIEW_HREF, WORK_HREF, MY_TASK_HREF, "/settings", ...(qa ? [READY_FOR_QA_HREF] : [])].some((href) => pathname === href || pathname.startsWith(`${href}/`));
 
 /**
  * Keeps the whole app behind the login:
@@ -22,12 +22,12 @@ const isWorkPath = (pathname: string) => [OVERVIEW_HREF, WORK_HREF, MY_TASK_HREF
  * - signed in with access Enabled: everything permitted is available.
  */
 export default function AuthGate({ children }: { children: ReactNode }) {
-  const { status, restricted, settingsOnly, disabledAdmin } = useAuth();
+  const { status, restricted, settingsOnly, disabledAdmin, isQa } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   // A normal User may only open Overview (their own), My sprint, My Task and Settings; a Disabled account may not be in the app at all.
   const onSettings = pathname === "/settings" || pathname.startsWith("/settings/");
-  const blocked = settingsOnly ? !onSettings : restricted && !isWorkPath(pathname);
+  const blocked = settingsOnly ? !onSettings : restricted && !isWorkPath(pathname, isQa);
 
   // Once signed in: refresh who I am (role / access may have changed) and the user list for the pickers. It is checked again
   // whenever the tab comes back into view (at most once a minute), so a change made by an administrator takes effect.

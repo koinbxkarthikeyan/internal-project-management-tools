@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from "react";
+import { useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
 import type { BacklogItemData } from "@/types/backlog";
 import { formatDeadline, initials } from "../utils";
 import { useBacklog } from "../context/BacklogContext";
+import ReopenedBadge from "./ReopenedBadge";
 import ActionsMenu from "@/components/ui/ActionsMenu";
 import { EyeIcon } from "@/components/ui/icons";
 import TaskHistoryModal from "@/features/work/components/TaskHistoryModal";
@@ -25,13 +26,15 @@ type BacklogItemProps = {
   item: BacklogItemData;
   /** When omitted the row is read-only (no deadline input or action buttons). */
   actions?: BacklogItemActions;
+  /** A button or two in the actions column of a read-only row (the Done page's Reopen). */
+  rowAction?: ReactNode;
   /** Plays the exit animation (used just before hide/restore/delete is applied). */
   leaving?: boolean;
   /** Row position, used to stagger the entry animation. */
   index?: number;
 };
 
-export default function BacklogItem({ item, actions, leaving = false, index = 0 }: BacklogItemProps) {
+export default function BacklogItem({ item, actions, rowAction, leaving = false, index = 0 }: BacklogItemProps) {
   const { allPods, sprints, items, hiddenItems } = useBacklog();
   // A task of a closed sprint is read-only: a click (or the menu) opens View instead of Edit, and Hide / Delete are not offered.
   const closed = sprints.some((s) => s.name === item.sprint && s.status === "Closed");
@@ -66,7 +69,7 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
     >
       {/* Narrow screens show the row as a card: the title and the actions in the header, then one label / value line per column. */}
       <div className="col-start-1 row-start-1 min-w-0 md:col-auto md:row-auto">
-        <p className="break-words text-sm font-medium md:truncate">{item.title}</p>
+        <p className="flex items-center gap-2 text-sm font-medium"><span className="min-w-0 break-words md:truncate">{item.title}</span><ReopenedBadge item={item} /></p>
         <p className="mt-0.5 text-xs text-muted">
           {item.comments} {item.comments === 1 ? "comment" : "comments"}
         </p>
@@ -128,6 +131,8 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
             <RowActionsMenu item={item} onToggleHidden={() => actions.onToggleHidden(item)} onDelete={() => actions.onDelete(item)} />
           )}
         </div>
+      ) : rowAction ? (
+        <div data-row-actions className="col-start-2 row-start-1 flex items-center justify-end self-start md:col-auto md:row-auto md:self-auto">{rowAction}</div>
       ) : (
         <div className="hidden md:block" />
       )}

@@ -40,7 +40,7 @@ export default function TeamWorkView({ work, chosen, mineOnly = false }: { work:
       {everyone && work.teamUnavailable && (
         // Super Admin and enabled Admins are meant to see everyone's work. If the server did not provide the team view, say so instead of quietly showing only their own entries.
         <p role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
-          <span>Everyone&apos;s logged work couldn&apos;t be loaded: the server did not provide the team view for this sprint. Only your own entries are shown.</span>
+          <span>Everyone&apos;s logged work couldn&apos;t be loaded: your account can&apos;t see the team view. Only your own entries are shown.</span>
           <button type="button" onClick={() => work.refresh()} className="font-medium underline underline-offset-2 hover:no-underline focus-visible:outline-2 focus-visible:outline-accent">
             Try again
           </button>

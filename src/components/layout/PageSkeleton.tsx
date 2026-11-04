@@ -125,6 +125,12 @@ const layouts: Record<string, ReactNode> = {
       <Rows />
     </>
   ),
+  "/qa-workspace": (
+    <>
+      <Header />
+      <Rows />
+    </>
+  ),
   "/completed": (
     <>
       <Header />

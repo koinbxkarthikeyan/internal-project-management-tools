@@ -7,6 +7,8 @@ type BacklogListProps = {
   items: readonly BacklogItemData[];
   total: number;
   actions?: BacklogItemActions;
+  /** Something to show in the actions column of each row when the list has no `actions` (read-only rows). */
+  rowAction?: (item: BacklogItemData) => ReactNode;
   /** Ids currently playing their exit animation. */
   leavingIds?: ReadonlySet<string>;
   /** Shown when there is no data at all (as opposed to nothing matching the filters). */
@@ -22,7 +24,7 @@ type BacklogListProps = {
 
 const COLUMNS = ["Title", "Type", "Priority", "Status", "Sprint", "Owner", "Deadline", "Actions"];
 
-export default function BacklogList({ items, total, actions, leavingIds, emptyTitle = "No items yet", emptyMessage, header, hasMore = false, loadingMore = false, onLoadMore }: BacklogListProps) {
+export default function BacklogList({ items, total, actions, rowAction, leavingIds, emptyTitle = "No items yet", emptyMessage, header, hasMore = false, loadingMore = false, onLoadMore }: BacklogListProps) {
   const scroller = useRef<HTMLUListElement>(null);
   const end = useRef<HTMLLIElement>(null);
   // The end of the list comes into view (by scrolling, or because the rows do not fill the table): ask for the next page, once, and only if none is already loading.
@@ -63,6 +65,7 @@ export default function BacklogList({ items, total, actions, leavingIds, emptyTi
               key={item.id}
               item={item}
               actions={actions}
+              rowAction={rowAction?.(item)}
               index={index}
               leaving={leavingIds?.has(item.id)}
             />

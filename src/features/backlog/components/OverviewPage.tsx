@@ -9,6 +9,7 @@ import { PRIORITIES, STATUSES, statusLabel } from "@/constants/backlog-options";
 import { useBacklog } from "../context/BacklogContext";
 import { formatDeadline } from "../utils";
 import BacklogSummary from "./BacklogSummary";
+import GettingStarted from "./GettingStarted";
 
 function Breakdown({ title, rows }: { title: string; rows: { label: string; value: number }[] }) {
   const max = Math.max(1, ...rows.map((r) => r.value));
@@ -40,13 +41,14 @@ function Breakdown({ title, rows }: { title: string; rows: { label: string; valu
 export default function OverviewPage({ tabs }: { /** Shown in the page header (a Super Admin / Admin switching between Team and Personal). */ tabs?: ReactNode } = {}) {
   const { items } = useBacklog();
   const upcoming = items
-    .filter((i) => i.status !== "Completed")
+    .filter((i) => i.status !== "Done")
     .toSorted((a, b) => a.deadline.localeCompare(b.deadline))
     .slice(0, 5);
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Overview" description="A snapshot of backlog health across all sprints." actions={tabs} />
+      <GettingStarted />
       <BacklogSummary items={items} />
 
       <div className="grid gap-4 lg:grid-cols-2">

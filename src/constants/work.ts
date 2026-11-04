@@ -1,6 +1,9 @@
 import type { WorkKind } from "@/types/work";
 
 // Fixed option lists and planning settings for the "What are you working on?" section (not application data).
+/** The QA queue: tasks handed to the QA team and tasks assigned to QA people, until QA marks them Done. */
+export const READY_FOR_QA_HREF = "/qa-workspace";
+
 export const WORK_KINDS: readonly WorkKind[] = ["Backend", "Frontend", "Mobile", "Testing", "Design"];
 
 /** Focus hours the team plans per working day. */

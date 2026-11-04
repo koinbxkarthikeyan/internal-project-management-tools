@@ -9,7 +9,7 @@ import type { Activity } from "../stats";
 
 const card = "rounded-2xl border border-border bg-surface p-5";
 /** The same colours the status badges use. */
-export const STATUS_COLOR: Record<Status, string> = { Open: "#4a8fe0", "In progress": "#a78bfa", Blocked: "#ff5c52", "On hold": "#f5a524", Completed: "#5fcf8e" };
+export const STATUS_COLOR: Record<Status, string> = { Open: "#3b82f6", "In progress": "#6366f1", "Ready for QA": "#14b8a6", Testing: "#8b5cf6", Blocked: "#ef4444", "On hold": "#f59e0b", Done: "#10b981" };
 
 export function Panel({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
   return (

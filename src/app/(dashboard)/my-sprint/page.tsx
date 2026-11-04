@@ -1,6 +1,9 @@
 import { Suspense } from "react";
 import WorkPage from "@/features/work/components/WorkPage";
 
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "Log Work Sprint" };
+
 export default function Page() {
   // The page reads its tab from the URL (?tab=everyone), which needs a Suspense boundary.
   return (

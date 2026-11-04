@@ -6,6 +6,13 @@ const nextConfig: NextConfig = {
   // the HMR socket for non-localhost hosts, so the page never hydrates and
   // clicks (side panels, menus) do nothing.
   allowedDevOrigins: ["172.16.17.48", "172.16.17.*"],
+  // The Ready for QA and Testing pages are now one page, QA Workspace; old links still work.
+  async redirects() {
+    return [
+      { source: "/ready-for-qa", destination: "/qa-workspace", permanent: false },
+      { source: "/ready-for-qa/:path*", destination: "/qa-workspace/:path*", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;
