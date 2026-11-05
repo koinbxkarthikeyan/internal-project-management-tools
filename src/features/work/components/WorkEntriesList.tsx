@@ -45,7 +45,7 @@ export default function WorkEntriesList({ title, entries, showPerson, sprintTota
       )}
 
       {entries.length === 0 ? (
-        <EmptyState compact title="Nothing added yet" description="What you add will be listed here with its dates and hours." />
+        <EmptyState compact title="Nothing added yet" description="Your entries will show here." />
       ) : (
         <ul className="@container mt-3 divide-y divide-border">
           {entries.map((e) => {

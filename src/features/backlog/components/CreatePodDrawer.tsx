@@ -33,7 +33,7 @@ export default function CreatePodDrawer({ sprint, onClose }: CreatePodDrawerProp
   const existing = pods.find((p) => p.name.toLowerCase() === name.trim().toLowerCase());
 
   return (
-    <BacklogDrawer heading="Create POD" subtitle="A POD groups the people who work together in a sprint." submitLabel="Create POD" onSubmit={submit} onClose={onClose} compact>
+    <BacklogDrawer heading="Create POD" subtitle="A group of people working together." submitLabel="Create POD" onSubmit={submit} onClose={onClose} compact>
       <TextField label="POD name" required value={name} onChange={(v) => (setName(v), setError(""))} placeholder="e.g. Futures & Platform" />
       <p className="-mt-2 text-xs text-muted">
         {existing

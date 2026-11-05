@@ -67,14 +67,14 @@ export default function SprintPodTasks({ sprints, pods, items, selection, logged
     <div className="flex flex-col gap-5">
       <div>
         <h2 className="text-sm font-semibold">Pick what you&apos;re working on</h2>
-        <p className="mt-1 text-xs text-muted">Tick one or more tasks from a single POD, and any Backlog tasks too, then log your time below.</p>
+        <p className="mt-1 text-xs text-muted">Tick tasks from one POD (plus any Backlog tasks), then log your time.</p>
       </div>
 
       {sprints.every((s) => s.status === "Closed") && (
         <EmptyState
           compact
           title="No running sprint selected"
-          description="A closed sprint is history: its tasks and hours are kept, but you log new time in the running sprint."
+          description="Closed sprint. Log new time in the running sprint."
         />
       )}
 
@@ -82,15 +82,15 @@ export default function SprintPodTasks({ sprints, pods, items, selection, logged
       {sprints.filter((s) => s.status !== "Closed").map((sprint) => {
         const closed = sprint.status === "Closed";
         const logged = loggedBySprint[sprint.id];
-        // A task already logged in this sprint stays in the list but can't be picked again (unless it's ticked right now).
+        // A task already logged in this sprint is not listed again (unless it's ticked right now); its entry is edited under "Your sprint so far".
         const taken = (t: BacklogItemData) => !!logged?.has(t.id) && !(selection?.sprintId === sprint.id && selection.itemIds.includes(t.id));
         const groups: Group[] = (sprint.podIds ?? [])
           .flatMap((id) => pods.filter((p) => p.id === id))
-          .map((pod) => ({ pod, tasks: items.filter((i) => i.sprint === sprint.name && i.podId === pod.id) }))
+          .map((pod) => ({ pod, tasks: items.filter((i) => i.sprint === sprint.name && i.podId === pod.id && !taken(i)) }))
           // A POD with no tasks isn't shown here (it stays on Sprint plan).
           .filter((g) => g.tasks.length > 0);
         // Tasks planned into the sprint without a POD (To Do or any other status): listed under the sprint too, in a card with no "Sprint tasks" heading.
-        const sprintTasks = items.filter((i) => i.sprint === sprint.name && !i.podId);
+        const sprintTasks = items.filter((i) => i.sprint === sprint.name && !i.podId && !taken(i));
         if (sprintTasks.length > 0) groups.push({ pod: { ...SPRINT_TASKS_POD }, tasks: sprintTasks });
 
         return (
@@ -128,7 +128,7 @@ export default function SprintPodTasks({ sprints, pods, items, selection, logged
                           return (
                             <li key={task.id}>
                               <div className="flex flex-wrap items-center">
-                              <DisabledTip reason={locked && (closed ? "This sprint is closed, so time can't be logged against it." : disabled ? "Unavailable because “Something else - my own task” is selected. Untick it to pick a task." : taken(task) && "You already logged this task in this sprint. Edit that entry from “Your sprint so far”.")} className="flex min-w-0 flex-1 basis-60">
+                              <DisabledTip reason={locked && (closed ? "This sprint is closed." : disabled ? "Untick “Something else” to pick a task." : taken(task) && "Already logged. Edit it under “Your sprint so far”.")} className="flex min-w-0 flex-1 basis-60">
                               <label
                                 className={`flex min-w-0 flex-1 basis-60 items-center gap-3 pl-4 py-2.5 text-sm transition-colors ${
                                   locked ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-hover"
@@ -141,10 +141,18 @@ export default function SprintPodTasks({ sprints, pods, items, selection, logged
                                   onChange={() => onToggle(sprint, pod, task)}
                                   className="h-4 w-4 shrink-0 accent-[var(--accent)]"
                                 />
-                                <span className="min-w-0 flex-1 truncate">{task.title}</span>
+                                <span className="min-w-0 truncate">{task.title}</span>
                                 {carriedFromLabel(task) && (
                                   <span className="shrink-0 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
                                     Carried from {carriedFromLabel(task)}
+                                  </span>
+                                )}
+                                {!task.assignees?.trim() && (
+                                  <span
+                                    className="shrink-0 rounded-full border border-border bg-hover px-2 py-0.5 text-[11px] font-medium text-muted"
+                                    title="No one is assigned to this task yet. Ask its Lead to assign someone."
+                                  >
+                                    Unassigned
                                   </span>
                                 )}
                                 <StatusBadge status={task.status} />

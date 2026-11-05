@@ -112,9 +112,9 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
           </div>
         </div>
         <div className="flex items-center justify-between gap-3 md:contents">
-          <span className="text-xs text-muted md:hidden">Deadline</span>
+          <span className="text-xs text-muted md:hidden">Expected ETA</span>
           <time dateTime={item.deadline} className="whitespace-nowrap text-muted">
-            <span className="sr-only">Due </span>
+            <span className="sr-only">Expected ETA </span>
             {formatDeadline(item.deadline)}
           </time>
         </div>

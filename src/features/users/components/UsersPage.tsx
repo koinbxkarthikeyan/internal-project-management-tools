@@ -59,7 +59,7 @@ export default function UsersPage() {
       <div className="flex flex-col gap-6">
         <PageHeader title="Team Members" />
         <section className="rounded-2xl border border-border bg-surface">
-          <EmptyState title="Admins only" description="Only an Admin can manage users. Ask an administrator if you need access changed." />
+          <EmptyState title="Admins only" description="Admins only." />
         </section>
       </div>
     );
@@ -94,15 +94,17 @@ export default function UsersPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Team Members"
-        description="Only registered users can sign in, and nobody can sign up. Enabled Admins can use the whole application and add team members; only the Super Admin can edit, delete or disable other accounts. Users and Disabled Admins can only open My sprint, My Task and Settings; a Disabled User can only open Settings."
+        description="Only registered users can sign in. Admins add team members; only the Super Admin can edit, delete or disable accounts."
         actions={
           <button
             type="button"
             onClick={() => setAdding(true)}
+            aria-keyshortcuts="T"
+            title="Add team member (press T)"
             className="flex items-center gap-2 rounded-xl btn-brand px-4 py-2.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <PlusIcon />
-            Add Team Member
+            Add Team Member <kbd className="ml-1 hidden rounded border border-current/30 px-1.5 text-[10px] font-medium opacity-80 lg:inline">T</kbd>
           </button>
         }
       />

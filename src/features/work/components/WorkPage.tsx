@@ -106,7 +106,7 @@ export default function WorkPage() {
         <section className={card}>
           <EmptyState
             title="No sprint added yet"
-            description="Create a sprint to get started, then come back to log your work."
+            description="Create a sprint first, then log your work."
             // Only an Admin can create a sprint, so only they are offered the way to do it.
             action={
               isAdmin ? (
@@ -337,7 +337,7 @@ export default function WorkPage() {
               everyoneEntries={work.entries}
               onToggle={toggleTask}
             />
-            <DisabledTip reason={otherWorkLocked && (formSprint.status === "Closed" ? "This sprint is closed, so time can't be logged against it." : "Unavailable while a task is selected. Untick the selected tasks to use this.")} className="block w-fit">
+            <DisabledTip reason={otherWorkLocked && (formSprint.status === "Closed" ? "This sprint is closed." : "Untick the selected tasks to use this.")} className="block w-fit">
             <label className={`mt-4 flex w-fit items-center gap-3 text-sm ${otherWorkLocked ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
               <input
                 type="checkbox"

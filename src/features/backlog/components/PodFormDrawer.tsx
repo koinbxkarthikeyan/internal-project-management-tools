@@ -40,7 +40,7 @@ export default function PodFormDrawer({ pod, onClose }: PodFormDrawerProps) {
   }
 
   return (
-    <BacklogDrawer heading={pod ? "Edit POD" : "Create POD"} subtitle="A POD groups the people who work together in a sprint." submitLabel={pod ? "Save POD" : "Create POD"} canSubmit={!pod || clean !== pod.name} onSubmit={submit} onClose={onClose} compact>
+    <BacklogDrawer heading={pod ? "Edit POD" : "Create POD"} subtitle="A group of people working together." submitLabel={pod ? "Save POD" : "Create POD"} canSubmit={!pod || clean !== pod.name} onSubmit={submit} onClose={onClose} compact>
       <TextField label="POD name" required value={name} onChange={(v) => (setName(v), setError(""))} placeholder="e.g. Futures & Platform" />
       {taken && !error && <p className="-mt-2 text-xs text-muted">A POD with this name already exists.</p>}
       {error && (

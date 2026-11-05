@@ -29,10 +29,10 @@ const TRACKED: [keyof BacklogItemData, string][] = [
   ["sprint", "sprint"],
   ["podId", "POD"],
   ["priority", "priority"],
-  ["deadline", "deadline"],
+  ["deadline", "Expected ETA"],
   ["owner", "owner"],
   ["lead", "lead"],
-  ["leadDeadline", "lead deadline"],
+  ["leadDeadline", "Developer ETA"],
 ];
 
 const norm = (v: unknown) => (v == null ? "" : String(v).trim());
@@ -155,7 +155,7 @@ export default function EditBacklogDrawer({ item, onSave, onClose }: EditBacklog
 
       <FormSection title="Planning" hint="When it should be done and in which sprint.">
         <TaskPlacementFields value={placement} onChange={setPlacement} current={{ sprint: base.sprint, podId: base.podId }} />
-        <TextField label="Expected deadline" type="date" value={draft.deadline} onChange={(v) => set("deadline", v)} />
+        <TextField label="Expected ETA" type="date" value={draft.deadline} onChange={(v) => set("deadline", v)} />
         <TextField label="Created" type="date" value={draft.created ?? ""} onChange={(v) => set("created", v)} />
         <TextField label="Done on" type="date" value={draft.completed ?? ""} onChange={(v) => set("completed", v)} />
       </FormSection>

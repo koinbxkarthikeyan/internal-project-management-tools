@@ -165,7 +165,7 @@ export default function UserFormDrawer({ user, isSelf = false, onSaved, onCreate
           <PasswordField label="Password" required readOnly value={DEFAULT_INITIAL_PASSWORD} onChange={() => {}} />
         ))}
       {isSuper ? (
-        <p className="-mt-2 text-xs text-muted">The Super Admin&apos;s role and access can&apos;t be changed, and it can&apos;t be deleted.</p>
+        <p className="-mt-2 text-xs text-muted">The Super Admin can&apos;t be changed or deleted.</p>
       ) : (
         isSelf && <p className="-mt-2 text-xs text-muted">You can&apos;t change your own role or access.</p>
       )}

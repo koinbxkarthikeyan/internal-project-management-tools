@@ -241,7 +241,7 @@ function ByPerson({
   details: Readonly<Record<string, string>>;
 }) {
   if (people.length === 0) {
-    return <EmptyState compact title="No people yet" description="Add team members on the Team Members page; they show up here with their assigned work." />;
+    return <EmptyState compact title="No people yet" description="Add team members to see their work here." />;
   }
   // One colour per task (from its sprint's colour family), the same under every person.
   const taskColor = (id: string) => (id.startsWith("e:") ? "#8a94ab" : colorOf(id));
@@ -363,7 +363,7 @@ function ByPerson({
       </section>
     )}
     </div>
-    <p className="mt-3 text-[11px] text-muted">Each colour is one task, the same under every person. Time logged on several tasks at once is shared equally between them.</p>
+    <p className="mt-3 text-[11px] text-muted">Each colour is one task. Time on several tasks is split equally.</p>
     </>
   );
 }
@@ -737,7 +737,7 @@ function AcrossSprint({
 }) {
   const days = [...new Set(sprints.flatMap((s) => eachDay(s.start, s.end)))].sort();
   if (entries.length === 0) {
-    return <EmptyState compact title="Nothing logged yet" description="Hours appear here day by day once people start logging." />;
+    return <EmptyState compact title="Nothing logged yet" description="Logged hours will show here." />;
   }
 
   // Spread each entry's hours evenly over its working days (or all its days if it only spans a weekend), per person.

@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { DisabledTip } from "@/components/ui/DisabledTip";
 import { AlertCircleIcon, EditIcon, EyeIcon, ListIcon, PlusIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/Toast";
-import { NESTED_WIDTH, useContentCentre, useNestedDock } from "../nestedDock";
+import { NESTED_WIDTH, NearTriggerContext, placeNear, useContentCentre, useNearButton, useNestedDock } from "../nestedDock";
 import { checkRequiredFields, clearFilled } from "@/lib/formValidation";
 
 type BacklogDrawerProps = {
@@ -48,7 +48,14 @@ export default function BacklogDrawer({ heading, subtitle, mode: modeProp, submi
   // A small form opened over another form (Add Owner / Add Team Member inside a backlog form) sits in the middle of that form; only that form is blurred behind it.
   const dock = useNestedDock(compact && !inline);
   // A small form opens in the middle of the right half of the window, near the top.
-  const centre = useContentCentre(compact && !inline && !dock);
+  const nearWanted = useContext(NearTriggerContext);
+  const near = useNearButton(compact && !inline && !dock && nearWanted);
+  const centre = useContentCentre(compact && !inline && !dock && !near);
+  // Next to the field it opened from: below it when the whole form fits, else above it (worked out once the form's height is known).
+  const [nearTop, setNearTop] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (near && ref.current) setNearTop(placeNear(near, ref.current.offsetHeight));
+  }, [near]);
   // Dragging a small form by its header: where it has been moved to (nothing until it is dragged; a form opens in its default place each time).
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const drag = useRef<{ dx: number; dy: number; w: number; h: number } | null>(null);
@@ -145,9 +152,12 @@ export default function BacklogDrawer({ heading, subtitle, mode: modeProp, submi
               type="button"
               onClick={() => setExpanded((v) => !v)}
               aria-pressed={expanded}
+              title={expanded ? "Shrink (Esc)" : "Expand to a larger view (Ctrl + F)"}
+              aria-keyshortcuts="Control+F"
               className={`hidden rounded-lg px-2 py-1 text-sm text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent ${compact ? "" : "sm:block"}`}
             >
               {expanded ? "Shrink" : "Expand"}
+              <kbd className="ml-1.5 hidden rounded border border-border px-1 text-[10px] font-medium text-muted lg:inline">{expanded ? "Esc" : "Ctrl F"}</kbd>
             </button>
             <button
               type="button"
@@ -210,12 +220,22 @@ export default function BacklogDrawer({ heading, subtitle, mode: modeProp, submi
       onCancel={(e) => {
         // Escape: animate out instead of closing instantly.
         e.preventDefault();
-        if (e.target === e.currentTarget) requestClose();
+        if (e.target !== e.currentTarget) return;
+        // An expanded form first returns to its normal size; Esc again closes it.
+        if (expanded) setExpanded(false);
+        else requestClose();
       }}
       data-closing={closing || undefined}
       onClick={(e) => e.target === ref.current && requestClose()}
+      // Ctrl+F (⌘F) expands every form that has an Expand button (instead of the browser's find bar); once expanded, only Esc shrinks it.
+      onKeyDown={(e) => {
+        if (inline || compact || expanded || !(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "f") return;
+        e.preventDefault();
+        e.stopPropagation();
+        setExpanded(true);
+      }}
       aria-label="Backlog item"
-      style={pos ? { left: pos.left, top: pos.top, right: "auto", bottom: "auto", margin: 0, translate: "none", height: "fit-content" } : dock ? { left: dock.left, top: dock.top, right: "auto", bottom: "auto", margin: 0, translate: "0 -50%", width: NESTED_WIDTH, maxHeight: dock.height } : centre ? { left: centre, right: "auto", top: "10dvh", bottom: "auto", margin: 0, translate: "-50% 0" } : undefined}
+      style={pos ? { left: pos.left, top: pos.top, right: "auto", bottom: "auto", margin: 0, translate: "none", height: "fit-content" } : dock ? { left: dock.left, top: dock.top, right: "auto", bottom: "auto", margin: 0, translate: "0 -50%", width: NESTED_WIDTH, maxHeight: dock.height } : near ? { left: near.left, top: nearTop ?? near.buttonBottom + 8, right: "auto", bottom: "auto", margin: 0, translate: "none", height: "fit-content" } : centre ? { left: centre, right: "auto", top: "10dvh", bottom: "auto", margin: 0, translate: "-50% 0" } : undefined}
       className={dock ? `nested-panel nested-center fixed h-fit overflow-hidden rounded-2xl border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-transparent` : `fixed border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-black/50 ${side && !compact && !expanded ? `drawer inset-y-0 right-0 m-0 ml-auto h-dvh max-h-dvh w-full rounded-none border-y-0 border-r-0 ${expanded ? "max-w-none" : aside ? "max-w-5xl" : "max-w-3xl"}` : `compact-modal inset-0 m-auto overflow-hidden rounded-2xl ${compact ? "inset-y-auto bottom-[10dvh] top-0 h-fit max-h-[calc(90dvh-2rem)] w-[min(28rem,calc(100vw-2rem))]" : `h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] ${expanded ? "max-w-6xl" : aside ? "max-w-5xl" : "max-w-3xl"}`}`}`}
     >
       {form}

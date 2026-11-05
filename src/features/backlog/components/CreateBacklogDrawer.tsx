@@ -97,7 +97,7 @@ function CreateForm() {
       </FormSection>
 
       <FormSection title="Planning" hint="When it should be done and in which sprint.">
-        <TextField className="order-3" label="Expected deadline" type="date" value={deadline} onChange={setDeadline} />
+        <TextField className="order-3" label="Expected ETA" type="date" value={deadline} onChange={setDeadline} />
         <TaskPlacementFields value={placement} onChange={setPlacement} createLayout />
       </FormSection>
 

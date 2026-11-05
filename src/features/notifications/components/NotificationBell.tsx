@@ -49,6 +49,8 @@ export default function NotificationBell() {
   const items = filter === "unread" ? allItems.filter((n) => !n.read) : allItems;
   const unread = useNotificationStore(selectUnread);
   const [open, setOpen] = useState(false);
+  // Full view: the same panel grows wider and taller where it is, and each notification shows its changes in full.
+  const [full, setFull] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0, width: WIDTH });
   const button = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -59,6 +61,7 @@ export default function NotificationBell() {
       const width = Math.min(WIDTH, window.innerWidth - 16);
       setPos({ top: r.bottom + 8, left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)), width });
     }
+    setFull(false);
     setOpen((o) => !o);
   }
 
@@ -68,16 +71,36 @@ export default function NotificationBell() {
       const t = e.target as Node;
       if (!panel.current?.contains(t) && !button.current?.contains(t)) setOpen(false);
     };
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && (setOpen(false), button.current?.focus());
+    const keys = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        // Full view first returns to the normal size; Esc again closes the panel.
+        if (full) setFull(false);
+        else {
+          setOpen(false);
+          button.current?.focus();
+        }
+        return;
+      }
+      // Ctrl+F (⌘F) while the panel is open switches it to full view, instead of the browser's find bar; Esc takes it back.
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "f") {
+        if (full) return;
+        e.preventDefault();
+        setFull(true);
+      }
+    };
     document.addEventListener("pointerdown", away);
-    document.addEventListener("keydown", esc);
+    document.addEventListener("keydown", keys);
     return () => {
       document.removeEventListener("pointerdown", away);
-      document.removeEventListener("keydown", esc);
+      document.removeEventListener("keydown", keys);
     };
-  }, [open]);
+  }, [open, full]);
 
   if (!user || settingsOnly) return null;
+
+  // Full view keeps the panel under the bell, wider, and slid left only as far as needed to stay on the screen.
+  const fullWidth = Math.min(768, window.innerWidth - 16);
+  const panelStyle = full ? { top: pos.top, left: Math.max(8, Math.min(pos.left, window.innerWidth - fullWidth - 8)), width: fullWidth } : { top: pos.top, left: pos.left, width: pos.width };
 
   function openTask(n: AppNotification) {
     useNotificationStore.getState().markRead(n.id);
@@ -109,13 +132,25 @@ export default function NotificationBell() {
             ref={panel}
             role="dialog"
             aria-label="Notifications"
-            style={{ top: pos.top, left: pos.left, width: pos.width }}
-            className="anim-fade-up fixed z-[60] flex max-h-[min(34rem,calc(100vh-5rem))] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-menu"
+            style={panelStyle}
+            className={`anim-fade-up fixed z-[60] flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-menu ${full ? "h-[calc(100dvh-5rem)] max-h-[48rem]" : "max-h-[min(34rem,calc(100vh-5rem))]"}`}
           >
             <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
               <h2 className="text-sm font-semibold">
                 Notifications {unread > 0 && <span className="ml-1 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">{unread} new</span>}
               </h2>
+              <span className="ml-auto" />
+              <button
+                type="button"
+                onClick={() => setFull((f) => !f)}
+                aria-pressed={full}
+                title={full ? "Back to normal size (Esc)" : "Larger view with full details (Ctrl + F)"}
+                aria-keyshortcuts="Control+F"
+                className="rounded-md px-2 py-1 text-xs font-medium text-muted hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent"
+              >
+                {full ? "Collapse" : "Full view"}
+                <kbd className="ml-1.5 hidden rounded border border-border px-1 text-[10px] font-medium sm:inline">{full ? "Esc" : "Ctrl F"}</kbd>
+              </button>
               <button
                 type="button"
                 disabled={unread === 0}
@@ -165,7 +200,7 @@ export default function NotificationBell() {
                       <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read ? "bg-transparent" : "bg-accent"}`} aria-label={n.read ? undefined : "Unread"} />
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center justify-between gap-2">
-                          <span className={`truncate text-sm ${n.read ? "font-medium" : "font-semibold"}`}>
+                          <span className={`text-sm ${full ? "" : "truncate"} ${n.read ? "font-medium" : "font-semibold"}`}>
                             {n.taskCode} · {n.taskTitle}
                           </span>
                           <span className="shrink-0 rounded-full bg-hover px-2 py-0.5 text-[11px] font-medium text-muted">{EVENT_LABEL[n.type]}</span>
@@ -173,6 +208,16 @@ export default function NotificationBell() {
                         <span className="mt-0.5 block text-xs text-muted">
                           {n.message ? n.message : <><span className="font-medium text-foreground">{n.actor.name}</span> {describe(n)}</>}
                         </span>
+                        {full && !!n.changes?.length && (
+                          <span className="mt-1.5 flex flex-wrap gap-1.5">
+                            {n.changes.map((c, i) => (
+                              <span key={i} className="rounded-md border border-border bg-background px-2 py-0.5 text-[11px] text-muted">
+                                <span className="font-medium text-foreground">{c.field}</span>
+                                {c.from || c.to ? <>: {c.from ?? "–"} → {c.to ?? "–"}</> : null}
+                              </span>
+                            ))}
+                          </span>
+                        )}
                         <time dateTime={n.occurredAt} title={new Date(n.occurredAt).toLocaleString()} className="mt-0.5 block text-[11px] text-muted">
                           {timeAgo(n.occurredAt)}
                         </time>

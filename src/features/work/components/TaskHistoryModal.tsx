@@ -130,8 +130,8 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
               ["Assignees", item.assignees ? item.assignees.split(",").map((n) => person(n.trim())).filter(Boolean).join("; ") : undefined],
               ["Type", item.type],
               ["Sprint", item.sprint],
-              ["Expected deadline", item.deadline ? formatDeadline(item.deadline) : undefined],
-              ["Lead Deadline", item.leadDeadline ? formatDeadline(item.leadDeadline) : undefined],
+              ["Expected ETA", item.deadline ? formatDeadline(item.deadline) : undefined],
+              ["Developer ETA", item.leadDeadline ? formatDeadline(item.leadDeadline) : undefined],
               ["Done on", item.completed ? formatDeadline(item.completed) : undefined],
               ["Created", whenOrUnavailable(item.created, item.createdAt)],
               ["Last updated", whenOrUnavailable(undefined, item.updatedAt)],
@@ -310,7 +310,19 @@ export function HistoryDialog({ title, label, onClose, children }: { title: stri
     <dialog
       ref={ref}
       onClose={(e) => e.target === e.currentTarget && onClose()}
-      onCancel={(e) => e.target === e.currentTarget && (e.preventDefault(), ref.current?.close())}
+      onCancel={(e) => {
+        if (e.target !== e.currentTarget) return;
+        e.preventDefault();
+        // Esc: a full-screen view first returns to normal size; Esc again closes it.
+        if (full) setFull(false);
+        else ref.current?.close();
+      }}
+      // Ctrl+F (⌘F) opens the full-screen view (instead of the browser's find bar); only Esc takes it back.
+      onKeyDown={(e) => {
+        if (full || !(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "f") return;
+        e.preventDefault();
+        setFull(true);
+      }}
       onClick={(e) => e.target === ref.current && ref.current?.close()}
       aria-label={label}
       className={`fixed m-auto flex flex-col overflow-hidden border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-black/50 ${
@@ -322,8 +334,9 @@ export function HistoryDialog({ title, label, onClose, children }: { title: stri
           {title}
         </h2>
         <div className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={() => setFull((v) => !v)} aria-pressed={full} className="rounded-lg px-2 py-1 text-sm text-muted hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent">
+          <button type="button" onClick={() => setFull((v) => !v)} aria-pressed={full} aria-keyshortcuts="Control+F" title={full ? "Back to normal size (Esc)" : "Full screen (Ctrl + F)"} className="rounded-lg px-2 py-1 text-sm text-muted hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent">
             {full ? "Exit full screen" : "Full screen"}
+            <kbd className="ml-1.5 hidden rounded border border-border px-1 text-[10px] font-medium text-muted lg:inline">{full ? "Esc" : "Ctrl F"}</kbd>
           </button>
           <button type="button" onClick={() => ref.current?.close()} className="rounded-lg px-2 py-1 text-sm text-muted hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent">
             Close

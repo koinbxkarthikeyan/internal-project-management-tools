@@ -123,7 +123,7 @@ export default function PersonalOverviewPage({ tabs }: { /** Shown in the page h
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Overview" description="Your tasks, sprint progress, hours and recent activity." actions={tabs} />
+      <PageHeader title="Overview" description="Your tasks, sprint and hours." actions={tabs} />
 
       <section aria-label="Filters" className="grid gap-3 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] lg:items-end">
         <label className="flex min-w-0 flex-col gap-1 text-xs font-medium text-muted">
@@ -154,7 +154,7 @@ export default function PersonalOverviewPage({ tabs }: { /** Shown in the page h
         >
           Reset
         </button>
-        <p className="text-xs text-muted sm:col-span-2 lg:col-span-full">The date range applies to task deadlines (the completion date for finished tasks) and to the dates of logged work.</p>
+        <p className="text-xs text-muted sm:col-span-2 lg:col-span-full">The date range filters Expected ETAs (completion date if done) and logged work.</p>
       </section>
 
       <section aria-label="Summary">

@@ -55,7 +55,7 @@ export default function SprintFormDrawer({ heading, submitLabel, initial, editin
       <TextField label="Name" required value={name} onChange={(v) => (setName(v), setError(""))} />
       <div className="grid grid-cols-2 gap-4">
         <TextField label="Start" type="date" required value={start} onChange={(v) => (setStart(v), setError(""))} />
-        <TextField label="End (2 weeks)" type="date" disabled disabledReason="The end date is set automatically: every sprint lasts two weeks from its start date." value={end} onChange={() => {}} />
+        <TextField label="End (2 weeks)" type="date" disabled disabledReason="Set automatically: two weeks after the start." value={end} onChange={() => {}} />
       </div>
       <TextField label="Sprint goal" value={goal} onChange={setGoal} placeholder="What should this sprint ship?" />
       {(error || problem) && (

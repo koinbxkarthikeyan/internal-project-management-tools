@@ -60,6 +60,18 @@ export default function SprintPlanPage() {
     clearTimeout(tabTimer.current);
     tabTimer.current = setTimeout(() => setTab(id), 500);
   };
+  // S opens Plan New Sprint on this page only (not while typing in a field or while a form is open).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== "s" || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.repeat || e.defaultPrevented) return;
+      if ((e.target as HTMLElement | null)?.closest("input, textarea, select, [contenteditable=''], [contenteditable=true], [role=combobox]")) return;
+      if (document.querySelector("dialog[open]")) return;
+      e.preventDefault();
+      setCreatingSprint(true);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
   // The dragged row can disappear when the tab changes, and then its own "drag ended" never arrives: any drop or end anywhere clears the drag.
   useEffect(() => {
     const clear = () => (clearTimeout(tabTimer.current), hideDropTip(), setDragging(null), setOver(null));
@@ -88,7 +100,7 @@ export default function SprintPlanPage() {
   const startToday = async (sp: Sprint) => {
     const today = todayISO();
     if (sp.start !== today && (await updateSprint(sp.name, { name: sp.name, start: today })) !== "ok") {
-      toast.show(`${sp.name} was not started: its start date couldn't be moved to today.`, "danger");
+      toast.show(`${sp.name} wasn't started.`, "danger");
       return false;
     }
     return startSprint(sp.name);
@@ -214,10 +226,12 @@ export default function SprintPlanPage() {
 <button
             type="button"
             onClick={() => setCreatingSprint(true)}
+            aria-keyshortcuts="S"
+            title="Plan a new sprint (press S)"
             className="flex items-center gap-2 rounded-xl btn-brand px-4 py-2.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <PlusIcon />
-            Plan New Sprint
+            Plan New Sprint <kbd className="ml-1 hidden rounded border border-current/30 px-1.5 text-[10px] font-medium opacity-80 lg:inline">S</kbd>
           </button>
         }
       />
@@ -463,7 +477,7 @@ export default function SprintPlanPage() {
           planned={planned}
           onConfirm={async (startNext) => {
             if (!(await closeSprint(closingSprint.name))) return false;
-            toast.show(`${closingSprint.name} closed. Unfinished tasks were copied to the next sprint.`);
+            toast.show(`${closingSprint.name} closed. Unfinished tasks moved on.`);
             if (!startNext) return;
             // The close has happened; the next sprint then starts today.
             if (await startToday(startNext)) toast.show(`${startNext.name} started`);

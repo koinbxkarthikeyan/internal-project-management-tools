@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import { createContext, useEffect, useState } from "react";
+
+/** Wrapped around a small form opened from a table cell (Bulk Upload): it then opens next to the cell that was used, not in the usual place. */
+export const NearTriggerContext = createContext(false);
 
 /** Where a panel opened over another form sits: in the middle of that form (`top` is its vertical middle: the panel is lifted by half its own height), no taller than the form (less a margin). */
 export type NestedDock = { left: number; top: number; height: number };

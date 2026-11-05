@@ -18,7 +18,7 @@ import UserFormDrawer from "@/features/users/components/UserFormDrawer";
 import { useUsers } from "@/features/users/hooks/useUsers";
 import { useBacklogStore } from "@/stores/backlogStore";
 import { getErrorMessage } from "@/lib/apiClient";
-import { BULK_MIN_ROWS, submitBulk } from "@/services/bulkService";
+import { BULK_MIN_ROWS, submitBulk, submitOne } from "@/services/bulkService";
 import { teamOptions } from "@/lib/auth/teams";
 import { refreshUsers } from "@/lib/auth/userStore";
 import { resolveTeam, useTeamStore } from "@/stores/teamStore";
@@ -28,6 +28,7 @@ import { downloadTemplate, ExcelImportError, readRows } from "../bulkExcel";
 import { loadAutoSavePref, loadDraft, saveAutoSavePref, saveDraft, snapshotKey, type DraftSnapshot } from "../bulkDraft";
 import { BULK_SPECS, BULK_TYPES, resolveOne, tokens, type BulkType, type Column, type Ctx, type Problems, type Row, type Values } from "../bulkSpecs";
 import CellPicker from "./CellPicker";
+import { NearTriggerContext } from "@/features/backlog/nestedDock";
 
 let sequence = 0;
 const newRow = (values: Values): Row => ({ id: `row-${++sequence}`, values });
@@ -120,7 +121,7 @@ export default function BulkUploadPage() {
         warned.current = false;
       } else if (!warned.current) {
         warned.current = true;
-        toast.show("This draft couldn't be saved in your browser (storage may be full or blocked). Your entries are still on screen.", "danger");
+        toast.show("Couldn't save the draft in this browser. Your entries are still here.", "danger");
       }
     }, 600);
     return () => clearTimeout(timer);
@@ -196,7 +197,10 @@ export default function BulkUploadPage() {
   );
   const validCount = rowChecks.filter((c) => Object.keys(c.problems).length === 0).length;
   const invalidRows = rowChecks.filter((c) => Object.keys(c.problems).length > 0);
-  const canSubmit = validCount >= BULK_MIN_ROWS;
+  // Only complete, valid rows are ever sent. One valid row goes through its own create route (Owner / Backlog / Team Member); two or more through the bulk route.
+  const validRows = rowChecks.filter((c) => Object.keys(c.problems).length === 0).map((c) => rows[c.number - 1]);
+  const canSubmit = validCount >= 1;
+  const bulkReady = validCount >= BULK_MIN_ROWS;
   const problemCount = Object.values(problems).reduce((n, p) => n + Object.keys(p).length, 0);
 
   function edit(row: Row, col: Column, raw: string) {
@@ -243,8 +247,7 @@ export default function BulkUploadPage() {
     if (mode === "replace") setFailed({});
     setSummary(null);
     setAttemptedBy((a) => ({ ...a, [tab]: true })); // show what is wrong with the imported cells straight away
-    toast.show(`${imported.length} ${imported.length === 1 ? NOUN[tab][0] : NOUN[tab][1]} imported into the table. Check them, then Submit.`);
-    if (imported.length < BULK_MIN_ROWS) toast.show(`The file has ${imported.length} data ${imported.length === 1 ? "row" : "rows"}. At least ${BULK_MIN_ROWS} are needed to submit.`, "warning");
+    toast.show(`${imported.length} ${imported.length === 1 ? NOUN[tab][0] : NOUN[tab][1]} imported. Check them, then submit.`);
   }
 
   async function runExcel(job: () => Promise<void>) {
@@ -280,12 +283,11 @@ export default function BulkUploadPage() {
     if (uploading) return;
     setAttempted(true);
     setSummary(null);
-    if (filled.length < BULK_MIN_ROWS) return void toast.show(`Add at least ${BULK_MIN_ROWS} records before uploading.`, "warning");
-    const any = filled.some((r) => Object.keys(spec.check(r, filled, ctx)).length > 0);
-    if (any || !canSubmit) {
-      toast.show("Some cells need fixing. They are marked in red.", "warning");
+    if (!canSubmit) return void toast.show("Complete at least one row.", "warning");
+    // Incomplete or invalid rows are marked in red and left out; the valid ones are submitted.
+    if (invalidRows.length > 0) {
+      toast.show(`${invalidRows.length} incomplete ${invalidRows.length === 1 ? "row" : "rows"} left out (marked in red).`, "warning");
       requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-bulk-table] [aria-invalid="true"]')?.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" }));
-      return;
     }
     setConfirming(true);
   }
@@ -294,7 +296,7 @@ export default function BulkUploadPage() {
     if (busy.current) return;
     busy.current = true;
     const target = type;
-    const batch = filled;
+    const batch = validRows;
     setUploading(true);
     // One request per tab. First each valid row becomes its record; a row whose record cannot be built is reported on its own and left out.
     const records: { row: Row; body: unknown }[] = [];
@@ -310,7 +312,8 @@ export default function BulkUploadPage() {
     let wholeFailure = "";
     if (records.length > 0) {
       try {
-        const outcome = await submitBulk(target, records.map((r) => r.body));
+        // One record: its own create route, not the bulk route.
+        const outcome = records.length === 1 ? (await submitOne(target, records[0].body), { failed: [] as { index: number; message: string }[] }) : await submitBulk(target, records.map((r) => r.body));
         const refused = new Map(outcome.failed.map((f) => [f.index, f.message]));
         records.forEach((r, i) => {
           const why = refused.get(i);
@@ -343,7 +346,7 @@ export default function BulkUploadPage() {
       setFailed(failures);
       setSummary({ saved: saved.length, failures: list, type: target });
       if (list.length === 0) toast.show(`Uploaded ${saved.length} ${saved.length === 1 ? one : many}.`);
-      else toast.show(`${saved.length} uploaded, ${list.length} failed. The failed rows stay in the table.`, "danger");
+      else toast.show(`${saved.length} uploaded, ${list.length} failed. Failed rows stay.`, "danger");
     }
     setAttempted(false);
     setUploading(false);
@@ -355,7 +358,7 @@ export default function BulkUploadPage() {
       <div className="flex flex-col gap-6">
         <PageHeader title="Bulk Upload" />
         <section className="rounded-2xl border border-border bg-surface">
-          <EmptyState title="Admins only" description="Only an Admin can upload records in bulk. Ask an administrator if you need access changed." />
+          <EmptyState title="Admins only" description="Admins only." />
         </section>
       </div>
     );
@@ -368,7 +371,7 @@ export default function BulkUploadPage() {
     <div className="flex flex-col gap-6 pb-32">
       <PageHeader
         title="Bulk Upload"
-        description="Enter several records in a table and save them in one go. Choose what you are uploading with the tabs. Your entries are kept as a draft on this device until you submit them."
+        description="Add several records at once. Pick a tab, fill the table, then submit. Drafts are kept on this device."
         actions={
           <div className="flex items-center gap-3">
             <span role="status" aria-live="polite" className={`text-xs font-medium ${saveStatus === "Save failed" ? "text-danger" : "text-muted"}`}>
@@ -452,7 +455,7 @@ export default function BulkUploadPage() {
             >
               Clear
             </button>
-            <DisabledTip reason={!uploading && !canSubmit && `Submit needs at least ${BULK_MIN_ROWS} valid records (${validCount} valid so far).`} className="inline-block">
+            <DisabledTip reason={!uploading && !canSubmit && `Complete at least one row. Submit All needs ${BULK_MIN_ROWS}+.`} className="inline-block">
               <button
                 type="button"
                 onClick={submit}
@@ -460,17 +463,19 @@ export default function BulkUploadPage() {
                 className="btn-brand inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
                 <UploadIcon width={16} height={16} />
-                {uploading ? "Uploading…" : "Submit"}
+                {uploading ? "Uploading…" : bulkReady || validCount === 0 ? "Submit All" : "Submit row"}
               </button>
             </DisabledTip>
           </div>
         </div>
 
         {excelError && <FieldError>{excelError}</FieldError>}
-        {!canSubmit && filled.length > 0 && (
+        {!bulkReady && (
           <div role="status" data-bulk-rule className="rounded-xl border border-border bg-surface px-4 py-3 text-sm">
             <p className="font-medium">
-              At least {BULK_MIN_ROWS} valid {many} are needed to submit. You have {validCount} valid so far.
+              {validCount === 1
+                ? `Submit All needs ${BULK_MIN_ROWS}+ completed rows. Submit row saves one.`
+                : `Submit All needs ${BULK_MIN_ROWS}+ completed rows (${validCount} so far).`}
             </p>
             {invalidRows.length > 0 && (
               <ul className="mt-1.5 flex flex-col gap-0.5 text-xs text-muted">
@@ -558,6 +563,7 @@ export default function BulkUploadPage() {
         </div>
       </section>
 
+      <NearTriggerContext.Provider value>
       {creating?.kind === "owner" && (
         <CreateOwnerDrawer
           showRole={false}
@@ -576,6 +582,7 @@ export default function BulkUploadPage() {
           onCreated={(u) => assign(creating.rowId, creating.key, creating.multi, u.id)}
         />
       )}
+      </NearTriggerContext.Provider>
 
       {importing && (
         <BacklogDrawer
@@ -621,7 +628,7 @@ export default function BulkUploadPage() {
       {confirming && (
         <BacklogDrawer
           heading="Confirm upload"
-          submitLabel={`Upload ${filled.length} ${filled.length === 1 ? one : many}`}
+          submitLabel={`Upload ${validRows.length} ${validRows.length === 1 ? one : many}`}
           compact
           onSubmit={() => {
             void upload();
@@ -629,10 +636,10 @@ export default function BulkUploadPage() {
           onClose={() => setConfirming(false)}
         >
           <p className="text-sm">
-            You are about to create <strong className="font-semibold">{filled.length}</strong> {filled.length === 1 ? one : many}. They are saved one at a time, and any that the server refuses stay in the table with the reason.
+            You are about to create <strong className="font-semibold">{validRows.length}</strong> {validRows.length === 1 ? one : many}{invalidRows.length > 0 && `; ${invalidRows.length} incomplete or invalid ${invalidRows.length === 1 ? "row is" : "rows are"} left out`}. Any the server refuses stay in the table with the reason.
           </p>
           <ul className="max-h-48 divide-y divide-border overflow-y-auto rounded-xl border border-border text-sm">
-            {filled.map((r, i) => (
+            {validRows.map((r, i) => (
               <Fragment key={r.id}>
                 <li className="px-3 py-1.5">
                   <span className="mr-2 text-xs tabular-nums text-muted">{i + 1}</span>

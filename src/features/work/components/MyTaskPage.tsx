@@ -157,8 +157,8 @@ export default function MyTaskPage() {
                   <th scope="col" className={head}>Priority</th>
                   <th scope="col" className={head}>Status</th>
                   <th scope="col" className={head}>Sprint</th>
-                  <th scope="col" className={head}>Expected deadline</th>
-                  <th scope="col" className={head}>Lead Deadline</th>
+                  <th scope="col" className={head}>Expected ETA</th>
+                  <th scope="col" className={head}>Developer ETA</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -180,10 +180,10 @@ export default function MyTaskPage() {
                       <StatusBadge status={item.status} />
                     </td>
                     <td data-label="Sprint" className="whitespace-nowrap px-4 py-2 text-muted">{sprintLabel(item.sprint)}</td>
-                    <td data-label="Expected deadline" className="whitespace-nowrap px-4 py-2 text-muted">
+                    <td data-label="Expected ETA" className="whitespace-nowrap px-4 py-2 text-muted">
                       {item.deadline ? <time dateTime={item.deadline}>{formatDeadline(item.deadline)}</time> : "–"}
                     </td>
-                    <td data-label="Lead Deadline" className="whitespace-nowrap px-4 py-2 text-muted">
+                    <td data-label="Developer ETA" className="whitespace-nowrap px-4 py-2 text-muted">
                       {item.leadDeadline ? <time dateTime={item.leadDeadline}>{formatDeadline(item.leadDeadline)}</time> : "–"}
                     </td>
                   </tr>
