@@ -26,7 +26,11 @@ export const workingDays = (start: string, end: string) => eachDay(start, end).f
 export const plannedHours = (start: string, end: string) => workingDays(start, end) * FOCUS_HOURS_PER_DAY;
 
 const dayFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
-export const formatDay = (iso: string) => dayFormat.format(toDate(iso));
+/** A day like "6 Oct"; "–" when the entry carries no valid date (the backend may leave it out). */
+export const formatDay = (iso: string) => {
+  const d = toDate(iso);
+  return Number.isNaN(d.getTime()) ? "–" : dayFormat.format(d);
+};
 
 /** Display hours without trailing zeros: 24, 2.5. */
 export const formatHours = (h: number) => `${Math.round(h * 100) / 100}h`;

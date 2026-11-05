@@ -200,3 +200,35 @@ export const LogoutIcon = (p: IconProps) => (
     <path d="M16 8l4 4-4 4M20 12H9" />
   </Icon>
 );
+
+export const BellIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+  </Icon>
+);
+
+export const ChevronLeftIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m15 18-6-6 6-6" />
+  </Icon>
+);
+
+export const ChevronRightIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m9 18 6-6-6-6" />
+  </Icon>
+);
+
+export const CheckIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m5 12 5 5L20 7" />
+  </Icon>
+);
+
+export const SendIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m22 2-7 20-4-9-9-4Z" />
+    <path d="M22 2 11 13" />
+  </Icon>
+);

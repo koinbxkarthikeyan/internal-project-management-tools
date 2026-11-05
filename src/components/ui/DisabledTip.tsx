@@ -70,7 +70,7 @@ export function DisabledTip({ reason, children, className = "block" }: DisabledT
           id={id}
           role="tooltip"
           popover="manual"
-          className="m-0 max-w-64 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-normal normal-case leading-snug text-foreground shadow-lg"
+          className="m-0 max-w-64 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-normal normal-case leading-snug text-foreground shadow-tip"
           style={{ position: "fixed", inset: "auto" }}
         >
           {reason}

@@ -12,6 +12,8 @@ export type Auth = {
   /** Admin or Super Admin with access Enabled: can create users and owners and manage users. */
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  /** An Admin whose access is Disabled: signed out on the spot and shown the account-disabled page, never the application. */
+  disabledAdmin: boolean;
   /** A normal User or a Disabled Admin: may only use "What are you working on? > My sprint / My Task" and Settings. */
   restricted: boolean;
   /** A Disabled normal User: signed in, but may only open Settings (and Sign out). A Disabled Admin works as a normal User instead. */
@@ -37,6 +39,7 @@ export function useAuth(): Auth {
   return {
     status,
     user,
+    disabledAdmin: !!user && user.role === "Admin" && accountDisabled,
     restricted,
     settingsOnly,
     mustChangePassword,

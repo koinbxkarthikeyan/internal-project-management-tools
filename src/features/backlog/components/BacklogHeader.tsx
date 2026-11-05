@@ -5,7 +5,7 @@ export default function BacklogHeader() {
   return (
     <PageHeader
       title="All items"
-      description="Track, filter and prioritise every backlog item across sprints."
+      description="Track and filter backlog items."
       actions={
         <div className="w-full sm:w-auto">
           <CreateBacklogButton gradient />

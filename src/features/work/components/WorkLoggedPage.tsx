@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useQueryState } from "@/hooks/useQueryState";
 import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
@@ -17,8 +18,11 @@ import { todayISO } from "@/features/backlog/utils";
 import { myHoursBySprint, recentSprints, sprintHours } from "../utils";
 import { useBacklog } from "@/features/backlog/context/BacklogContext";
 import HoursSummaryLine from "./HoursSummaryLine";
+import SprintGlance from "./SprintGlance";
+import SprintSummary from "./SprintSummary";
 import SprintPicker from "./SprintPicker";
 import WorkEntriesList from "./WorkEntriesList";
+import TeamWorkView from "./TeamWorkView";
 import WorkEntryDetailsDrawer from "./WorkEntryDetailsDrawer";
 
 const card = "rounded-2xl border border-border bg-surface p-5";
@@ -38,6 +42,8 @@ export default function WorkLoggedPage() {
   const [removing, setRemoving] = useState<WorkEntry | null>(null);
   const [viewing, setViewing] = useState<WorkEntry | null>(null);
   const person = user?.name ?? "";
+  // Everyone, whatever their role, has their own PODs and tasks here on a second tab (the whole team is on Team Work Details).
+  const [view, setView] = useQueryState<"entries" | "pods">("view", ["entries", "pods"], "entries");
 
   if (work.status === "loading") return <PageSkeleton />;
   if (work.status === "error") {
@@ -83,7 +89,31 @@ export default function WorkLoggedPage() {
     <div className="flex flex-col gap-5">
       {header}
       <SprintPicker sprints={datedSprints} selectedIds={chosen.map((s) => s.id)} onChange={setPicked} />
-      <section className={card}>
+      <div role="group" aria-label="Show" className="grid grid-cols-2 rounded-xl border border-border bg-surface p-1">
+        {([["entries", "My entries"], ["pods", "My PODs & tasks"]] as const).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={view === id}
+            onClick={() => setView(id)}
+            className={`rounded-lg px-3 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-accent ${
+              view === id ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-hover hover:text-foreground"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {view === "entries" && (
+      <section className={`${card} flex flex-col gap-5`}>
+        {/* Everything logged: the hours against the sprint's, and the day-by-day timeline of the entries below. */}
+        <SprintSummary logged={loggedHours} limit={total} expected={soFar} hasPerson={!!person} />
+        {chosen.map((s) => (
+          <div key={s.id} className="border-t border-border pt-5">
+            <SprintGlance sprint={s} entries={mine.filter((e) => e.sprintId === s.id)} showPerson={false} title={chosen.length === 1 ? undefined : `${s.name} at a glance`} />
+          </div>
+        ))}
+        <div className="border-t border-border pt-5">
         <WorkEntriesList
           title="Your Logged Work"
           entries={mine}
@@ -94,7 +124,10 @@ export default function WorkLoggedPage() {
           onView={setViewing}
           onRemove={setRemoving}
         />
+        </div>
       </section>
+      )}
+      {view === "pods" && <TeamWorkView work={work} chosen={chosen} mineOnly />}
       {viewing && <WorkEntryDetailsDrawer key={viewing.id} entry={viewing} hoursLine={<HoursSummaryLine logged={loggedHours} soFar={soFar} total={total} className="text-sm text-muted" />} onClose={() => setViewing(null)} />}
       {removing && (
         <ConfirmDeleteDrawer

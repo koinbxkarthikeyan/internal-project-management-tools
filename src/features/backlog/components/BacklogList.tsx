@@ -20,7 +20,7 @@ type BacklogListProps = {
   onLoadMore?: () => void;
 };
 
-const COLUMNS = ["Title", "Type", "Priority", "Status", "Sprint", "Owner", "Deadline", "Actions"];
+const COLUMNS = ["Title", "Type", "Priority", "Status", "Sprint", "Owner", "Expected ETA", "Actions"];
 
 export default function BacklogList({ items, total, actions, leavingIds, emptyTitle = "No items yet", emptyMessage, header, hasMore = false, loadingMore = false, onLoadMore }: BacklogListProps) {
   const scroller = useRef<HTMLUListElement>(null);

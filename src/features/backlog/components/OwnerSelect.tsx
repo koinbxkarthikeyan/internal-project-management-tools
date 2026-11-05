@@ -38,7 +38,7 @@ export default function OwnerSelect({ value, onChange, required, placeholder, la
         onChange={onChange}
         // A current owner who is not in the list (e.g. an old owner record) stays selectable so editing never blanks it.
         options={[...new Set([...(value && !options.some((o) => o.name === value) ? [value] : []), ...options.map((o) => o.name)])]}
-        placeholder={placeholder ?? "Search or select an owner, or add a new owner."}
+        placeholder={placeholder ?? (isAdmin ? "Search or select an owner. Type + to add a new owner." : "Search or select an owner.")}
         action={isAdmin ? { label: "+ Add New Owner", onSelect: () => setAdding(true) } : undefined}
       />
       {/* Rendered in document.body: a <form> can't sit inside the backlog form's <form>. */}

@@ -5,6 +5,8 @@ import { BacklogProvider } from "@/features/backlog/context/BacklogContext";
 import CreateBacklogDrawer from "@/features/backlog/components/CreateBacklogDrawer";
 import BacklogDataGate from "@/features/backlog/components/BacklogDataGate";
 import BacklogSidebar from "@/features/backlog/components/BacklogSidebar";
+import NotificationFeed from "@/features/notifications/components/NotificationFeed";
+import QuickCreateShortcuts from "@/features/backlog/components/QuickCreateShortcuts";
 import SprintNotifications from "@/features/backlog/components/SprintNotifications";
 
 export default function DashboardLayout({ children }: LayoutProps<"/">) {
@@ -17,8 +19,10 @@ export default function DashboardLayout({ children }: LayoutProps<"/">) {
         <BacklogSidebar />
       </Sidebar>
       <CreateBacklogDrawer />
+      <QuickCreateShortcuts />
       <SprintNotifications />
-      <main className="min-w-0 px-4 pb-8 pt-16 sm:px-6 lg:pl-80 lg:pr-8 lg:pt-8">
+      <NotificationFeed />
+      <main className="sb-main min-w-0 px-4 pb-8 pt-16 sm:px-6 lg:pl-80 lg:pr-8 lg:pt-8">
         <BacklogDataGate>{children}</BacklogDataGate>
       </main>
     </div>
