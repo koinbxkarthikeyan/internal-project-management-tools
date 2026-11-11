@@ -1,5 +1,6 @@
 "use client";
 
+import { markKeyOpened } from "../nestedDock";
 import { DisabledTip } from "@/components/ui/DisabledTip";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import PageHeader from "@/components/layout/PageHeader";
@@ -16,6 +17,8 @@ import type { BacklogItemData, Sprint } from "@/types/backlog";
 import { sprintLabel } from "@/constants/backlog-options";
 import { carryOverSource } from "../carryOver";
 import EditBacklogDrawer from "./EditBacklogDrawer";
+import TaskSearchModal from "./TaskSearchModal";
+import { useTabKeys } from "@/hooks/useTabKeys";
 import { useHoverTip } from "@/components/ui/HoverTip";
 import { formatDeadline, todayISO } from "../utils";
 import { eachDay, plannedHours, workingDays } from "@/features/work/utils";
@@ -27,6 +30,9 @@ import { applyOrder, dropIds, stepIds } from "../taskOrder";
 import SprintItemsTable from "./SprintItemsTable";
 import TaskHistoryModal from "@/features/work/components/TaskHistoryModal";
 
+/** What a restricted person still cannot type into the search: the tab keys. */
+const TAB_KEYS_ONLY = ["1", "2", "3"];
+const SEARCH_RESERVED = ["s", "b", "1", "2", "3"];
 const PARKED = "pointer-events-none absolute -left-[99999px] top-0 w-full opacity-0";
 
 export default function SprintPlanPage() {
@@ -50,7 +56,7 @@ export default function SprintPlanPage() {
   const [dragging, setDragging] = useState<BacklogItemData | null>(null);
   const [over, setOver] = useState<string | null>(null);
   // The order of tasks inside each list is a view setting kept in this browser (see taskOrderStore); it never changes which sprint a task is in.
-  const { user } = useAuth();
+  const { user, restricted } = useAuth();
   const orders = useTaskOrderStore((st) => st.orders[user?.id ?? ""]) ?? {};
   const setOrder = useTaskOrderStore((st) => st.setOrder);
   // Holding a dragged task over a tab opens it after 500ms; leaving the tab (or any drop or drag end) cancels that.
@@ -60,18 +66,20 @@ export default function SprintPlanPage() {
     clearTimeout(tabTimer.current);
     tabTimer.current = setTimeout(() => setTab(id), 500);
   };
-  // S opens Plan New Sprint on this page only (not while typing in a field or while a form is open).
+  // S opens Plan New Sprint on this page only (not while typing in a field or while a form is open), and not for people who cannot create (User, disabled Admin).
   useEffect(() => {
+    if (restricted) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() !== "s" || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.repeat || e.defaultPrevented) return;
       if ((e.target as HTMLElement | null)?.closest("input, textarea, select, [contenteditable=''], [contenteditable=true], [role=combobox]")) return;
       if (document.querySelector("dialog[open]")) return;
       e.preventDefault();
+      markKeyOpened();
       setCreatingSprint(true);
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, []);
+  }, [restricted]);
   // The dragged row can disappear when the tab changes, and then its own "drag ended" never arrives: any drop or end anywhere clears the drag.
   useEffect(() => {
     const clear = () => (clearTimeout(tabTimer.current), hideDropTip(), setDragging(null), setOver(null));
@@ -125,7 +133,11 @@ export default function SprintPlanPage() {
   );
   const renderSprint = (sp: Sprint, index: number, pick: (i: BacklogItemData) => boolean = () => true) => {
     const sprint = sp.name;
-    const items = applyOrder(allItems.filter((i) => i.sprint === sprint && pick(i)), orders[sprint]);
+    // The Backlog lists its tasks by the date they were created, oldest first; a place the person gave a task by dragging still wins. Tasks with no date go last.
+    const listed = allItems.filter((i) => i.sprint === sprint && pick(i));
+    const day = (i: BacklogItemData) => i.createdAt ?? i.created ?? "";
+    const dated = sprint === "Unplanned" ? [...listed].sort((x, y) => (day(x) && !day(y) ? -1 : !day(x) && day(y) ? 1 : day(x).localeCompare(day(y)))) : listed;
+    const items = applyOrder(dated, orders[sprint]);
     return (
       <section
         key={sprint}
@@ -209,6 +221,8 @@ export default function SprintPlanPage() {
   const closeAvailable = status === "ready";
   const requested = tab === "unplanned-closed" ? "closed" : tab;
   const activeTab = requested === "closed" && !closeAvailable ? "active" : requested; // a saved link to a disabled tab opens Active Sprint
+
+  useTabKeys([{ id: "active" }, { id: "plan" }, { id: "closed", disabled: !closeAvailable }], (id) => setTab(id as "active" | "plan" | "closed"));
 
   const expandedClosedId = openClosed === undefined ? (closed[0]?.id ?? null) : openClosed;
 
@@ -508,6 +522,12 @@ export default function SprintPlanPage() {
         <EditSprintDrawer key={editingSprint.name} sprint={editingSprint} onClose={() => setEditingSprint(null)} />
       )}
       {viewing && <TaskHistoryModal key={viewing.id} item={viewing} allTasks={[...allItems, ...hiddenItems]} allSprints={sprints} onClose={() => setViewing(null)} />}
+      {/* Typing anywhere on this page searches every task; S and B keep their own shortcuts (Plan New Sprint, Create backlog), "/" searches whatever you type. */}
+      <TaskSearchModal
+        tasks={[...allItems, ...hiddenItems]}
+        reserved={restricted ? TAB_KEYS_ONLY : SEARCH_RESERVED}
+        onPick={(task) => (task.hidden || sprints.some((x) => x.name === task.sprint && x.status === "Closed") ? setViewing(task) : setEditing(task))}
+      />
       {editing && (
         <EditBacklogDrawer
           key={editing.id}

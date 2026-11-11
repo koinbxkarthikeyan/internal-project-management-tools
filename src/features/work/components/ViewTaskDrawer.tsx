@@ -126,7 +126,7 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
       </div>
       {canEdit && (
         <div className="flex flex-col gap-4 rounded-xl border border-border bg-background/60 p-4">
-          <p className="text-xs text-muted">{isLead ? "You lead this task. Update status, assignees and Developer ETA." : "You&apos;re assigned. Update status and Developer ETA."}</p>
+          <p className="text-xs text-muted">{isLead ? "You lead this task. Update status, assignees and Developer ETA." : "You're assigned. Update status and Developer ETA."}</p>
           <SelectField label="Status" value={status} onChange={(v) => (setStatus(v as Status), setError(""))} options={statusOptionsFor(item)} />
           {commenting && (
             <TextAreaField

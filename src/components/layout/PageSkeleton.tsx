@@ -23,10 +23,10 @@ function Header({ action }: { action?: boolean }) {
   );
 }
 
-function Stats() {
+function Stats({ count = 5, className = "grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5" }: { count?: number; className?: string }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-      {Array.from({ length: 5 }, (_, i) => (
+    <div className={className}>
+      {Array.from({ length: count }, (_, i) => (
         <div key={i} className="rounded-2xl border border-border bg-surface p-4">
           <div className={`${bar} h-3 w-16`} />
           <div className={`${bar} mt-3 h-7 w-10`} />
@@ -65,8 +65,19 @@ function Rows({ rows = 6, cols = 3, head = false }: { rows?: number; cols?: numb
   );
 }
 
-function Filters() {
-  return <div className="h-16 rounded-2xl border border-border bg-surface" />;
+function Filters({ fields = 0 }: { fields?: number }) {
+  if (fields === 0) return <div className="h-16 rounded-2xl border border-border bg-surface" />;
+  return (
+    <div className="grid gap-3 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] lg:items-end">
+      {Array.from({ length: fields }, (_, i) => (
+        <div key={i} className="flex flex-col gap-1">
+          <div className={`${bar} h-3 w-12`} />
+          <div className="h-10 rounded-xl bg-hover" />
+        </div>
+      ))}
+      <div className="h-10 w-20 rounded-xl bg-hover" />
+    </div>
+  );
 }
 
 function Card({ lines = 4, className = "" }: { lines?: number; className?: string }) {
@@ -105,16 +116,64 @@ function SprintSection() {
   );
 }
 
+/** A sprint picker bar: a bordered card with a label and a few chips. */
+function Picker() {
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface p-4">
+      <div className={`${bar} h-4 w-20`} />
+      <div className="h-8 w-24 rounded-full bg-hover" />
+      <div className="h-8 w-24 rounded-full bg-hover" />
+      <div className="h-8 w-24 rounded-full bg-hover" />
+    </div>
+  );
+}
+
+// Longer paths first: the first one the address starts with is the one used.
 const layouts: Record<string, ReactNode> = {
-  "/overview": (
+  "/my-sprint/logged": (
+    <>
+      <Header action />
+      <Picker />
+      <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-surface p-1">
+        <div className="h-9 rounded-lg bg-hover" />
+        <div className="h-9 rounded-lg" />
+      </div>
+      <Rows rows={5} cols={4} head />
+    </>
+  ),
+  "/my-sprint/team": (
     <>
       <Header />
-      <Stats />
+      <Picker />
+      <Tabs count={3} />
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card lines={5} />
+        <Card lines={4} />
+        <Card lines={4} />
+        <Card lines={4} />
         <Card lines={4} />
       </div>
-      <Rows rows={4} cols={2} />
+    </>
+  ),
+  "/bulk-upload": (
+    <>
+      <Header action />
+      <Tabs count={3} />
+      <Rows head cols={6} rows={8} />
+    </>
+  ),
+  "/overview": (
+    <>
+      <Header action />
+      <Filters fields={4} />
+      <Stats count={8} className="grid grid-cols-2 gap-3 md:grid-cols-4" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card lines={5} />
+        <Card lines={5} />
+        <Card lines={4} />
+        <Card lines={4} />
+        <Card lines={5} />
+        <Card lines={6} />
+      </div>
     </>
   ),
   "/all-items": (

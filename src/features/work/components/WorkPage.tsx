@@ -7,7 +7,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
-import { FOCUS_HOURS_PER_DAY, WORK_KINDS, SPRINT_TASKS_POD, UNPLANNED_POD, WORK_LOGGED_HREF, isPseudoPod } from "@/constants/work";
+import { FOCUS_HOURS_PER_DAY, SPRINT_TASKS_POD, UNPLANNED_POD, WORK_LOGGED_HREF, isPseudoPod } from "@/constants/work";
 import ConfirmDeleteDrawer from "@/features/backlog/components/ConfirmDeleteDrawer";
 import { Field, SearchableSelect } from "@/components/ui/FormControls";
 import { refreshUsers } from "@/lib/auth/userStore";
@@ -65,10 +65,12 @@ export default function WorkPage() {
   // The kind of work: the supported kind that matches the person's Team when there is one, otherwise none until one is chosen; it can be changed in
   // the form at any time. The Team itself (e.g. Marketing) is never sent as the kind; it stays on the profile.
   const [kindPick, setKindPick] = useState<WorkKind | null>(null);
-  // Every kind is a team from the same list the Team Members form offers (plus the five the backend lists), so none is left out.
+  // Every kind is a team from the same list the Team Members form offers.
   const teamDeleted = useTeamStore((s) => s.deleted);
   const teamCustom = useTeamStore((s) => s.custom);
-  const kinds = teamOptions(users, WORK_KINDS, { renames, deleted: teamDeleted, custom: teamCustom });
+  // Only the Teams that a Team Member is actually in: the defaults and teams nobody belongs to are left out.
+  const inUse = new Set(users.map((u) => (u.team ? resolveTeam(u.team, renames) : "").trim().toLowerCase()).filter(Boolean));
+  const kinds = teamOptions(users, [], { renames, deleted: teamDeleted, custom: teamCustom }).filter((t) => inUse.has(t.trim().toLowerCase()));
   const kindFromTeam = kinds.find((k) => k.toLowerCase() === (rawTeam || myTeam).trim().toLowerCase());
   const kind: WorkKind | null = kindPick ?? kindFromTeam ?? null;
   // Hours currently in the form, so the bar follows what is being entered.

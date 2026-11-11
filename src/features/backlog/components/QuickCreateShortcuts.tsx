@@ -6,7 +6,8 @@ import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import UserFormDrawer from "@/features/users/components/UserFormDrawer";
 import { refreshUsers } from "@/lib/auth/userStore";
-import { canPressB, canPressO, canPressS, canPressT } from "../shortcuts";
+import { canPressB, canPressBulk, hasTabs, canPressO, canPressS, canPressT, hasSearch } from "../shortcuts";
+import { markKeyOpened } from "../nestedDock";
 import { useBacklog } from "../context/BacklogContext";
 import BacklogDrawer from "./BacklogDrawer";
 import CreateOwnerDrawer from "./CreateOwnerDrawer";
@@ -37,6 +38,13 @@ export default function QuickCreateShortcuts() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  // The keyboard button next to the bell asks for the same list as the ? key.
+  useEffect(() => {
+    const show = () => setForm("help");
+    window.addEventListener("open-shortcuts", show);
+    return () => window.removeEventListener("open-shortcuts", show);
+  }, []);
+
   useEffect(() => {
     if (!user || settingsOnly) return;
     const onKey = (e: KeyboardEvent) => {
@@ -55,6 +63,7 @@ export default function QuickCreateShortcuts() {
       else if (key === "o" && isAdmin && canPressO(pathname)) setForm("owner");
       else if (key === "t" && isAdmin && canPressT(pathname)) setForm("member");
       else return;
+      markKeyOpened();
       e.preventDefault();
     };
     document.addEventListener("keydown", onKey);
@@ -66,13 +75,19 @@ export default function QuickCreateShortcuts() {
       ...(!restricted && canPressB(pathname, view) ? ([["B", "Create backlog"]] as [string, string][]) : []),
       ...(isAdmin && canPressO(pathname) ? ([["O", "Create owner"]] as [string, string][]) : []),
       ...(isAdmin && canPressT(pathname) ? ([["T", "Add team member"]] as [string, string][]) : []),
-      ...(canPressS(pathname) ? ([["S", "Plan new sprint"]] as [string, string][]) : []),
+      ...(isAdmin && canPressBulk(pathname)
+        ? ([["A", "Add a row"], ["S", "Auto-Save on or off"], ["U", "Upload an Excel sheet"], ["D", "Download the Excel template (asks first)"]] as [string, string][])
+        : []),
+      ...(!restricted && canPressS(pathname) ? ([["S", "Plan new sprint"]] as [string, string][]) : []),
+      ...(hasSearch(pathname) ? ([["/ or just type", canPressS(pathname) ? "Search every task" : "Search this page"]] as [string, string][]) : []),
+      ...(hasTabs(pathname, restricted) ? ([["1 2 3", "Switch tab (first, second, third)"]] as [string, string][]) : []),
+      ["Menu key", "Open notifications (1 2 3: All, Unread, Read)"],
       ["Ctrl + F", "Expand a form or panel"],
       ["Esc", "Shrink it, then close"],
       ["?", "Show this list"],
     ];
     return (
-      <BacklogDrawer heading="Keyboard shortcuts" subtitle="Work faster without the mouse." submitLabel="Close" compact viewOnly onSubmit={() => {}} onClose={() => setForm(null)}>
+      <BacklogDrawer heading="Keyboard shortcuts" subtitle={`Keys for your role (${user?.role ?? "member"}${restricted ? ", view only" : ""}).`} submitLabel="Close" compact screenCentre viewOnly onSubmit={() => {}} onClose={() => setForm(null)}>
         <ul className="divide-y divide-border text-sm">
           {rows.map(([key, what]) => (
             <li key={key} className="flex items-center justify-between gap-4 py-2">
@@ -81,7 +96,7 @@ export default function QuickCreateShortcuts() {
             </li>
           ))}
         </ul>
-        <p className="text-xs text-muted">Letter keys work when you&apos;re not typing in a field.</p>
+        <p className="text-xs text-muted">Press a key anywhere on the page, as long as you aren&apos;t typing in a field or have a form open. This list is always under the keyboard button next to the bell, or press ?.</p>
       </BacklogDrawer>
     );
   }

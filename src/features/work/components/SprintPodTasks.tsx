@@ -11,7 +11,7 @@ import type { Pod, WorkEntry } from "@/types/work";
 import TaskHistoryModal from "./TaskHistoryModal";
 import TaskSprintHours, { carriedChain } from "./TaskSprintHours";
 import { carryOverSource } from "@/features/backlog/carryOver";
-import { formatDay, formatHours } from "../utils";
+import { formatDay, formatHours, hoursBySprint } from "../utils";
 
 type DatedSprint = Sprint & { start: string; end: string };
 
@@ -53,10 +53,7 @@ export default function SprintPodTasks({ sprints, pods, items, selection, logged
   const own = [...new Map(entries.map((e) => [e.id, e])).values()];
   function sprintTime(task: BacklogItemData) {
     const records = [...carriedChain(task, allTasks)].reverse().concat(task);
-    const parts = records.map((r) => ({
-      name: r.sprint,
-      hours: own.filter((e) => e.itemIds?.includes(r.id)).reduce((sum, e) => sum + e.hours, 0),
-    }));
+    const parts = hoursBySprint(records, own, allSprints);
     return { parts, total: parts.reduce((sum, r) => sum + r.hours, 0) };
   }
 

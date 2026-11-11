@@ -27,10 +27,21 @@ export default function BacklogSearch({ value, onChange, placeholder = "Search t
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          // Esc leaves the box (keeping the typed filter) so single-key shortcuts work again.
+          if (e.key === "Escape") {
+            e.preventDefault();
+            e.currentTarget.blur();
+          }
+        }}
         placeholder={placeholder}
         aria-label={ariaLabel}
-        className="h-10 w-full field pl-8 pr-3 text-sm placeholder:text-muted"
+        aria-keyshortcuts="/"
+        title="Just start typing on this page to search, or press /"
+        className="peer h-10 w-full field pl-8 pr-10 text-sm placeholder:text-muted"
       />
+      {/* The shortcut, shown while the box is empty: typing anywhere on the page, or /, lands here. */}
+      {!value && <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded border border-border px-1.5 text-[10px] font-medium text-muted peer-focus:hidden sm:inline">/</kbd>}
     </div>
   );
 }

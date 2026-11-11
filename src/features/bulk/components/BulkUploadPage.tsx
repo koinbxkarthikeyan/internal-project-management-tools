@@ -9,6 +9,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import { CloseIcon, PlusIcon, UploadIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/Toast";
 import { useQueryState } from "@/hooks/useQueryState";
+import { useTabKeys } from "@/hooks/useTabKeys";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import BacklogDrawer from "@/features/backlog/components/BacklogDrawer";
 import { useBacklog } from "@/features/backlog/context/BacklogContext";
@@ -28,7 +29,7 @@ import { downloadTemplate, ExcelImportError, readRows } from "../bulkExcel";
 import { loadAutoSavePref, loadDraft, saveAutoSavePref, saveDraft, snapshotKey, type DraftSnapshot } from "../bulkDraft";
 import { BULK_SPECS, BULK_TYPES, resolveOne, tokens, type BulkType, type Column, type Ctx, type Problems, type Row, type Values } from "../bulkSpecs";
 import CellPicker from "./CellPicker";
-import { NearTriggerContext } from "@/features/backlog/nestedDock";
+import { NearTriggerContext, markKeyOpened } from "@/features/backlog/nestedDock";
 
 let sequence = 0;
 const newRow = (values: Values): Row => ({ id: `row-${++sequence}`, values });
@@ -87,6 +88,8 @@ export default function BulkUploadPage() {
   const [creating, setCreating] = useState<{ kind: "owner" | "member"; rowId: string; key: string; multi: boolean } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [clearing, setClearing] = useState(false);
+  // The D key asks first (the button downloads at once).
+  const [confirmDownload, setConfirmDownload] = useState(false);
   const [uploading, setUploading] = useState(false);
     const [failed, setFailed] = useState<Record<string, string>>({});
   const [summary, setSummary] = useState<{ saved: number; failures: Failure[]; type: BulkType; error?: string } | null>(null);
@@ -229,6 +232,33 @@ export default function BulkUploadPage() {
 
   const addRow = () => setRows((rs) => [...rs, newRow({ ...spec.blank() })]);
   const removeRow = (id: string) => setRows((rs) => rs.filter((r) => r.id !== id));
+
+  useTabKeys(BULK_TYPES.map((t) => ({ id: t.value })), (id) => !uploading && setType(id as BulkType));
+
+  // Keys for this page (not while typing in a field or with a form open): A adds a row and moves into it, S turns Auto-Save on or off, U uploads an Excel sheet, D downloads the template.
+  // Submit and Clear stay on the mouse, so nothing is sent or wiped by a stray key.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.repeat || e.defaultPrevented || uploading) return;
+      if ((e.target as HTMLElement | null)?.closest("input, textarea, select, [contenteditable=''], [contenteditable=true], [role=combobox]")) return;
+      if (document.querySelector("dialog[open]")) return;
+      const key = e.key.toLowerCase();
+      if (key === "a") {
+        addRow();
+        // The new row's first text field takes the cursor once it is on the page.
+        requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector<HTMLElement>("#bulk-panel tbody tr:last-child input:not([type=hidden], [tabindex='-1'], [role=combobox])")?.focus()));
+      } else if (key === "s") toggleAutoSave();
+      else if (key === "u" && !excelBusy) pickFile();
+      else if (key === "d" && !excelBusy) {
+        markKeyOpened();
+        setConfirmDownload(true);
+      }
+      else return;
+      e.preventDefault();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
   // Clear empties only the open tab (after the person confirms); the other tabs keep what was entered.
   function clearAll() {
     const ids = new Set(rows.map((r) => r.id));
@@ -384,6 +414,8 @@ export default function BulkUploadPage() {
                 role="switch"
                 aria-checked={autoSave}
                 aria-label="Auto-Save draft"
+                aria-keyshortcuts="S"
+                title="Auto-Save draft (press S)"
                 onClick={toggleAutoSave}
                 className={`relative h-5 w-9 shrink-0 rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${autoSave ? "bg-accent" : "bg-border"}`}
               >
@@ -411,6 +443,8 @@ export default function BulkUploadPage() {
               aria-selected={on}
               aria-controls="bulk-panel"
               disabled={uploading}
+              aria-keyshortcuts={String(BULK_TYPES.indexOf(t) + 1)}
+              title={`${t.label} (press ${BULK_TYPES.indexOf(t) + 1})`}
               onClick={() => setType(t.value)}
               className={`flex min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 ${
                 on ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-hover hover:text-foreground"
@@ -433,16 +467,18 @@ export default function BulkUploadPage() {
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <input ref={fileInput} type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden aria-label="Excel file to import" onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ""; }} />
-            <button type="button" onClick={() => void runExcel(() => downloadTemplate(type, ctx))} disabled={uploading || excelBusy} className={secondaryButton}>
+            <button type="button" onClick={() => void runExcel(() => downloadTemplate(type, ctx))} disabled={uploading || excelBusy} aria-keyshortcuts="D" title="Download Excel Template (press D to be asked first)" className={secondaryButton}>
               Download Excel Template
             </button>
-            <button type="button" onClick={pickFile} disabled={uploading || excelBusy} className={secondaryButton}>
+            <button type="button" onClick={pickFile} disabled={uploading || excelBusy} aria-keyshortcuts="U" title="Upload Excel (press U)" className={secondaryButton}>
               Upload Excel
             </button>
             <button
               type="button"
               onClick={addRow}
               disabled={uploading}
+              aria-keyshortcuts="A"
+              title="Add Row (press A)"
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-surface px-4 text-sm font-medium transition-colors hover:bg-hover disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-accent"
             >
               <PlusIcon width={16} height={16} /> Add Row
@@ -607,6 +643,18 @@ export default function BulkUploadPage() {
           >
             Add to the existing rows instead
           </button>
+        </BacklogDrawer>
+      )}
+
+      {confirmDownload && (
+        <BacklogDrawer
+          heading="Download Excel template"
+          submitLabel="Download"
+          compact
+          onSubmit={() => void runExcel(() => downloadTemplate(type, ctx))}
+          onClose={() => setConfirmDownload(false)}
+        >
+          <p className="text-sm">Download the Excel template for the {spec.label} tab? It is an empty sheet with the columns this table uses.</p>
         </BacklogDrawer>
       )}
 

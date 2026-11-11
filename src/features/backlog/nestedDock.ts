@@ -1,11 +1,21 @@
 import { createContext, useEffect, useState } from "react";
 
+let keyOpenedAt = 0;
+/** Called by a single-key shortcut (B, O, T, S) just before it opens a form: that form then opens in the middle of the screen, not beside the button a click would use. */
+export function markKeyOpened() {
+  keyOpenedAt = Date.now();
+}
+/** True for a form that mounts right after a shortcut key opened it (a click on the button never sets it). */
+export function openedByKey() {
+  return Date.now() - keyOpenedAt < 1000;
+}
+
 /** Wrapped around a small form opened from a table cell (Bulk Upload): it then opens next to the cell that was used, not in the usual place. */
 export const NearTriggerContext = createContext(false);
 
 /** Where a panel opened over another form sits: in the middle of that form (`top` is its vertical middle: the panel is lifted by half its own height), no taller than the form (less a margin). */
 export type NestedDock = { left: number; top: number; height: number };
-export const NESTED_WIDTH = 448; // 28rem
+export const NESTED_WIDTH = 368; // 23rem
 
 type Found = { parent: Element; dock: NestedDock } | null;
 
