@@ -3,11 +3,13 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
 import PageHeader from "@/components/layout/PageHeader";
+import { DisabledTip } from "@/components/ui/DisabledTip";
 import { FieldError } from "@/components/ui/FieldError";
 import EmptyState from "@/components/ui/EmptyState";
 import { CloseIcon, PlusIcon, UploadIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/Toast";
 import { useQueryState } from "@/hooks/useQueryState";
+import { useTabKeys } from "@/hooks/useTabKeys";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import BacklogDrawer from "@/features/backlog/components/BacklogDrawer";
 import { useBacklog } from "@/features/backlog/context/BacklogContext";
@@ -17,7 +19,7 @@ import UserFormDrawer from "@/features/users/components/UserFormDrawer";
 import { useUsers } from "@/features/users/hooks/useUsers";
 import { useBacklogStore } from "@/stores/backlogStore";
 import { getErrorMessage } from "@/lib/apiClient";
-import { submitBulk } from "@/services/bulkService";
+import { BULK_MIN_ROWS, submitBulk, submitOne } from "@/services/bulkService";
 import { teamOptions } from "@/lib/auth/teams";
 import { refreshUsers } from "@/lib/auth/userStore";
 import { resolveTeam, useTeamStore } from "@/stores/teamStore";
@@ -27,6 +29,7 @@ import { downloadTemplate, ExcelImportError, readRows } from "../bulkExcel";
 import { loadAutoSavePref, loadDraft, saveAutoSavePref, saveDraft, snapshotKey, type DraftSnapshot } from "../bulkDraft";
 import { BULK_SPECS, BULK_TYPES, resolveOne, tokens, type BulkType, type Column, type Ctx, type Problems, type Row, type Values } from "../bulkSpecs";
 import CellPicker from "./CellPicker";
+import { NearTriggerContext, markKeyOpened } from "@/features/backlog/nestedDock";
 
 let sequence = 0;
 const newRow = (values: Values): Row => ({ id: `row-${++sequence}`, values });
@@ -85,6 +88,8 @@ export default function BulkUploadPage() {
   const [creating, setCreating] = useState<{ kind: "owner" | "member"; rowId: string; key: string; multi: boolean } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [clearing, setClearing] = useState(false);
+  // The D key asks first (the button downloads at once).
+  const [confirmDownload, setConfirmDownload] = useState(false);
   const [uploading, setUploading] = useState(false);
     const [failed, setFailed] = useState<Record<string, string>>({});
   const [summary, setSummary] = useState<{ saved: number; failures: Failure[]; type: BulkType; error?: string } | null>(null);
@@ -119,7 +124,7 @@ export default function BulkUploadPage() {
         warned.current = false;
       } else if (!warned.current) {
         warned.current = true;
-        toast.show("This draft couldn't be saved in your browser (storage may be full or blocked). Your entries are still on screen.", "danger");
+        toast.show("Couldn't save the draft in this browser. Your entries are still here.", "danger");
       }
     }, 600);
     return () => clearTimeout(timer);
@@ -187,6 +192,18 @@ export default function BulkUploadPage() {
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempted, spec, rows, ctx]);
+  // Which entered rows are valid right now (always, not only after Submit): at least BULK_MIN_ROWS must be before Submit is allowed.
+  const rowChecks = useMemo(
+    () => rows.flatMap((r, i) => (isBlank(r) ? [] : [{ number: i + 1, problems: spec.check(r, rows.filter((x) => !isBlank(x)), ctx) }])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [spec, rows, ctx],
+  );
+  const validCount = rowChecks.filter((c) => Object.keys(c.problems).length === 0).length;
+  const invalidRows = rowChecks.filter((c) => Object.keys(c.problems).length > 0);
+  // Only complete, valid rows are ever sent. One valid row goes through its own create route (Owner / Backlog / Team Member); two or more through the bulk route.
+  const validRows = rowChecks.filter((c) => Object.keys(c.problems).length === 0).map((c) => rows[c.number - 1]);
+  const canSubmit = validCount >= 1;
+  const bulkReady = validCount >= BULK_MIN_ROWS;
   const problemCount = Object.values(problems).reduce((n, p) => n + Object.keys(p).length, 0);
 
   function edit(row: Row, col: Column, raw: string) {
@@ -215,6 +232,33 @@ export default function BulkUploadPage() {
 
   const addRow = () => setRows((rs) => [...rs, newRow({ ...spec.blank() })]);
   const removeRow = (id: string) => setRows((rs) => rs.filter((r) => r.id !== id));
+
+  useTabKeys(BULK_TYPES.map((t) => ({ id: t.value })), (id) => !uploading && setType(id as BulkType));
+
+  // Keys for this page (not while typing in a field or with a form open): A adds a row and moves into it, S turns Auto-Save on or off, U uploads an Excel sheet, D downloads the template.
+  // Submit and Clear stay on the mouse, so nothing is sent or wiped by a stray key.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.repeat || e.defaultPrevented || uploading) return;
+      if ((e.target as HTMLElement | null)?.closest("input, textarea, select, [contenteditable=''], [contenteditable=true], [role=combobox]")) return;
+      if (document.querySelector("dialog[open]")) return;
+      const key = e.key.toLowerCase();
+      if (key === "a") {
+        addRow();
+        // The new row's first text field takes the cursor once it is on the page.
+        requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector<HTMLElement>("#bulk-panel tbody tr:last-child input:not([type=hidden], [tabindex='-1'], [role=combobox])")?.focus()));
+      } else if (key === "s") toggleAutoSave();
+      else if (key === "u" && !excelBusy) pickFile();
+      else if (key === "d" && !excelBusy) {
+        markKeyOpened();
+        setConfirmDownload(true);
+      }
+      else return;
+      e.preventDefault();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
   // Clear empties only the open tab (after the person confirms); the other tabs keep what was entered.
   function clearAll() {
     const ids = new Set(rows.map((r) => r.id));
@@ -233,7 +277,7 @@ export default function BulkUploadPage() {
     if (mode === "replace") setFailed({});
     setSummary(null);
     setAttemptedBy((a) => ({ ...a, [tab]: true })); // show what is wrong with the imported cells straight away
-    toast.show(`${imported.length} ${imported.length === 1 ? NOUN[tab][0] : NOUN[tab][1]} imported into the table. Check them, then Submit.`);
+    toast.show(`${imported.length} ${imported.length === 1 ? NOUN[tab][0] : NOUN[tab][1]} imported. Check them, then submit.`);
   }
 
   async function runExcel(job: () => Promise<void>) {
@@ -269,12 +313,11 @@ export default function BulkUploadPage() {
     if (uploading) return;
     setAttempted(true);
     setSummary(null);
-    if (filled.length === 0) return void toast.show("Add at least one record before uploading.", "warning");
-    const any = filled.some((r) => Object.keys(spec.check(r, filled, ctx)).length > 0);
-    if (any) {
-      toast.show("Some cells need fixing. They are marked in red.", "warning");
+    if (!canSubmit) return void toast.show("Complete at least one row.", "warning");
+    // Incomplete or invalid rows are marked in red and left out; the valid ones are submitted.
+    if (invalidRows.length > 0) {
+      toast.show(`${invalidRows.length} incomplete ${invalidRows.length === 1 ? "row" : "rows"} left out (marked in red).`, "warning");
       requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-bulk-table] [aria-invalid="true"]')?.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" }));
-      return;
     }
     setConfirming(true);
   }
@@ -283,7 +326,7 @@ export default function BulkUploadPage() {
     if (busy.current) return;
     busy.current = true;
     const target = type;
-    const batch = filled;
+    const batch = validRows;
     setUploading(true);
     // One request per tab. First each valid row becomes its record; a row whose record cannot be built is reported on its own and left out.
     const records: { row: Row; body: unknown }[] = [];
@@ -299,7 +342,8 @@ export default function BulkUploadPage() {
     let wholeFailure = "";
     if (records.length > 0) {
       try {
-        const outcome = await submitBulk(target, records.map((r) => r.body));
+        // One record: its own create route, not the bulk route.
+        const outcome = records.length === 1 ? (await submitOne(target, records[0].body), { failed: [] as { index: number; message: string }[] }) : await submitBulk(target, records.map((r) => r.body));
         const refused = new Map(outcome.failed.map((f) => [f.index, f.message]));
         records.forEach((r, i) => {
           const why = refused.get(i);
@@ -332,7 +376,7 @@ export default function BulkUploadPage() {
       setFailed(failures);
       setSummary({ saved: saved.length, failures: list, type: target });
       if (list.length === 0) toast.show(`Uploaded ${saved.length} ${saved.length === 1 ? one : many}.`);
-      else toast.show(`${saved.length} uploaded, ${list.length} failed. The failed rows stay in the table.`, "danger");
+      else toast.show(`${saved.length} uploaded, ${list.length} failed. Failed rows stay.`, "danger");
     }
     setAttempted(false);
     setUploading(false);
@@ -344,7 +388,7 @@ export default function BulkUploadPage() {
       <div className="flex flex-col gap-6">
         <PageHeader title="Bulk Upload" />
         <section className="rounded-2xl border border-border bg-surface">
-          <EmptyState title="Admins only" description="Only an Admin can upload records in bulk. Ask an administrator if you need access changed." />
+          <EmptyState title="Admins only" description="Admins only." />
         </section>
       </div>
     );
@@ -357,7 +401,7 @@ export default function BulkUploadPage() {
     <div className="flex flex-col gap-6 pb-32">
       <PageHeader
         title="Bulk Upload"
-        description="Enter several records in a table and save them in one go. Choose what you are uploading with the tabs. Your entries are kept as a draft on this device until you submit them."
+        description="Add several records at once. Pick a tab, fill the table, then submit. Drafts are kept on this device."
         actions={
           <div className="flex items-center gap-3">
             <span role="status" aria-live="polite" className={`text-xs font-medium ${saveStatus === "Save failed" ? "text-danger" : "text-muted"}`}>
@@ -370,6 +414,8 @@ export default function BulkUploadPage() {
                 role="switch"
                 aria-checked={autoSave}
                 aria-label="Auto-Save draft"
+                aria-keyshortcuts="S"
+                title="Auto-Save draft (press S)"
                 onClick={toggleAutoSave}
                 className={`relative h-5 w-9 shrink-0 rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${autoSave ? "bg-accent" : "bg-border"}`}
               >
@@ -397,6 +443,8 @@ export default function BulkUploadPage() {
               aria-selected={on}
               aria-controls="bulk-panel"
               disabled={uploading}
+              aria-keyshortcuts={String(BULK_TYPES.indexOf(t) + 1)}
+              title={`${t.label} (press ${BULK_TYPES.indexOf(t) + 1})`}
               onClick={() => setType(t.value)}
               className={`flex min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 ${
                 on ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-hover hover:text-foreground"
@@ -404,7 +452,7 @@ export default function BulkUploadPage() {
             >
               <span className="truncate">{t.label}</span>
               {count > 0 && (
-                <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${on ? "bg-[#425df3] font-semibold text-white dark:bg-accent dark:text-accent-foreground" : "bg-hover text-muted"}`}>{count}</span>
+                <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${on ? "bg-accent font-semibold text-accent-foreground" : "bg-hover text-muted"}`}>{count}</span>
               )}
             </button>
           );
@@ -419,16 +467,18 @@ export default function BulkUploadPage() {
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <input ref={fileInput} type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden aria-label="Excel file to import" onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ""; }} />
-            <button type="button" onClick={() => void runExcel(() => downloadTemplate(type, ctx))} disabled={uploading || excelBusy} className={secondaryButton}>
+            <button type="button" onClick={() => void runExcel(() => downloadTemplate(type, ctx))} disabled={uploading || excelBusy} aria-keyshortcuts="D" title="Download Excel Template (press D to be asked first)" className={secondaryButton}>
               Download Excel Template
             </button>
-            <button type="button" onClick={pickFile} disabled={uploading || excelBusy} className={secondaryButton}>
+            <button type="button" onClick={pickFile} disabled={uploading || excelBusy} aria-keyshortcuts="U" title="Upload Excel (press U)" className={secondaryButton}>
               Upload Excel
             </button>
             <button
               type="button"
               onClick={addRow}
               disabled={uploading}
+              aria-keyshortcuts="A"
+              title="Add Row (press A)"
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-surface px-4 text-sm font-medium transition-colors hover:bg-hover disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-accent"
             >
               <PlusIcon width={16} height={16} /> Add Row
@@ -441,19 +491,40 @@ export default function BulkUploadPage() {
             >
               Clear
             </button>
-            <button
-              type="button"
-              onClick={submit}
-              disabled={uploading}
-              className="btn-brand inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            >
-              <UploadIcon width={16} height={16} />
-              {uploading ? "Uploading…" : "Submit"}
-            </button>
+            <DisabledTip reason={!uploading && !canSubmit && `Complete at least one row. Submit All needs ${BULK_MIN_ROWS}+.`} className="inline-block">
+              <button
+                type="button"
+                onClick={submit}
+                disabled={uploading || !canSubmit}
+                className="btn-brand inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                <UploadIcon width={16} height={16} />
+                {uploading ? "Uploading…" : bulkReady || validCount === 0 ? "Submit All" : "Submit row"}
+              </button>
+            </DisabledTip>
           </div>
         </div>
 
         {excelError && <FieldError>{excelError}</FieldError>}
+        {!bulkReady && (
+          <div role="status" data-bulk-rule className="rounded-xl border border-border bg-surface px-4 py-3 text-sm">
+            <p className="font-medium">
+              {validCount === 1
+                ? `Submit All needs ${BULK_MIN_ROWS}+ completed rows. Submit row saves one.`
+                : `Submit All needs ${BULK_MIN_ROWS}+ completed rows (${validCount} so far).`}
+            </p>
+            {invalidRows.length > 0 && (
+              <ul className="mt-1.5 flex flex-col gap-0.5 text-xs text-muted">
+                {invalidRows.slice(0, 5).map((c) => (
+                  <li key={c.number}>
+                    <span className="font-medium text-foreground">Row {c.number}:</span> {Object.values(c.problems).join(" ")}
+                  </li>
+                ))}
+                {invalidRows.length > 5 && <li>…and {invalidRows.length - 5} more {invalidRows.length - 5 === 1 ? "row" : "rows"}.</li>}
+              </ul>
+            )}
+          </div>
+        )}
         {problemCount > 0 && (
           <FieldError>
             {problemCount} {problemCount === 1 ? "cell needs" : "cells need"} fixing in {Object.keys(problems).length} {Object.keys(problems).length === 1 ? "row" : "rows"}. They are marked in red.
@@ -528,6 +599,7 @@ export default function BulkUploadPage() {
         </div>
       </section>
 
+      <NearTriggerContext.Provider value>
       {creating?.kind === "owner" && (
         <CreateOwnerDrawer
           showRole={false}
@@ -546,6 +618,7 @@ export default function BulkUploadPage() {
           onCreated={(u) => assign(creating.rowId, creating.key, creating.multi, u.id)}
         />
       )}
+      </NearTriggerContext.Provider>
 
       {importing && (
         <BacklogDrawer
@@ -573,6 +646,18 @@ export default function BulkUploadPage() {
         </BacklogDrawer>
       )}
 
+      {confirmDownload && (
+        <BacklogDrawer
+          heading="Download Excel template"
+          submitLabel="Download"
+          compact
+          onSubmit={() => void runExcel(() => downloadTemplate(type, ctx))}
+          onClose={() => setConfirmDownload(false)}
+        >
+          <p className="text-sm">Download the Excel template for the {spec.label} tab? It is an empty sheet with the columns this table uses.</p>
+        </BacklogDrawer>
+      )}
+
       {clearing && (
         <BacklogDrawer
           heading={`Clear ${spec.label} entries`}
@@ -591,7 +676,7 @@ export default function BulkUploadPage() {
       {confirming && (
         <BacklogDrawer
           heading="Confirm upload"
-          submitLabel={`Upload ${filled.length} ${filled.length === 1 ? one : many}`}
+          submitLabel={`Upload ${validRows.length} ${validRows.length === 1 ? one : many}`}
           compact
           onSubmit={() => {
             void upload();
@@ -599,10 +684,10 @@ export default function BulkUploadPage() {
           onClose={() => setConfirming(false)}
         >
           <p className="text-sm">
-            You are about to create <strong className="font-semibold">{filled.length}</strong> {filled.length === 1 ? one : many}. They are saved one at a time, and any that the server refuses stay in the table with the reason.
+            You are about to create <strong className="font-semibold">{validRows.length}</strong> {validRows.length === 1 ? one : many}{invalidRows.length > 0 && `; ${invalidRows.length} incomplete or invalid ${invalidRows.length === 1 ? "row is" : "rows are"} left out`}. Any the server refuses stay in the table with the reason.
           </p>
           <ul className="max-h-48 divide-y divide-border overflow-y-auto rounded-xl border border-border text-sm">
-            {filled.map((r, i) => (
+            {validRows.map((r, i) => (
               <Fragment key={r.id}>
                 <li className="px-3 py-1.5">
                   <span className="mr-2 text-xs tabular-nums text-muted">{i + 1}</span>

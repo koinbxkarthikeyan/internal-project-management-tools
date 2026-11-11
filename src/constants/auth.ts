@@ -28,6 +28,9 @@ export const DEFAULT_REDIRECT = "/overview";
 
 export const LOGIN_PATH = "/";
 
+/** Where a Disabled Admin is sent (after being signed out) instead of the application. */
+export const ACCOUNT_DISABLED_PATH = "/access-disabled";
+
 // localStorage keys: the login (token + user). `users` is only the name of a cache an earlier version kept; it is removed on sign-out.
 export const STORAGE_KEYS = {
   users: "koinbx.users.v2",

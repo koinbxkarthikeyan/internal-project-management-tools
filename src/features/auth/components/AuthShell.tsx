@@ -56,7 +56,7 @@ export default function AuthShell({ title, description, children }: AuthShellPro
       <main className="anim-page-in relative z-10 w-full max-w-[420px]">
         <div className="text-center">
           <div className="anim-fade-up mb-6 flex justify-center">
-            <Logo className="[&_img]:h-12" />
+            <Logo variant="wordmark" />
           </div>
           <p className="anim-fade-up text-[15px] font-medium leading-relaxed text-muted [animation-delay:60ms]">Sign in to access your backlog tracker</p>
           <div className="anim-fade-up mb-7 mt-3 flex justify-center [animation-delay:120ms]">

@@ -3,8 +3,8 @@ import type { ItemType, Priority, Status } from "@/types/backlog";
 // Fixed option lists for form dropdowns and filters (not application data).
 export const PRIORITIES: readonly Priority[] = ["Critical", "High", "Medium", "Low", "Not set"];
 export const STATUSES: readonly Status[] = ["Open", "In progress", "Blocked", "On hold", "Completed"];
-/** The backend and the app keep the status value "Open"; people see it as "To Do" (work not started). "Backlog" is the place for tasks in no sprint, not a status. */
-export const statusLabel = (status: Status): string => (status === "Open" ? "To Do" : status);
+/** The backend and the app keep the status values "Open" and "Completed"; people see them as "To Do" (work not started) and "Done".  "Backlog" is the place for tasks in no sprint, not a status. */
+export const statusLabel = (status: Status): string => (status === "Open" ? "To Do" : status === "Completed" ? "Done" : status);
 /** The stored sprint name "Unplanned" (tasks in no sprint) is shown to people as "Backlog". */
 export const sprintLabel = (name: string): string => (name === "Unplanned" ? "Backlog" : name);
 /** Status choices for dropdowns: the saved value with its display label. */

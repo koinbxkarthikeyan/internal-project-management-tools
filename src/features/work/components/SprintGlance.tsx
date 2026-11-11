@@ -22,7 +22,7 @@ export default function SprintGlance({ sprint, entries, showPerson, title = "You
       <h3 className="text-xs font-medium uppercase tracking-wide text-muted">{title}</h3>
 
       {entries.length === 0 ? (
-        <EmptyState compact title="Nothing on the timeline yet" description="Add what you're working on below and it will appear here." />
+        <EmptyState compact title="Nothing on the timeline yet" description="Your work will show here." />
       ) : (
         <div className="mt-3 overflow-x-auto pb-1">
           <div style={{ minWidth: `${days.length * 1.75}rem` }}>

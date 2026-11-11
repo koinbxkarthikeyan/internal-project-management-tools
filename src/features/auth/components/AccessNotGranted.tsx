@@ -12,7 +12,7 @@ type AccessNotGrantedProps = {
 
 const DETAIL: Record<DeniedReason, string> = {
   "not-registered":
-    "This email isn't registered for this application. Ask an administrator to add you, then sign in again.",
+    "This email isn't registered. Ask an admin to add you.",
 };
 
 /** Shown when the backend does not know the email. They are not signed in and not redirected. */

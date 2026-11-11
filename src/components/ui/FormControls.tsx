@@ -160,7 +160,13 @@ export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hi
             placeholder={placeholder ?? "Select"}
             onFocus={show}
             onClick={show}
-            onChange={(e) => (setQuery(e.target.value), show(), setActive(0))}
+            onChange={(e) => {
+              // Typing + alone (where the list offers "+ Add New …") opens that create form at once.
+              if (action && e.target.value.trim() === "+") return setQuery(""), close(), action.onSelect();
+              setQuery(e.target.value);
+              show();
+              setActive(0);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Escape" && open) return e.preventDefault(), e.stopPropagation(), close();
               if (e.key === "ArrowDown") return e.preventDefault(), show(), setActive((i) => Math.min(i + 1, rows.length - 1));
@@ -196,7 +202,7 @@ export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hi
       {open && !disabled && (
         // Only the options scroll; the action ("+ Add …") stays fixed at the bottom of the list.
         <div
-          className={`anim-menu-in absolute inset-x-0 z-20 flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-lg ${up ? "bottom-full mb-1" : "top-full mt-1"}`}
+          className={`anim-menu-in absolute inset-x-0 z-20 flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-menu ${up ? "bottom-full mb-1" : "top-full mt-1"}`}
         >
           <ul id={listId} role="listbox" aria-label={label ?? ariaLabel} className="max-h-48 min-h-0 flex-1 overflow-y-auto p-1">
           {rows.length === 0 && <li className="px-3 py-2 text-sm text-muted">No matches.</li>}
@@ -395,7 +401,7 @@ export function ComboField({ label, value, onChange, suggestions, placeholder, r
         </span>
       </Field>
       {open && (matches.length > 0 || isNew) && (
-        <ul id={listId} role="listbox" aria-label={label} className="anim-menu-in absolute inset-x-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-lg">
+        <ul id={listId} role="listbox" aria-label={label} className="anim-menu-in absolute inset-x-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-menu">
           {matches.map((o, i) => (
             <li key={o} role="option" aria-selected={o.toLowerCase() === q} className="flex items-center gap-1">
               <button

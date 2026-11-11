@@ -28,7 +28,7 @@ export default function CreateSprintDrawer({ onClose }: CreateSprintDrawerProps)
       onSave={async ({ name, start, end, goal, podIds }) => {
         const trimmed = name.trim();
         const result = await addSprint({ name: trimmed, start, end, goal: goal.trim(), podIds });
-        if (result === "running") return "The server refused to create it: it allows only one running sprint at a time. Nothing was created. Close the running sprint, then plan the next one.";
+        if (result === "running") return "Only one sprint can run at a time. Close the running sprint first.";
         if (result === "duplicate") return `A sprint named "${trimmed}" already exists.`;
         if (result === "error") return "Couldn't create the sprint. Please try again.";
         toast.show(`${trimmed} created`);

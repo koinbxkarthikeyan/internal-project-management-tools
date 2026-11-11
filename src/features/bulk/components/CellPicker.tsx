@@ -66,7 +66,7 @@ export default function CellPicker({ options, selected, display, multi = false, 
     const row = rows[i];
     if (!row) return;
     if (row.kind === "create") {
-      close();
+      close(true); // the focus returns to the cell: the form opens next to it
       onCreate?.();
     } else if (row.kind === "none") {
       onSelect("");
@@ -186,7 +186,7 @@ export default function CellPicker({ options, selected, display, multi = false, 
         id={id}
         popover="manual"
         onKeyDown={onKey}
-        className="anim-menu-in m-0 flex max-h-72 flex-col overflow-hidden rounded-xl border border-border bg-surface p-0 text-sm text-foreground shadow-lg"
+        className="anim-menu-in m-0 flex max-h-72 flex-col overflow-hidden rounded-xl border border-border bg-surface p-0 text-sm text-foreground shadow-menu"
         style={{ position: "fixed", inset: "auto" }}
       >
         {searchable && (
@@ -195,10 +195,16 @@ export default function CellPicker({ options, selected, display, multi = false, 
               ref={search}
               value={query}
               onChange={(e) => {
+                // Typing "+" is the shortcut for "+ Create New …".
+                if (onCreate && createLabel && e.target.value.trim() === "+") {
+                  close(true);
+                  onCreate();
+                  return;
+                }
                 setQuery(e.target.value);
                 setActive(0);
               }}
-              placeholder={allowCustom ? "Type or choose…" : multi ? "Search team members…" : "Search…"}
+              placeholder={onCreate && createLabel ? (multi ? "Search team members. Type + to add new" : "Search. Type + to add new") : allowCustom ? "Type or choose…" : multi ? "Search team members…" : "Search…"}
               aria-label={`Search: ${ariaLabel}`}
               aria-controls={id}
               autoComplete="off"
