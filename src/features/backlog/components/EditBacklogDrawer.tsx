@@ -13,6 +13,7 @@ import ActivityTimeline from "./ActivityTimeline";
 import AssigneeField, { cleanAssignees } from "./AssigneeField";
 import BacklogDrawer from "./BacklogDrawer";
 import LeadSelect from "./LeadSelect";
+import FormSection from "./FormSection";
 import OwnerSelect from "./OwnerSelect";
 import TaskPlacementFields, { placementFromItem, placementToItem, type Placement } from "./TaskPlacementFields";
 
@@ -28,10 +29,10 @@ const TRACKED: [keyof BacklogItemData, string][] = [
   ["sprint", "sprint"],
   ["podId", "POD"],
   ["priority", "priority"],
-  ["deadline", "deadline"],
+  ["deadline", "Expected ETA"],
   ["owner", "owner"],
   ["lead", "lead"],
-  ["leadDeadline", "lead deadline"],
+  ["leadDeadline", "Developer ETA"],
 ];
 
 const norm = (v: unknown) => (v == null ? "" : String(v).trim());
@@ -110,6 +111,9 @@ export default function EditBacklogDrawer({ item, onSave, onClose }: EditBacklog
 
   return (
     <BacklogDrawer
+      side
+      mode="Edit"
+      subtitle="Update this task's details, status and people."
       heading={
         <span className="flex items-center gap-2 text-xs font-medium text-muted">
           {base.title}
@@ -123,38 +127,49 @@ export default function EditBacklogDrawer({ item, onSave, onClose }: EditBacklog
       onClose={onClose}
     >
       {detailError && <FieldError>Couldn&apos;t load the latest details ({detailError}). What you see may be out of date.</FieldError>}
-      {/* Full width on its own row, like in Create backlog (not squeezed into the three-column grid below). */}
-      <OwnerSelect value={draft.owner} onChange={(v) => set("owner", v)} placeholder="Search or select an owner, or add a new owner." />
-      <TextField label="Title" required value={draft.title} onChange={(v) => set("title", v)} />
-      <TextAreaField label="Description" rows={5} value={draft.description ?? ""} onChange={(v) => set("description", v)} />
+      <FormSection title="Basics" hint="What the work is and who it belongs to.">
+        <OwnerSelect value={draft.owner} onChange={(v) => set("owner", v)} />
+        <TextField label="Title" required value={draft.title} onChange={(v) => set("title", v)} />
+        <div className="sm:col-span-2">
+          <TextAreaField label="Description" rows={5} value={draft.description ?? ""} onChange={(v) => set("description", v)} />
+        </div>
+      </FormSection>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+      <FormSection title="Status and classification">
         <SelectField label="Status" value={draft.status} onChange={(v) => set("status", v as Status)} options={statusOptions} />
         <SelectField label="Type" value={draft.type ?? ""} onChange={(v) => set("type", v as ItemType)} options={ITEM_TYPES} placeholder="Choose type" />
-        <TaskPlacementFields value={placement} onChange={setPlacement} current={{ sprint: base.sprint, podId: base.podId }} />
         <SelectField label="Priority" value={draft.priority} onChange={(v) => set("priority", v as Priority)} options={PRIORITIES} />
-        <TextField label="Expected deadline" type="date" value={draft.deadline} onChange={(v) => set("deadline", v)} />
-        <LeadSelect value={draft.lead ?? ""} onChange={(v) => setDraft((d) => ({ ...d, lead: v, ...(v !== (d.lead ?? "") ? { leadDeadline: "" } : {}) }))} />
-      </div>
+        {commenting && (
+          <div className="sm:col-span-2">
+            <TextAreaField
+              label={needsReason ? "Why is it blocked or on hold?" : "Comment (optional)"}
+              required={needsReason}
+              invalid={needsReason && !reason.trim()}
+              value={reason}
+              onChange={(v) => set("blockedReason", v)}
+              placeholder={needsReason ? "What's it waiting on, and who can unblock it?" : "Add a note about this status change"}
+            />
+          </div>
+        )}
+      </FormSection>
 
-      {commenting && (
-        <TextAreaField
-          label={needsReason ? "Why is it blocked or on hold?" : "Comment (optional)"}
-          required={needsReason}
-          invalid={needsReason && !reason.trim()}
-          value={reason}
-          onChange={(v) => set("blockedReason", v)}
-          placeholder={needsReason ? "What's it waiting on, and who can unblock it?" : "Add a note about this status change"}
-        />
-      )}
-
-      <AssigneeField value={draft.assignees ?? ""} onChange={(v) => set("assignees", v)} />
-      <TextAreaField label="Notes" value={draft.notes ?? ""} onChange={(v) => set("notes", v)} />
-
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+      <FormSection title="Planning" hint="When it should be done and in which sprint.">
+        <TaskPlacementFields value={placement} onChange={setPlacement} current={{ sprint: base.sprint, podId: base.podId }} />
+        <TextField label="Expected ETA" type="date" value={draft.deadline} onChange={(v) => set("deadline", v)} />
         <TextField label="Created" type="date" value={draft.created ?? ""} onChange={(v) => set("created", v)} />
-        <TextField label="Completed" type="date" value={draft.completed ?? ""} onChange={(v) => set("completed", v)} />
-      </div>
+        <TextField label="Done on" type="date" value={draft.completed ?? ""} onChange={(v) => set("completed", v)} />
+      </FormSection>
+
+      <FormSection title="People">
+        <LeadSelect value={draft.lead ?? ""} onChange={(v) => setDraft((d) => ({ ...d, lead: v, ...(v !== (d.lead ?? "") ? { leadDeadline: "" } : {}) }))} />
+        <AssigneeField value={draft.assignees ?? ""} onChange={(v) => set("assignees", v)} />
+      </FormSection>
+
+      <FormSection title="Notes">
+        <div className="sm:col-span-2">
+          <TextAreaField label="Notes" value={draft.notes ?? ""} onChange={(v) => set("notes", v)} placeholder="Anything else the team should know." />
+        </div>
+      </FormSection>
 
       <div className="border-t border-border pt-3">
         <ActivityTimeline compact item={base} activity={base.activity} />

@@ -133,7 +133,7 @@ export default function UserFormDrawer({ user, isSelf = false, onSaved, onCreate
   }
 
   return (
-    <BacklogDrawer heading={user ? "Edit user" : "Add Team Member"} submitLabel={user ? "Save user" : "Add Team Member"} compact canSubmit={!unchanged} onClose={onClose} onSubmit={submit}>
+    <BacklogDrawer heading={user ? "Edit user" : "Add Team Member"} subtitle={user ? "Update this person's details and access." : "Add someone who can sign in to the tracker."} submitLabel={user ? "Save user" : "Add Team Member"} compact canSubmit={!unchanged} onClose={onClose} onSubmit={submit}>
       <TextField label="Name" required value={name} onChange={changeName} placeholder="e.g. Jordan Blake" />
       <EmailField label="Email" required value={email} onChange={clear(setEmail)} placeholder={`name@${ALLOWED_EMAIL_DOMAIN}`} />
       <SelectField
@@ -165,7 +165,7 @@ export default function UserFormDrawer({ user, isSelf = false, onSaved, onCreate
           <PasswordField label="Password" required readOnly value={DEFAULT_INITIAL_PASSWORD} onChange={() => {}} />
         ))}
       {isSuper ? (
-        <p className="-mt-2 text-xs text-muted">The Super Admin&apos;s role and access can&apos;t be changed, and it can&apos;t be deleted.</p>
+        <p className="-mt-2 text-xs text-muted">The Super Admin can&apos;t be changed or deleted.</p>
       ) : (
         isSelf && <p className="-mt-2 text-xs text-muted">You can&apos;t change your own role or access.</p>
       )}
@@ -215,6 +215,7 @@ function RenameTeamDrawer({ name, existing, onClose, onRenamed }: { name: string
   return (
     <BacklogDrawer
       heading="Rename team"
+      subtitle="The new name applies to everyone in the team."
       submitLabel="Save team"
       canSubmit={cleanTeam(value) !== cleanTeam(name)}
       compact

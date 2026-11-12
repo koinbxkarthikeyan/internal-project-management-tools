@@ -39,8 +39,10 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
   const colour = sprintColour(item.sprint);
   const pod = item.podId ? allPods.find((p) => p.id === item.podId)?.name : undefined;
   // A visible row opens the Edit panel when clicked anywhere (the ⋯ menu keeps its own clicks). Hidden rows don't.
-  const openable = !!actions && (closed || !item.hidden);
-  const open = () => (closed ? setViewing(true) : actions?.onEdit(item));
+  // A read-only list (no actions) of delivered tasks, like Done, opens View too, so its details and history can be read in full.
+  const viewOnly = closed || (!actions && item.status === "Completed");
+  const openable = viewOnly || (!!actions && !item.hidden);
+  const open = () => (viewOnly ? setViewing(true) : actions?.onEdit(item));
 
   return (
     <li
@@ -57,7 +59,7 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
               }
             },
             tabIndex: 0,
-            "aria-label": `${closed ? "View" : "Edit"} ${item.title}`,
+            "aria-label": `${viewOnly ? "View" : "Edit"} ${item.title}`,
           }
         : {})}
       className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1.5 px-4 py-3 transition-colors duration-150 hover:bg-row-hover md:py-2 ${
@@ -112,9 +114,9 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
           </div>
         </div>
         <div className="flex items-center justify-between gap-3 md:contents">
-          <span className="text-xs text-muted md:hidden">Deadline</span>
+          <span className="text-xs text-muted md:hidden">Expected ETA</span>
           <time dateTime={item.deadline} className="whitespace-nowrap text-muted">
-            <span className="sr-only">Due </span>
+            <span className="sr-only">Expected ETA </span>
             {formatDeadline(item.deadline)}
           </time>
         </div>
@@ -127,6 +129,10 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
           ) : (
             <RowActionsMenu item={item} onToggleHidden={() => actions.onToggleHidden(item)} onDelete={() => actions.onDelete(item)} />
           )}
+        </div>
+      ) : viewOnly ? (
+        <div data-row-actions className="col-start-2 row-start-1 flex items-center justify-end self-start text-muted md:col-auto md:row-auto md:self-auto">
+          <ActionsMenu label={`Actions for ${item.title}`} actions={[{ key: "view", label: "View", icon: <EyeIcon />, onSelect: () => setViewing(true) }]} />
         </div>
       ) : (
         <div className="hidden md:block" />

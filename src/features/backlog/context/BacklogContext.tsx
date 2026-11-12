@@ -206,7 +206,7 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
 
     // A comment typed with a status change is saved with it, through the server's status-change call (BACKEND-DEPENDENT, see backlogService.changeStatusWithDetails).
     // Where that isn't available the status still saves as before and the person is told the comment did not, never that it was kept.
-    const COMMENT_NOT_SAVED = "Status saved, but the comment was not: the server can't store a comment with a status change yet.";
+    const COMMENT_NOT_SAVED = "Status saved, but the comment couldn't be.";
     const statusChangeOf = (id: string, status: Status | undefined, comment: string | undefined) => {
       const current = all.find((i) => i.id === id);
       const text = comment?.trim() ?? "";

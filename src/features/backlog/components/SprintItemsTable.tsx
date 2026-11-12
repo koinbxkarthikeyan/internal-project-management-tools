@@ -79,7 +79,7 @@ export default function SprintItemsTable({ items, onOpen, onView, onStep, onDrop
             <th scope="col" className={head}>Priority</th>
             <th scope="col" className={head}>Status</th>
             <th scope="col" className={head}>Owner</th>
-            <th scope="col" className={head}>Deadline</th>
+            <th scope="col" className={head}>Expected ETA</th>
             {onView && <th scope="col" className={`${head} text-right`}>Action</th>}
           </tr>
         </thead>
@@ -158,7 +158,7 @@ export default function SprintItemsTable({ items, onOpen, onView, onStep, onDrop
                   <span className="truncate">{item.owner}</span>
                 </span>
               </td>
-              <td data-label="Deadline" className="whitespace-nowrap px-4 py-2 text-muted">
+              <td data-label="Expected ETA" className="whitespace-nowrap px-4 py-2 text-muted">
                 <time dateTime={item.deadline}>{formatDeadline(item.deadline)}</time>
               </td>
               {onView && (

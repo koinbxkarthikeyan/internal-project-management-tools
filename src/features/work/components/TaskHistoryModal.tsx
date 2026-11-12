@@ -12,6 +12,7 @@ import type { ActivityEntry, BacklogItemData, Sprint } from "@/types/backlog";
 import type { WorkEntry } from "@/types/work";
 import { formatDay, formatHours, plannedHours } from "../utils";
 import { sprintLabel } from "@/constants/backlog-options";
+import ExpandToggle from "@/components/ui/ExpandToggle";
 
 type TaskHistoryModalProps = {
   item: BacklogItemData;
@@ -99,10 +100,17 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
     return extra ? `${name} (${extra})` : name;
   };
 
-  const records = chain.map((t, index) => {
+  // One record per sprint the task lived in. Work stays with the sprint it was logged in (the entry's own sprint), so hours logged in Sprint 6 do not move to Sprint 7
+  // when the task itself is later moved there: they get a Sprint 6 record of their own, ahead of the task's current one.
+  const records = chain.flatMap((t, index) => {
     const sprint = allSprints.find((s) => s.name === t.sprint);
-    const entries = allEntries.filter((e) => e.itemIds?.includes(t.id));
-    return { task: t, sprint, entries, index };
+    const logged = allEntries.filter((e) => e.itemIds?.includes(t.id));
+    const elsewhere = (e: WorkEntry) => !!sprint && t.sprint !== "Unplanned" && !!e.sprintId && e.sprintId !== sprint.id && allSprints.some((s) => s.id === e.sprintId);
+    const earlier = [...new Set(logged.filter(elsewhere).map((e) => e.sprintId))]
+      .flatMap((id) => allSprints.filter((s) => s.id === id))
+      .sort((a, b) => (a.start ?? "").localeCompare(b.start ?? ""))
+      .map((s) => ({ key: `${t.id}@${s.id}`, task: { ...t, sprint: s.name }, sprint: s, entries: logged.filter((e) => e.sprintId === s.id), index, moved: true }));
+    return [...earlier, { key: t.id, task: t, sprint, entries: logged.filter((e) => !elsewhere(e)), index, moved: false }];
   });
   // Count each work entry once, even if it were attached to more than one record.
   const unique = [...new Map(records.flatMap((r) => r.entries).map((e) => [e.id, e])).values()];
@@ -130,9 +138,9 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
               ["Assignees", item.assignees ? item.assignees.split(",").map((n) => person(n.trim())).filter(Boolean).join("; ") : undefined],
               ["Type", item.type],
               ["Sprint", item.sprint],
-              ["Expected deadline", item.deadline ? formatDeadline(item.deadline) : undefined],
-              ["Lead Deadline", item.leadDeadline ? formatDeadline(item.leadDeadline) : undefined],
-              ["Completed", item.completed ? formatDeadline(item.completed) : undefined],
+              ["Expected ETA", item.deadline ? formatDeadline(item.deadline) : undefined],
+              ["Developer ETA", item.leadDeadline ? formatDeadline(item.leadDeadline) : undefined],
+              ["Done on", item.completed ? formatDeadline(item.completed) : undefined],
               ["Created", whenOrUnavailable(item.created, item.createdAt)],
               ["Last updated", whenOrUnavailable(undefined, item.updatedAt)],
             ]
@@ -194,7 +202,7 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
             <p className="mt-1 text-xs text-muted">This task has not been carried into another sprint.</p>
           )}
           <ol className="mt-3 flex flex-col gap-4 border-l border-border pl-4">
-            {records.map(({ task, sprint, entries }) => {
+            {records.map(({ key, task, sprint, entries, moved }) => {
               const expectedTo = sprint?.end && sprint.end < today ? sprint.end : today;
               const expected = sprint?.start && sprint.start <= expectedTo ? plannedHours(sprint.start, expectedTo) : 0;
               // The whole sprint's weekday hours for one person.
@@ -202,7 +210,7 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
               const byPerson = [...new Set(entries.map((e) => e.person))];
               const log = activity[task.id] ?? task.activity ?? [];
               return (
-                <li key={task.id} className="relative rounded-xl border border-border bg-background/60 p-4">
+                <li key={key} className="relative rounded-xl border border-border bg-background/60 p-4">
                   <span className="absolute -left-[1.4rem] top-5 h-2.5 w-2.5 rounded-full bg-accent" aria-hidden="true" />
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                     <h4 className="text-sm font-semibold">
@@ -214,10 +222,10 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
                         </span>
                       )}
                     </h4>
-                    <StatusBadge status={task.status} />
+                    {!moved && <StatusBadge status={task.status} />}
                   </div>
                   <p className="mt-1 text-xs text-muted">
-                    {link(task)}
+                    {moved ? "Work logged here before the task moved to a later sprint" : link(task)}
                   </p>
 
                   <div className="mt-3">
@@ -268,7 +276,7 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
                     )}
                   </div>
 
-                  <div className="mt-3">
+                  {!moved && <div className="mt-3">
                     {/* About 3 entries are visible below; the rest scroll inside the list (the same limit as the activity list in the task panels). */}
                     <p className="text-xs font-medium text-muted">Activity in this sprint</p>
                     {log.length === 0 ? (
@@ -283,7 +291,7 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
                         ))}
                       </ul>
                     )}
-                  </div>
+                  </div>}
                 </li>
               );
             })}
@@ -310,7 +318,19 @@ export function HistoryDialog({ title, label, onClose, children }: { title: stri
     <dialog
       ref={ref}
       onClose={(e) => e.target === e.currentTarget && onClose()}
-      onCancel={(e) => e.target === e.currentTarget && (e.preventDefault(), ref.current?.close())}
+      onCancel={(e) => {
+        if (e.target !== e.currentTarget) return;
+        e.preventDefault();
+        // Esc: a full-screen view first returns to normal size; Esc again closes it.
+        if (full) setFull(false);
+        else ref.current?.close();
+      }}
+      // Ctrl+F (⌘F) opens the full-screen view (instead of the browser's find bar); only Esc takes it back.
+      onKeyDown={(e) => {
+        if (full || !(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "f") return;
+        e.preventDefault();
+        setFull(true);
+      }}
       onClick={(e) => e.target === ref.current && ref.current?.close()}
       aria-label={label}
       className={`fixed m-auto flex flex-col overflow-hidden border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-black/50 ${
@@ -322,9 +342,7 @@ export function HistoryDialog({ title, label, onClose, children }: { title: stri
           {title}
         </h2>
         <div className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={() => setFull((v) => !v)} aria-pressed={full} className="rounded-lg px-2 py-1 text-sm text-muted hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent">
-            {full ? "Exit full screen" : "Full screen"}
-          </button>
+          <ExpandToggle expanded={full} onToggle={() => setFull((v) => !v)} />
           <button type="button" onClick={() => ref.current?.close()} className="rounded-lg px-2 py-1 text-sm text-muted hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent">
             Close
           </button>

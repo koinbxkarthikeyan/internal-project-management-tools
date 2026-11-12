@@ -3,7 +3,7 @@ type Show = (message: string, tone?: "success" | "info" | "warning" | "danger" |
 const MARK = "data-missing";
 
 /** The visible control for a required field: for the custom dropdowns the real input is a hidden twin, the combobox is shown. */
-function visibleControl(el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement): HTMLElement {
+export function visibleControl(el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement): HTMLElement {
   if (el.getAttribute("aria-hidden") === "true") {
     const combo = el.parentElement?.querySelector<HTMLElement>('[role="combobox"]');
     if (combo) return combo;

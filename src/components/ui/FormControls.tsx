@@ -160,7 +160,13 @@ export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hi
             placeholder={placeholder ?? "Select"}
             onFocus={show}
             onClick={show}
-            onChange={(e) => (setQuery(e.target.value), show(), setActive(0))}
+            onChange={(e) => {
+              // Typing + alone (where the list offers "+ Add New …") opens that create form at once.
+              if (action && e.target.value.trim() === "+") return setQuery(""), close(), action.onSelect();
+              setQuery(e.target.value);
+              show();
+              setActive(0);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Escape" && open) return e.preventDefault(), e.stopPropagation(), close();
               if (e.key === "ArrowDown") return e.preventDefault(), show(), setActive((i) => Math.min(i + 1, rows.length - 1));

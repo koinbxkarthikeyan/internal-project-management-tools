@@ -45,7 +45,7 @@ type WorkFormProps = {
 const chip =
   "rounded-full border border-border px-3 py-1 text-xs text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50";
 
-const NEEDS_TASK = "Select a task, or choose “Something else - my own task”, to enable this.";
+const NEEDS_TASK = "Select a task first.";
 const KIND_REQUIRED = "Choose the kind of work.";
 
 const clamp = (d: string, min: string, max: string) => (d < min ? min : d > max ? max : d);

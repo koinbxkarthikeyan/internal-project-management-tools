@@ -30,9 +30,18 @@ apiClient.interceptors.request.use((config) => {
 // Sign-in calls answer 401 for "wrong code / password"; those are shown on the login screen, not treated as an expired login.
 const isSignIn = (url?: string) => !!url && url.includes("/auth/sign-in");
 
+// A backup address (NEXT_PUBLIC_API_FALLBACK_URL, e.g. the IP address of the same backend). When the main address can't be reached at all (no answer, as when a
+// dev tunnel is down), the request is repeated once on the backup, and the backup is then used for the rest of the session. An answer with an error
+// status (401, 500 ...) means the server was reached, so nothing is retried.
+const fallbackURL = process.env.NEXT_PUBLIC_API_FALLBACK_URL?.trim();
+
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: unknown) => {
+  async (error: unknown) => {
+    if (fallbackURL && isAxiosError(error) && !error.response && error.config && error.code !== "ERR_CANCELED" && error.config.baseURL !== fallbackURL) {
+      apiClient.defaults.baseURL = fallbackURL;
+      return apiClient.request({ ...error.config, baseURL: fallbackURL });
+    }
     if (isAxiosError(error) && error.response?.status === 401 && !isSignIn(error.config?.url)) {
       // The token expired or the account was removed: drop the login so the app returns to the sign-in page.
       sessionStore.write(null);

@@ -41,7 +41,7 @@ const SELECTS = [
 ] as const;
 
 const DATES = [
-  { key: "deadlineFrom", label: "Due from" },
+  { key: "deadlineFrom", label: "Expected ETA from" },
   { key: "deadlineTo", label: "to" },
 ] as const;
 
@@ -80,7 +80,7 @@ export default function BacklogFilters({ filters, onChange, options }: BacklogFi
             max={key === "deadlineFrom" && filters.deadlineTo ? filters.deadlineTo : undefined}
             min={key === "deadlineTo" && filters.deadlineFrom ? filters.deadlineFrom : undefined}
             onChange={(e) => onChange({ ...filters, [key]: e.target.value })}
-            aria-label={`Deadline ${label.toLowerCase()}`}
+            aria-label={`Expected ETA ${label.toLowerCase()}`}
             className="h-10 min-w-0 flex-1 field px-3 text-sm text-foreground"
           />
         </label>

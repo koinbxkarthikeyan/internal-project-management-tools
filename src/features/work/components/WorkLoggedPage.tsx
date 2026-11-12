@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useQueryState } from "@/hooks/useQueryState";
+import { useTabKeys } from "@/hooks/useTabKeys";
 import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
@@ -44,6 +45,7 @@ export default function WorkLoggedPage() {
   const person = user?.name ?? "";
   // Everyone, whatever their role, has their own PODs and tasks here on a second tab (the whole team is on Team Work Details).
   const [view, setView] = useQueryState<"entries" | "pods">("view", ["entries", "pods"], "entries");
+  useTabKeys([{ id: "entries" }, { id: "pods" }], (id) => setView(id as "entries" | "pods"));
 
   if (work.status === "loading") return <PageSkeleton />;
   if (work.status === "error") {

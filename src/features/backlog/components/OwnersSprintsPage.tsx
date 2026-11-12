@@ -67,10 +67,12 @@ export default function OwnersSprintsPage() {
             <button
               type="button"
               onClick={() => setAdding(true)}
+              aria-keyshortcuts="O"
+              title="Create owner (press O)"
               className="flex items-center gap-2 rounded-xl btn-brand px-4 py-2.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               <PlusIcon />
-              Create Owner
+              Create Owner <kbd className="ml-1 hidden rounded border border-current/30 px-1.5 text-[10px] font-medium opacity-80 lg:inline">O</kbd>
             </button>
           ) : undefined
         }
