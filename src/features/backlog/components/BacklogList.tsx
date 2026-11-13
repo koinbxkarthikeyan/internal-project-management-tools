@@ -57,7 +57,7 @@ export default function BacklogList({ items, total, actions, leavingIds, emptyTi
           <EmptyState title="No matching items" description="Try changing your search or filters." />
         )
       ) : (
-        <ul ref={scroller} className="table-scroll divide-y divide-border" style={{ "--row-h": "3.4rem", "--head-h": "0rem" } as CSSProperties}>
+        <ul ref={scroller} className="table-scroll divide-y divide-border" style={{ "--row-h": "3.1rem", "--head-h": "0rem" } as CSSProperties}>
           {items.map((item, index) => (
             <BacklogItem
               key={item.id}

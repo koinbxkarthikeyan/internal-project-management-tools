@@ -2,9 +2,10 @@
 
 import { useState, type CSSProperties, type KeyboardEvent } from "react";
 import { useHoverTip } from "@/components/ui/HoverTip";
-import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
+import PersonLabel from "@/components/ui/PersonLabel";
+import { PriorityBadge, StatusBadge, TypeLabel } from "@/components/ui/Badge";
 import type { BacklogItemData } from "@/types/backlog";
-import { formatDeadline, initials } from "../utils";
+import { formatDeadline } from "../utils";
 
 type SprintItemsTableProps = {
   items: readonly BacklogItemData[];
@@ -143,7 +144,7 @@ export default function SprintItemsTable({ items, onOpen, onView, onStep, onDrop
                   </div>
                 </div>
               </td>
-              <td data-label="Type" className="whitespace-nowrap px-4 py-2 text-muted">{item.type ?? "–"}</td>
+              <td data-label="Type" className="whitespace-nowrap px-4 py-2 text-muted"><TypeLabel type={item.type} /></td>
               <td data-label="Priority" className="px-4 py-2">
                 <PriorityBadge priority={item.priority} />
               </td>
@@ -151,12 +152,7 @@ export default function SprintItemsTable({ items, onOpen, onView, onStep, onDrop
                 <StatusBadge status={item.status} />
               </td>
               <td data-label="Owner" className="px-4 py-2">
-                <span className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[10px] font-medium text-accent" aria-hidden="true">
-                    {initials(item.owner)}
-                  </span>
-                  <span className="truncate">{item.owner}</span>
-                </span>
+                <PersonLabel kind="owner" name={item.owner} />
               </td>
               <td data-label="Expected ETA" className="whitespace-nowrap px-4 py-2 text-muted">
                 <time dateTime={item.deadline}>{formatDeadline(item.deadline)}</time>

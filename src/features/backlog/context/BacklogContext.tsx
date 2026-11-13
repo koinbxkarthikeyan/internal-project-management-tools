@@ -497,7 +497,7 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
             setAll((prev) => prev.map((i) => (i.sprint === currentName ? { ...i, sprint: saved.name } : i)));
           }
           // A new start date moves the end date, which the backend works out: take its version of the sprints.
-          if (next.start && next.start !== current.start) void refreshParts(["sprints"], ctx);
+          if ((next.start && next.start !== current.start) || next.commonLeaves) void refreshParts(["sprints"], ctx);
           return "ok";
         } catch (err) {
           const code = getErrorStatus(err);

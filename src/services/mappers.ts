@@ -231,6 +231,10 @@ export function sprintFromApi(raw: Rec): Sprint {
     podIds: [],
     status: closed ? "Closed" : status === "PAUSED" || status === "ON_HOLD" || raw.paused === true ? "Paused" : "Active",
     ...(text(raw.closedAt) ? { closedAt: text(raw.closedAt) } : {}),
+    // The sprint's common leave (`commonLeaves`: [{ date, description }]); left out when the response has none, so a saved list is never wiped by a reply without it.
+    ...(Array.isArray(raw.commonLeaves)
+      ? { commonLeaves: raw.commonLeaves.flatMap((l) => (rec(l) && day(rec(l)!.date) ? [{ date: day(rec(l)!.date), description: text(rec(l)!.description) ?? "" }] : [])) }
+      : {}),
   };
 }
 
