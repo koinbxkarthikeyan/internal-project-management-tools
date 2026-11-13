@@ -24,8 +24,9 @@ export async function createSprint(input: SprintInput): Promise<Sprint> {
     name: input.name,
     ...(input.start ? { startDate: input.start } : {}),
     ...(input.goal ? { goal: input.goal } : {}),
+    ...(input.commonLeaves ? { commonLeaves: input.commonLeaves } : {}),
   });
-  const sprint = sprintFromApi(rec(data) ?? {});
+  const sprint = { ...sprintFromApi(rec(data) ?? {}), ...(input.commonLeaves && !rec(data)?.commonLeaves ? { commonLeaves: input.commonLeaves } : {}) };
   directory.sprints = [...directory.sprints, sprint];
   return sprint;
 }
@@ -42,9 +43,11 @@ export async function updateSprint(id: string, patch: Partial<SprintInput>): Pro
     ...(patch.name !== undefined ? { name: patch.name } : {}),
     ...(patch.start ? { startDate: patch.start } : {}),
     ...(patch.goal !== undefined ? { goal: patch.goal } : {}),
+    // The whole list (it replaces the sprint's common leave); left out, the backend keeps the current one.
+    ...(patch.commonLeaves ? { commonLeaves: patch.commonLeaves } : {}),
   });
   const current = directory.sprints.find((s) => s.id === id);
-  const sprint = { ...current, ...sprintFromApi({ id, ...(rec(data) ?? {}) }), id } as Sprint;
+  const sprint = { ...current, ...sprintFromApi({ id, ...(rec(data) ?? {}) }), id, ...(patch.commonLeaves ? { commonLeaves: patch.commonLeaves } : {}) } as Sprint;
   directory.sprints = directory.sprints.map((s) => (s.id === id ? sprint : s));
   return sprint;
 }

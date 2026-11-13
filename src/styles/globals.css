@@ -524,6 +524,8 @@ label:has([data-missing]) > .field-required-msg { display: flex; }
 /* Tables and lists: show about 10 rows, then scroll inside the container (never the page), with the header kept in view. The container is as tall as its rows
    when there are fewer; each table sets --row-h to its own row height (and --head-h if its header differs) so "10 rows" stays right. */
 .table-scroll {
+  /* Positioned, so the rows' hidden screen-reader text (position: absolute) is contained and clipped here instead of stretching the page below the table. */
+  position: relative;
   overflow: auto;
   max-height: calc(var(--row-h, 3rem) * 10 + var(--head-h, 2.6rem));
 }
@@ -629,4 +631,14 @@ input[type="radio"] {
   table.rt > tbody > tr > [data-actions] { grid-column: 2; grid-row: 1; justify-content: flex-end; align-self: start; }
   table.rt > tbody > tr > [data-primary]::before, table.rt > tbody > tr > [data-actions]::before { content: none; }
   table.rt > tbody > tr > [data-primary] + :is(td, th):not([data-actions]) { border-top: 1px solid var(--border); padding-top: 0.5rem; margin-top: 0.125rem; }
+}
+
+/* Unread-notification strip: the track holds the list twice and slides left by half its width, so it loops without a jump. Hover or focus pauses it. */
+.ticker-track { animation: ticker-slide linear infinite; }
+.ticker-mask:hover .ticker-track,
+.ticker-mask:focus-within .ticker-track { animation-play-state: paused; }
+@keyframes ticker-slide { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+  .ticker-mask { overflow-x: auto; }
+  .ticker-track { animation: none !important; }
 }

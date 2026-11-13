@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
+import PersonLabel from "@/components/ui/PersonLabel";
+import { PriorityBadge, StatusBadge, TypeLabel } from "@/components/ui/Badge";
 import { formatActivityTime, formatDeadline, todayISO } from "@/features/backlog/utils";
 import { newestFirst, whenOrUnavailable } from "@/features/backlog/components/ActivityTimeline";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -10,6 +11,7 @@ import { useWorkStore } from "@/stores/workStore";
 import { useItemDetailStore } from "@/stores/itemDetailStore";
 import type { ActivityEntry, BacklogItemData, Sprint } from "@/types/backlog";
 import type { WorkEntry } from "@/types/work";
+import { useOffFor } from "../hooks/useOffDays";
 import { formatDay, formatHours, plannedHours } from "../utils";
 import { sprintLabel } from "@/constants/backlog-options";
 import ExpandToggle from "@/components/ui/ExpandToggle";
@@ -58,6 +60,7 @@ const entryWhen = (e: WorkEntry) => formatActivityTime({ date: e.createdAt.slice
 export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given, onlyMine = false }: TaskHistoryModalProps) {
   const users = useUsers();
   const { user } = useAuth();
+  const offFor = useOffFor(onlyMine ? user?.id : undefined);
   const storeEntries = useWorkStore((s) => s.entries);
   const entriesLoading = useWorkStore((s) => s.status === "loading");
   const entriesFailed = useWorkStore((s) => s.status === "error");
@@ -133,10 +136,10 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
           {item.description && <p className="whitespace-pre-line break-words text-sm">{item.description}</p>}
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3 lg:grid-cols-4">
             {[
-              ["Owner", person(item.owner)],
-              ["Lead", person(item.lead)],
-              ["Assignees", item.assignees ? item.assignees.split(",").map((n) => person(n.trim())).filter(Boolean).join("; ") : undefined],
-              ["Type", item.type],
+              ["Owner", item.owner ? <PersonLabel kind="owner" name={person(item.owner) ?? item.owner} size={20} /> : undefined],
+              ["Lead", item.lead ? <PersonLabel kind="user" name={person(item.lead) ?? item.lead} size={20} /> : undefined],
+              ["Assignees", item.assignees ? <span className="flex flex-col gap-1">{item.assignees.split(",").map((n) => person(n.trim())).filter((n): n is string => !!n).map((n) => <PersonLabel key={n} kind="user" name={n} size={20} />)}</span> : undefined],
+              ["Type", item.type ? <TypeLabel type={item.type} /> : undefined],
               ["Sprint", item.sprint],
               ["Expected ETA", item.deadline ? formatDeadline(item.deadline) : undefined],
               ["Developer ETA", item.leadDeadline ? formatDeadline(item.leadDeadline) : undefined],
@@ -146,7 +149,7 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
             ]
               .filter(([, v]) => v)
               .map(([k, v]) => (
-                <div key={k} className="min-w-0">
+                <div key={String(k)} className="min-w-0">
                   <dt className="text-xs font-medium text-muted">{k}</dt>
                   <dd className="mt-1 break-words">{v}</dd>
                 </div>
@@ -204,9 +207,9 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
           <ol className="mt-3 flex flex-col gap-4 border-l border-border pl-4">
             {records.map(({ key, task, sprint, entries, moved }) => {
               const expectedTo = sprint?.end && sprint.end < today ? sprint.end : today;
-              const expected = sprint?.start && sprint.start <= expectedTo ? plannedHours(sprint.start, expectedTo) : 0;
+              const expected = sprint?.start && sprint.start <= expectedTo ? plannedHours(sprint.start, expectedTo, offFor(sprint.id)) : 0;
               // The whole sprint's weekday hours for one person.
-              const sprintTotal = sprint?.start && sprint.end ? plannedHours(sprint.start, sprint.end) : 0;
+              const sprintTotal = sprint?.start && sprint.end ? plannedHours(sprint.start, sprint.end, offFor(sprint.id)) : 0;
               const byPerson = [...new Set(entries.map((e) => e.person))];
               const log = activity[task.id] ?? task.activity ?? [];
               return (

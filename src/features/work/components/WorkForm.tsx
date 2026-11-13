@@ -9,6 +9,8 @@ import { CloseIcon } from "@/components/ui/icons";
 import { FOCUS_HOURS_PER_DAY, HOUR_PRESETS, isPseudoPod } from "@/constants/work";
 import type { BacklogItemData, Sprint } from "@/types/backlog";
 import type { Pod, WorkEntry, WorkEntryInput, WorkKind } from "@/types/work";
+import { useOffFor } from "../hooks/useOffDays";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { addDays, plannedHours, workingDays } from "../utils";
 import { FieldError } from "@/components/ui/FieldError";
 import KindTabs from "./KindTabs";
@@ -51,6 +53,7 @@ const KIND_REQUIRED = "Choose the kind of work.";
 const clamp = (d: string, min: string, max: string) => (d < min ? min : d > max ? max : d);
 
 export default function WorkForm({ sprint, pod, tasks, person, editing, today, closed = false, onDraftChange, onRemoveTask, onSubmit, onCancelEdit, kinds, kind: pickedKind, onKindChange, otherWork = false }: WorkFormProps) {
+  const off = useOffFor(useAuth().user?.id)(sprint.id);
   const toast = useToast();
   // An entry being changed keeps its own kind unless it is changed here; a new one uses the chosen kind.
   const kind = pickedKind;
@@ -75,14 +78,14 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
     setFrom(f);
     setTo(t);
     setError("");
-    if (!hoursTouched) setHours(String(plannedHours(f, t)));
+    if (!hoursTouched) setHours(String(plannedHours(f, t, off)));
   }
 
   const setPreset = (h: number) => (setHours(String(h)), setHoursTouched(true));
   const clampedToday = lastLoggable;
   const week2Start = addDays(sprint.start, 7);
-  const wd = workingDays(from, to);
-  const full = plannedHours(from, to);
+  const wd = workingDays(from, to, off);
+  const full = plannedHours(from, to, off);
 
   // An older entry (logged before tasks were picked from the list) keeps its task text and POD when edited.
   const legacy = !!editing && !editing.itemIds?.length && !editing.otherWork;
@@ -122,7 +125,7 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
     if (otherWork && !details.trim()) return setError("Enter the work details.");
     if (today < sprint.start) return setError(`${sprint.name} hasn't started yet, so there is nothing to log.`);
     if (to < from) return setError("To can't be before From.");
-    if (to > latest) return setError("You can't log hours for days that haven't happened yet.");
+    if (to > sprint.end) return setError("The To date must be inside the sprint.");
     const h = Number(hours);
     if (!(h >= 0)) return setError("Hours can't be negative.");
 
@@ -209,7 +212,7 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <TextField label="From" type="date" required disabled={!canLog} disabledReason={NEEDS_TASK} min={sprint.start} max={latest} value={from} onChange={(v) => setRange(v, to)} />
-        <TextField label="To" type="date" required disabled={!canLog} disabledReason={NEEDS_TASK} min={from || sprint.start} max={latest} value={to} onChange={(v) => setRange(from, v)} />
+        <TextField label="To" type="date" required disabled={!canLog} disabledReason={NEEDS_TASK} min={from || sprint.start} max={sprint.end} value={to} onChange={(v) => setRange(from, v)} />
         <TextField
           label="Hours in total"
           type="number"

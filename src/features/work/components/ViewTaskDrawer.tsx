@@ -6,7 +6,8 @@ import { SelectField, TextAreaField, TextField } from "@/components/ui/FormContr
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import AssigneeField, { cleanAssignees } from "@/features/backlog/components/AssigneeField";
-import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
+import PersonLabel from "@/components/ui/PersonLabel";
+import { PriorityBadge, StatusBadge, TypeLabel } from "@/components/ui/Badge";
 import TaskLoggedHours from "./TaskLoggedHours";
 import ActivityTimeline from "@/features/backlog/components/ActivityTimeline";
 import BacklogDrawer from "@/features/backlog/components/BacklogDrawer";
@@ -79,15 +80,15 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
   const assignees = (item.assignees ?? "").split(",").map((n) => n.trim()).filter(Boolean);
 
   const rows: Row[] = [
-    { label: "Owner", value: item.owner },
-    { label: "Lead", value: item.lead },
-    { label: "Type", value: item.type },
+    { label: "Owner", value: item.owner ? <PersonLabel kind="owner" name={item.owner} size={20} /> : undefined },
+    { label: "Lead", value: item.lead ? <PersonLabel kind="user" name={item.lead} size={20} /> : undefined },
+    { label: "Type", value: item.type ? <TypeLabel type={item.type} /> : undefined },
     { label: "Priority", value: <PriorityBadge priority={item.priority} /> },
     { label: "Status", value: canEdit ? undefined : <StatusBadge status={item.status} /> },
     { label: "Sprint", value: item.sprint },
     { label: "Carried over from", value: carryOverSource(item, sprints) ?? (item.carriedFrom ? sprintLabel([...items, ...hiddenItems].find((t) => t.id === item.carriedFrom)?.sprint ?? "an earlier sprint") : undefined) },
     { label: "POD", value: pod },
-    { label: "Assignees", value: isLead ? undefined : assignees.join(", ") },
+    { label: "Assignees", value: isLead || assignees.length === 0 ? undefined : <span className="flex flex-wrap gap-x-3 gap-y-1">{assignees.map((n) => <PersonLabel key={n} kind="user" name={n} size={20} />)}</span> },
     { label: "Expected ETA", value: item.deadline ? formatDeadline(item.deadline) : undefined },
     { label: "Developer ETA", value: canEdit ? undefined : item.leadDeadline ? formatDeadline(item.leadDeadline) : undefined },
     { label: "Done on", value: item.completed ? formatDeadline(item.completed) : undefined },

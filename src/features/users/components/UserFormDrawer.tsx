@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { createPortal } from "react-dom";
-import ConfirmDeleteDrawer from "@/features/backlog/components/ConfirmDeleteDrawer";
 import { useTeamStore } from "@/stores/teamStore";
+import { removeBlocked as removeBlockedFor, removeTeam as removeTeamNamed, renameTeam as renameTeamTo } from "../teamActions";
 import { useUsers } from "../hooks/useUsers";
 import { PasswordField } from "@/components/ui/PasswordField";
 import { checkNewPassword, generatePassword } from "@/lib/auth/passwordRules";
@@ -64,19 +63,18 @@ export default function UserFormDrawer({ user, isSelf = false, onSaved, onCreate
   const teamDeleted = useTeamStore((s) => s.deleted);
   const teamCustom = useTeamStore((s) => s.custom);
   const teams = teamOptions(users, [], { renames: teamRenames, deleted: teamDeleted, custom: teamCustom });
-  // Edit / Delete Team (kept in this browser only; nothing is sent to the backend).
-  const [renamingTeam, setRenamingTeam] = useState<string | null>(null);
-  const [deletingTeam, setDeletingTeam] = useState<string | null>(null);
-  const membersIn = (name: string) => users.filter((u) => u.team && cleanTeam(u.team).toLowerCase() === cleanTeam(name).toLowerCase()).length;
-  function askDelete(name: string) {
-    const n = membersIn(name);
-    // A team with members can't go: they would be left with a team that doesn't exist.
-    // Shown inside the panel (a toast would sit behind this open side panel).
-    if (n > 0) return void setError(`Can't delete ${name}: ${n} team ${n === 1 ? "member is" : "members are"} still in it. Reassign them to another team first.`);
-    setError("");
-    setDeletingTeam(name);
-  }
+  // Rename / Delete Team happen inside the Team dropdown (kept in this browser only; nothing is sent to the backend).
   const [team, setTeam] = useState(user?.team ?? "");
+  function renameTeam(from: string, to: string) {
+    const err = renameTeamTo(from, to, teams);
+    if (!err && cleanTeam(team).toLowerCase() === cleanTeam(from).toLowerCase()) setTeam(cleanTeam(to));
+    return err;
+  }
+  function removeTeam(name: string) {
+    const err = removeTeamNamed(users, name);
+    if (!err && cleanTeam(team).toLowerCase() === cleanTeam(name).toLowerCase()) setTeam("");
+    return err;
+  }
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
@@ -145,8 +143,9 @@ export default function UserFormDrawer({ user, isSelf = false, onSaved, onCreate
         placeholder="Search or select a team, or add a new one"
         // A team that isn't listed is added by choosing the `+ Add "name"` row (it is registered when the person is saved).
         onCreate={(name) => clear(setTeam)(cleanTeam(name))}
-        onEditOption={setRenamingTeam}
-        onDeleteOption={askDelete}
+        onRenameOption={renameTeam}
+        onRemoveOption={removeTeam}
+        removeBlocked={(name) => removeBlockedFor(users, name)}
       />
       {cleanTeam(team) && !isKnownTeam(team, teams) && <p className="-mt-2 text-xs text-muted">&ldquo;{cleanTeam(team)}&rdquo; is a new team. It is added when you save.</p>}
       {!ownerMode && (
@@ -169,69 +168,6 @@ export default function UserFormDrawer({ user, isSelf = false, onSaved, onCreate
       ) : (
         isSelf && <p className="-mt-2 text-xs text-muted">You can&apos;t change your own role or access.</p>
       )}
-      {error && (
-        <FieldError>
-          {error}
-        </FieldError>
-      )}
-      {/* Rendered in document.body: a <form> can't sit inside this panel's <form>. */}
-      {renamingTeam &&
-        createPortal(
-          <RenameTeamDrawer
-            name={renamingTeam}
-            existing={teams}
-            onClose={() => setRenamingTeam(null)}
-            onRenamed={(from, to) => {
-              useTeamStore.getState().rename(from, to);
-              if (cleanTeam(team).toLowerCase() === cleanTeam(from).toLowerCase()) setTeam(to);
-              toast.show(`Team renamed to ${to}`);
-            }}
-          />,
-          document.body,
-        )}
-      {deletingTeam &&
-        createPortal(
-          <ConfirmDeleteDrawer
-            title="Delete team"
-            name={deletingTeam}
-            consequence="It has no team members and is removed from the team lists."
-            onClose={() => setDeletingTeam(null)}
-            onConfirm={() => {
-              useTeamStore.getState().remove(deletingTeam);
-              if (cleanTeam(team).toLowerCase() === cleanTeam(deletingTeam).toLowerCase()) setTeam("");
-              toast.show(`Team ${deletingTeam} deleted`, "delete");
-            }}
-          />,
-          document.body,
-        )}
-    </BacklogDrawer>
-  );
-}
-
-/** Side panel to rename a team: the new name must be new (case and spacing ignored). */
-function RenameTeamDrawer({ name, existing, onClose, onRenamed }: { name: string; existing: readonly string[]; onClose: () => void; onRenamed: (from: string, to: string) => void }) {
-  const [value, setValue] = useState(name);
-  const [error, setError] = useState("");
-  return (
-    <BacklogDrawer
-      heading="Rename team"
-      subtitle="The new name applies to everyone in the team."
-      submitLabel="Save team"
-      canSubmit={cleanTeam(value) !== cleanTeam(name)}
-      compact
-      onClose={onClose}
-      onSubmit={() => {
-        const next = cleanTeam(value);
-        if (!next) return setError("Enter a team name."), false;
-        if (next.length > TEAM_MAX_LENGTH) return setError(`A team name can be at most ${TEAM_MAX_LENGTH} characters.`), false;
-        if (next.toLowerCase() !== cleanTeam(name).toLowerCase() && existing.some((t) => cleanTeam(t).toLowerCase() === next.toLowerCase())) {
-          return setError(`A team named "${next}" already exists.`), false;
-        }
-        if (next === name) return;
-        onRenamed(name, next);
-      }}
-    >
-      <TextField label="Team name" required value={value} onChange={(v) => (setValue(v), setError(""))} />
       {error && (
         <FieldError>
           {error}

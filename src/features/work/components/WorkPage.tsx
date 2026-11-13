@@ -22,6 +22,8 @@ import type { BacklogItemData } from "@/types/backlog";
 import type { Pod, WorkEntry, WorkEntryInput, WorkKind } from "@/types/work";
 import { useWorkData } from "../hooks/useWorkData";
 import { useChosenSprints } from "../hooks/useChosenSprints";
+import { useOffFor } from "../hooks/useOffDays";
+import MyLeavePanel from "./MyLeavePanel";
 import { formatDay, latestEntry, sprintHours } from "../utils";
 import HoursSummaryLine from "./HoursSummaryLine";
 import SprintGlance from "./SprintGlance";
@@ -46,6 +48,8 @@ export default function WorkPage() {
 
   // Entries are logged as the signed-in registered user, read from the Users data.
   const { user, isAdmin } = useAuth();
+  // Organization holidays and my own leave dates are 0-hour days in the expected hours.
+  const offFor = useOffFor(user?.id);
 
   // The My Task page's lists, which the task picker below reuses.
   const mineStore = useMyTasksStore();
@@ -136,7 +140,7 @@ export default function WorkPage() {
   // Expected hours count working days up to today only (weekends excluded); days still to come are not included.
   // A finished sprint counts in full. Hours already logged are never touched by this.
   // What the whole sprint plans for one person (`total`): worked hours beyond this show as the red part of the bar.
-  const { soFar: perPerson, total: sprintLimit } = sprintHours(chosen, today);
+  const { soFar: perPerson, total: sprintLimit } = sprintHours(chosen, today, offFor);
   const expected = perPerson;
   // My hours in every sprint (earlier ones included), each logged entry counted once.
   const newest = latestEntry(scoped);
@@ -315,6 +319,8 @@ export default function WorkPage() {
               <p className="flex h-10 items-center rounded-xl border border-border bg-background px-3 text-sm">{myTeam || "Not set"}</p>
             </Field>
           </section>
+
+          <MyLeavePanel sprints={chosen} />
 
           <section className={`${card} flex flex-col gap-5`}>
             <SprintSummary logged={logged} limit={sprintLimit} expected={expected} hasPerson={!!person} />

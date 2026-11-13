@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import { useTabKeys } from "@/hooks/useTabKeys";
-import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
+import { PriorityBadge, StatusBadge, TypeLabel } from "@/components/ui/Badge";
 import { DisabledTip } from "@/components/ui/DisabledTip";
 import EmptyState from "@/components/ui/EmptyState";
 import { useQueryState } from "@/hooks/useQueryState";
@@ -174,7 +174,7 @@ export default function MyTaskPage() {
                     className="cursor-pointer transition-colors duration-150 hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-accent"
                   >
                     <td data-primary className="max-w-xs truncate px-4 py-2 font-medium">{item.title}</td>
-                    <td data-label="Type" className="whitespace-nowrap px-4 py-2 text-muted">{item.type ?? "–"}</td>
+                    <td data-label="Type" className="whitespace-nowrap px-4 py-2 text-muted"><TypeLabel type={item.type} /></td>
                     <td data-label="Priority" className="px-4 py-2">
                       <PriorityBadge priority={item.priority} />
                     </td>

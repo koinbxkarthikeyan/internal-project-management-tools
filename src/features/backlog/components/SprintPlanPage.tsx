@@ -21,6 +21,7 @@ import TaskSearchModal from "./TaskSearchModal";
 import { useTabKeys } from "@/hooks/useTabKeys";
 import { useHoverTip } from "@/components/ui/HoverTip";
 import { formatDeadline, todayISO } from "../utils";
+import { useOffFor } from "@/features/work/hooks/useOffDays";
 import { eachDay, plannedHours, workingDays } from "@/features/work/utils";
 import SprintHeaderTitle from "./SprintHeaderTitle";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -57,6 +58,7 @@ export default function SprintPlanPage() {
   const [over, setOver] = useState<string | null>(null);
   // The order of tasks inside each list is a view setting kept in this browser (see taskOrderStore); it never changes which sprint a task is in.
   const { user, restricted } = useAuth();
+  const offFor = useOffFor(user?.id);
   const orders = useTaskOrderStore((st) => st.orders[user?.id ?? ""]) ?? {};
   const setOrder = useTaskOrderStore((st) => st.setOrder);
   // Holding a dragged task over a tab opens it after 500ms; leaving the tab (or any drop or drag end) cancels that.
@@ -386,7 +388,7 @@ export default function SprintPlanPage() {
                   <dl className="grid grid-cols-2 gap-3 border-b border-border px-5 py-3 text-sm sm:grid-cols-3">
                     <div>
                       <dt className="text-xs text-muted">Planned duration</dt>
-                      <dd>{eachDay(cur.start, cur.end).length} days · {workingDays(cur.start, cur.end)} working days · {plannedHours(cur.start, cur.end)}h</dd>
+                      <dd>{eachDay(cur.start, cur.end).length} days · {workingDays(cur.start, cur.end, offFor(cur.id))} working days · {plannedHours(cur.start, cur.end, offFor(cur.id))}h</dd>
                     </div>
                     <div>
                       <dt className="text-xs text-muted">Running so far</dt>

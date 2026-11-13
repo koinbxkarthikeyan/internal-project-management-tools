@@ -1,5 +1,5 @@
 import { STATUSES } from "@/constants/backlog-options";
-import { addDays, eachDay, isWeekend, sprintHours } from "@/features/work/utils";
+import { addDays, eachDay, isWeekend, sprintHours, type OffDays } from "@/features/work/utils";
 import type { ActivityEntry, BacklogItemData, Sprint, Status } from "@/types/backlog";
 import type { WorkEntry } from "@/types/work";
 
@@ -57,8 +57,8 @@ export function focusSprint(sprints: readonly DatedSprint[], sprintId: string, t
 }
 
 /** Planned, expected-so-far and remaining hours of one sprint against what the person logged in it; progress is the share of its working days gone by. */
-export function sprintFigures(sprint: DatedSprint, entries: readonly WorkEntry[], tasks: readonly BacklogItemData[], today: string) {
-  const { soFar, total } = sprintHours([sprint], today);
+export function sprintFigures(sprint: DatedSprint, entries: readonly WorkEntry[], tasks: readonly BacklogItemData[], today: string, offFor?: (sprintId: string) => OffDays) {
+  const { soFar, total } = sprintHours([sprint], today, offFor);
   const logged = sumHours(entries.filter((e) => e.sprintId === sprint.id));
   const inSprint = tasks.filter((t) => t.sprint === sprint.name);
   const done = inSprint.filter((t) => t.status === "Completed").length;
