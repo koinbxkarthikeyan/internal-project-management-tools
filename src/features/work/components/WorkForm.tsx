@@ -9,7 +9,10 @@ import { CloseIcon } from "@/components/ui/icons";
 import { FOCUS_HOURS_PER_DAY, HOUR_PRESETS, isPseudoPod } from "@/constants/work";
 import type { BacklogItemData, Sprint } from "@/types/backlog";
 import type { Pod, WorkEntry, WorkEntryInput, WorkKind } from "@/types/work";
-import { addDays, plannedHours, workingDays } from "../utils";
+import { useOffFor } from "../hooks/useOffDays";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { addDays, formatDay, isWeekend, plannedHours, workingDays } from "../utils";
+import DayField from "@/components/ui/DayField";
 import { FieldError } from "@/components/ui/FieldError";
 import KindTabs from "./KindTabs";
 
@@ -51,6 +54,7 @@ const KIND_REQUIRED = "Choose the kind of work.";
 const clamp = (d: string, min: string, max: string) => (d < min ? min : d > max ? max : d);
 
 export default function WorkForm({ sprint, pod, tasks, person, editing, today, closed = false, onDraftChange, onRemoveTask, onSubmit, onCancelEdit, kinds, kind: pickedKind, onKindChange, otherWork = false }: WorkFormProps) {
+  const off = useOffFor(useAuth().user?.id)(sprint.id);
   const toast = useToast();
   // An entry being changed keeps its own kind unless it is changed here; a new one uses the chosen kind.
   const kind = pickedKind;
@@ -71,18 +75,23 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
     onDraftChange?.({ from, to, hours: Number(hours) > 0 ? Number(hours) : 0 });
   }, [from, to, hours, onDraftChange]);
 
+  // A day fully on leave (common or the person's own) can't be the start or end of an entry; the browser's date box can't grey it out, so it is refused here.
+  const leaveDays = new Set([...off].filter(([, h]) => h >= FOCUS_HOURS_PER_DAY).map(([d]) => d));
+  const onLeave = (d: string) => leaveDays.has(d) || isWeekend(d);
+
   function setRange(f: string, t: string) {
+    if (onLeave(f) || onLeave(t)) return setError(`${formatDay(onLeave(f) ? f : t)} isn't a working day. Pick another day.`);
     setFrom(f);
     setTo(t);
     setError("");
-    if (!hoursTouched) setHours(String(plannedHours(f, t)));
+    if (!hoursTouched) setHours(String(plannedHours(f, t, off)));
   }
 
   const setPreset = (h: number) => (setHours(String(h)), setHoursTouched(true));
   const clampedToday = lastLoggable;
   const week2Start = addDays(sprint.start, 7);
-  const wd = workingDays(from, to);
-  const full = plannedHours(from, to);
+  const wd = workingDays(from, to, off);
+  const full = plannedHours(from, to, off);
 
   // An older entry (logged before tasks were picked from the list) keeps its task text and POD when edited.
   const legacy = !!editing && !editing.itemIds?.length && !editing.otherWork;
@@ -122,7 +131,8 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
     if (otherWork && !details.trim()) return setError("Enter the work details.");
     if (today < sprint.start) return setError(`${sprint.name} hasn't started yet, so there is nothing to log.`);
     if (to < from) return setError("To can't be before From.");
-    if (to > latest) return setError("You can't log hours for days that haven't happened yet.");
+    if (to > sprint.end) return setError("The To date must be inside the sprint.");
+    if (onLeave(from) || onLeave(to)) return setError("Leave dates and weekends can't be selected. Pick another day.");
     const h = Number(hours);
     if (!(h >= 0)) return setError("Hours can't be negative.");
 
@@ -208,8 +218,8 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
       </fieldset>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <TextField label="From" type="date" required disabled={!canLog} disabledReason={NEEDS_TASK} min={sprint.start} max={latest} value={from} onChange={(v) => setRange(v, to)} />
-        <TextField label="To" type="date" required disabled={!canLog} disabledReason={NEEDS_TASK} min={from || sprint.start} max={latest} value={to} onChange={(v) => setRange(from, v)} />
+        <DayField label="From" required disabled={!canLog} disabledReason={NEEDS_TASK} min={sprint.start} max={latest} blocked={leaveDays} value={from} onChange={(v) => setRange(v, to)} />
+        <DayField label="To" required disabled={!canLog} disabledReason={NEEDS_TASK} min={from || sprint.start} max={sprint.end} blocked={leaveDays} value={to} onChange={(v) => setRange(from, v)} />
         <TextField
           label="Hours in total"
           type="number"

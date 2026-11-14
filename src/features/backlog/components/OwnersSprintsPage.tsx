@@ -3,6 +3,8 @@
 import { useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
+import FilterBar, { FILTER_SELECT_CLASS, FilterSegments } from "@/components/ui/FilterBar";
+import { PersonIcon } from "@/components/ui/PersonLabel";
 import { SearchableSelect } from "@/components/ui/FormControls";
 import { PlusIcon } from "@/components/ui/icons";
 import ActionsMenu from "@/components/ui/ActionsMenu";
@@ -14,7 +16,6 @@ import ConfirmDeleteDrawer from "./ConfirmDeleteDrawer";
 import CreateOwnerDrawer from "./CreateOwnerDrawer";
 import EditOwnerDrawer from "./EditOwnerDrawer";
 import { useBacklog } from "../context/BacklogContext";
-import { initials } from "../utils";
 import { describeOwner } from "../ownerGroups";
 import { recentSprints } from "@/features/work/utils";
 import { sprintLabel } from "@/constants/backlog-options";
@@ -28,7 +29,6 @@ export default function OwnersSprintsPage() {
   const [deletingOwner, setDeletingOwner] = useState<string | null>(null);
   // Search (name, role, team) and filters (team, role); they only narrow what is listed.
   const [filters, setFilters] = useState({ query: "", team: "", role: "" });
-  const hasFilters = Object.values(filters).some(Boolean);
   // Which sprints the table covers: the running sprint (the default), the two most recent closed sprints before it, or all of them.
   const [scope, setScope] = useState<"active" | "previous" | "all">("active");
   const dated = (list: readonly { name: string; id: string; start?: string; end?: string; status?: string }[]) =>
@@ -77,28 +77,20 @@ export default function OwnersSprintsPage() {
           ) : undefined
         }
       />
-      <section aria-label="Search and filters" className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-surface p-2.5">
-        <BacklogSearch value={filters.query} onChange={(query) => setFilters({ ...filters, query })} placeholder="Search name, role or team…" ariaLabel="Search owners" />
-        <SearchableSelect
-          ariaLabel="Sprints shown"
-          required
+      <FilterBar
+        search={<BacklogSearch value={filters.query} onChange={(query) => setFilters({ ...filters, query })} placeholder="Search name, role or team…" ariaLabel="Search owners" />}
+        activeCount={Object.values(filters).filter(Boolean).length}
+        onClear={() => setFilters({ query: "", team: "", role: "" })}
+      >
+        <FilterSegments
+          label="Sprints shown"
           value={scope}
-          onChange={(v) => setScope(v === "previous" || v === "all" ? v : "active")}
-          options={[
-            { value: "active", label: "Active Sprint" },
-            { value: "previous", label: "Previous 2 Sprints" },
-            { value: "all", label: "All" },
-          ]}
-          className="min-w-0 flex-1 basis-40 sm:flex-none sm:basis-48"
+          onChange={setScope}
+          options={[{ value: "active", label: "Active sprint" }, { value: "previous", label: "Previous 2" }, { value: "all", label: "All" }]}
         />
-        <SearchableSelect ariaLabel="Filter by team" value={filters.team} onChange={(team) => setFilters({ ...filters, team })} options={teamChoices} placeholder="Team: All" className="min-w-0 flex-1 basis-32 sm:flex-none sm:basis-40" />
-        <SearchableSelect ariaLabel="Filter by role" value={filters.role} onChange={(role) => setFilters({ ...filters, role })} options={roleChoices} placeholder="Role: All" className="min-w-0 flex-1 basis-32 sm:flex-none sm:basis-40" />
-        {hasFilters && (
-          <button type="button" onClick={() => setFilters({ query: "", team: "", role: "" })} className="h-10 rounded-lg px-3 text-sm font-medium text-accent transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent">
-            Clear
-          </button>
-        )}
-      </section>
+        <SearchableSelect ariaLabel="Filter by team" value={filters.team} onChange={(team) => setFilters({ ...filters, team })} options={teamChoices} placeholder="Team: All" className={FILTER_SELECT_CLASS} />
+        <SearchableSelect ariaLabel="Filter by role" value={filters.role} onChange={(role) => setFilters({ ...filters, role })} options={roleChoices} placeholder="Role: All" className={FILTER_SELECT_CLASS} />
+      </FilterBar>
 
       <section className="overflow-hidden rounded-2xl border border-border bg-surface">
         {/* About 10 rows are visible; the rest scroll inside, with the header kept in view. */}
@@ -120,12 +112,7 @@ export default function OwnersSprintsPage() {
               <tr key={owner} className="transition-colors duration-150 hover:bg-row-hover">
                 <th scope="row" data-primary className="px-4 py-2 text-left font-medium">
                   <span className="flex items-center gap-2">
-                    <span
-                      className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-soft text-xs font-medium text-accent"
-                      aria-hidden="true"
-                    >
-                      {initials(owner)}
-                    </span>
+                    <PersonIcon kind="owner" size={28} />
                     <span className="flex min-w-0 flex-col">
                       {owner}
                       {describeOwner(ownerRecords.find((o) => o.name === owner)) && (

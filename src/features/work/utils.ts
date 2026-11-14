@@ -21,10 +21,16 @@ export function eachDay(start: string, end: string): string[] {
 
 export const addDays = (iso: string, n: number) => toISO(new Date(toDate(iso).getTime() + n * DAY_MS));
 
-export const workingDays = (start: string, end: string) => eachDay(start, end).filter((d) => !isWeekend(d)).length;
+/** Weekdays in a stretch, less any `off` dates (holidays and leave: 0 hours; a date counts once however many lists name it). */
+/** Hours off per date (leave): the whole day is `FOCUS_HOURS_PER_DAY`, a part day is less. */
+export type OffDays = ReadonlyMap<string, number>;
+
+/** The weekdays in a stretch that still have working hours (a day fully off is not one; a part day is). */
+export const workingDays = (start: string, end: string, off?: OffDays) => eachDay(start, end).filter((d) => !isWeekend(d) && (off?.get(d) ?? 0) < FOCUS_HOURS_PER_DAY).length;
 
 /** Default hours for a stretch: every working day at the planned focus hours. */
-export const plannedHours = (start: string, end: string) => workingDays(start, end) * FOCUS_HOURS_PER_DAY;
+export const plannedHours = (start: string, end: string, off?: OffDays) =>
+  eachDay(start, end).reduce((sum, d) => (isWeekend(d) ? sum : sum + Math.max(0, FOCUS_HOURS_PER_DAY - (off?.get(d) ?? 0))), 0);
 
 const dayFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 /** A day like "6 Oct"; "–" when the entry carries no valid date (the backend may leave it out). */
@@ -62,11 +68,13 @@ export function latestEntry<T extends { id: string; createdAt: string }>(entries
 
 /**
  * Expected hours for one person over the given sprints, weekdays only (6h each): `soFar` from each sprint's start through today (never past its end,
- * and 0 before it starts) and `total` for the whole of each sprint. The one place this is worked out.
+ * and 0 before it starts) and `total` for the whole of each sprint. `offFor` gives a sprint's 0-hour dates for that person (its common leave + their own leave).
+ * The one place this is worked out.
  */
-export function sprintHours(sprints: readonly { start: string; end: string }[], today: string) {
-  const soFar = sprints.reduce((sum, s) => sum + (today < s.start ? 0 : plannedHours(s.start, today > s.end ? s.end : today)), 0);
-  const total = sprints.reduce((sum, s) => sum + plannedHours(s.start, s.end), 0);
+export function sprintHours(sprints: readonly { id?: string; start: string; end: string }[], today: string, offFor?: (sprintId: string) => OffDays) {
+  const off = (s: { id?: string }) => (s.id ? offFor?.(s.id) : undefined);
+  const soFar = sprints.reduce((sum, s) => sum + (today < s.start ? 0 : plannedHours(s.start, today > s.end ? s.end : today, off(s))), 0);
+  const total = sprints.reduce((sum, s) => sum + plannedHours(s.start, s.end, off(s)), 0);
   return { soFar, total };
 }
 

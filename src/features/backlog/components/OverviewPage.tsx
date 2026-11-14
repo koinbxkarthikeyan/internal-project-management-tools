@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
+import PersonLabel from "@/components/ui/PersonLabel";
 import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
 import { PRIORITIES, STATUSES, statusLabel } from "@/constants/backlog-options";
 import { useBacklog } from "../context/BacklogContext";
@@ -75,7 +76,7 @@ export default function OverviewPage({ tabs }: { /** Shown in the page header (a
             <li key={i.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
               <div className="min-w-0 flex-1 basis-56">
                 <p className="truncate text-sm font-medium">{i.title}</p>
-                <p className="text-xs text-muted">{i.owner}</p>
+                <p className="text-xs text-muted"><PersonLabel kind="owner" name={i.owner} size={16} className="gap-1.5" /></p>
               </div>
               <PriorityBadge priority={i.priority} />
               <StatusBadge status={i.status} />

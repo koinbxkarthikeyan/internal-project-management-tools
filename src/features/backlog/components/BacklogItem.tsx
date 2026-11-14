@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from "react";
-import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
+import PersonLabel from "@/components/ui/PersonLabel";
+import { PriorityBadge, StatusBadge, TypeLabel } from "@/components/ui/Badge";
 import type { BacklogItemData } from "@/types/backlog";
-import { formatDeadline, initials } from "../utils";
+import { formatDeadline } from "../utils";
 import { useBacklog } from "../context/BacklogContext";
 import ActionsMenu from "@/components/ui/ActionsMenu";
 import { EyeIcon } from "@/components/ui/icons";
@@ -69,15 +70,12 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
       {/* Narrow screens show the row as a card: the title and the actions in the header, then one label / value line per column. */}
       <div className="col-start-1 row-start-1 min-w-0 md:col-auto md:row-auto">
         <p className="break-words text-sm font-medium md:truncate">{item.title}</p>
-        <p className="mt-0.5 text-xs text-muted">
-          {item.comments} {item.comments === 1 ? "comment" : "comments"}
-        </p>
       </div>
 
       <div className="col-span-2 mt-1 flex flex-col gap-1.5 border-t border-border pt-2 md:contents md:mt-0 md:border-0 md:pt-0">
         <div className="flex items-center justify-between gap-3 md:contents">
           <span className="text-xs text-muted md:hidden">Type</span>
-          <span className="text-sm text-muted">{item.type ?? "–"}</span>
+          <span className="text-sm text-muted"><TypeLabel type={item.type} /></span>
         </div>
         <div className="flex items-center justify-between gap-3 md:contents">
           <span className="text-xs text-muted md:hidden">Priority</span>
@@ -103,15 +101,7 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
       <div className="col-span-2 flex flex-col gap-1.5 text-sm md:contents">
         <div className="flex items-center justify-between gap-3 md:contents">
           <span className="text-xs text-muted md:hidden">Owner</span>
-          <div className="flex min-w-0 items-center gap-2">
-            <span
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[10px] font-medium text-accent"
-              aria-hidden="true"
-            >
-              {initials(item.owner)}
-            </span>
-            <span className="truncate">{item.owner}</span>
-          </div>
+          <PersonLabel kind="owner" name={item.owner} />
         </div>
         <div className="flex items-center justify-between gap-3 md:contents">
           <span className="text-xs text-muted md:hidden">Expected ETA</span>

@@ -5,6 +5,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import ActionsMenu from "@/components/ui/ActionsMenu";
 import EmptyState from "@/components/ui/EmptyState";
+import FilterBar, { FILTER_SELECT_CLASS, FilterSegments } from "@/components/ui/FilterBar";
 import { SearchableSelect } from "@/components/ui/FormControls";
 import { EditIcon, EyeIcon, EyeOffIcon, PlusIcon, TrashIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/Toast";
@@ -17,6 +18,7 @@ import * as userService from "@/services/userService";
 import type { AppUser } from "@/types/auth";
 import { useUsersStore } from "@/stores/usersStore";
 import { useManagedUsers } from "../hooks/useManagedUsers";
+import TeamsPanel from "./TeamsPanel";
 import UserFormDrawer from "./UserFormDrawer";
 
 const pill = "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium";
@@ -40,7 +42,6 @@ export default function UsersPage() {
   const [adding, setAdding] = useState(false);
   // Search (name, email, team) and filters (team, role, access status); they only narrow what is listed.
   const [filters, setFilters] = useState({ query: "", team: "", role: "", status: "" });
-  const hasFilters = Object.values(filters).some(Boolean);
   const q = filters.query.trim().toLowerCase();
   const shown = users.filter(
     (u) =>
@@ -109,17 +110,22 @@ export default function UsersPage() {
         }
       />
 
-      <section aria-label="Search and filters" className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-surface p-2.5">
-        <BacklogSearch value={filters.query} onChange={(query) => setFilters({ ...filters, query })} placeholder="Search name, email or team…" ariaLabel="Search team members" />
-        <SearchableSelect ariaLabel="Filter by team" value={filters.team} onChange={(team) => setFilters({ ...filters, team })} options={teamChoices} placeholder="Team: All" className="min-w-0 flex-1 basis-32 sm:flex-none sm:basis-40" />
-        <SearchableSelect ariaLabel="Filter by role" value={filters.role} onChange={(role) => setFilters({ ...filters, role })} options={roleChoices} placeholder="Role: All" className="min-w-0 flex-1 basis-32 sm:flex-none sm:basis-40" />
-        <SearchableSelect ariaLabel="Filter by access status" value={filters.status} onChange={(status) => setFilters({ ...filters, status })} options={["Enabled", "Disabled"]} placeholder="Access: All" className="min-w-0 flex-1 basis-32 sm:flex-none sm:basis-40" />
-        {hasFilters && (
-          <button type="button" onClick={() => setFilters({ query: "", team: "", role: "", status: "" })} className="h-10 rounded-lg px-3 text-sm font-medium text-accent transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent">
-            Clear
-          </button>
-        )}
-      </section>
+      <FilterBar
+        search={<BacklogSearch value={filters.query} onChange={(query) => setFilters({ ...filters, query })} placeholder="Search name, email or team…" ariaLabel="Search team members" />}
+        activeCount={Object.values(filters).filter(Boolean).length}
+        onClear={() => setFilters({ query: "", team: "", role: "", status: "" })}
+      >
+        <FilterSegments
+          label="Access"
+          value={filters.status}
+          onChange={(status) => setFilters({ ...filters, status })}
+          options={[{ value: "", label: "All" }, { value: "Enabled", label: "Enabled" }, { value: "Disabled", label: "Disabled" }]}
+        />
+        <SearchableSelect ariaLabel="Filter by team" value={filters.team} onChange={(team) => setFilters({ ...filters, team })} options={teamChoices} placeholder="Team: All" className={FILTER_SELECT_CLASS} />
+        <SearchableSelect ariaLabel="Filter by role" value={filters.role} onChange={(role) => setFilters({ ...filters, role })} options={roleChoices} placeholder="Role: All" className={FILTER_SELECT_CLASS} />
+      </FilterBar>
+
+      <TeamsPanel users={users} />
 
       <section className="overflow-hidden rounded-2xl border border-border bg-surface">
         {/* About 10 rows are visible; the rest scroll inside, with the header kept in view. */}
