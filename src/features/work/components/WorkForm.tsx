@@ -11,7 +11,8 @@ import type { BacklogItemData, Sprint } from "@/types/backlog";
 import type { Pod, WorkEntry, WorkEntryInput, WorkKind } from "@/types/work";
 import { useOffFor } from "../hooks/useOffDays";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { addDays, plannedHours, workingDays } from "../utils";
+import { addDays, formatDay, isWeekend, plannedHours, workingDays } from "../utils";
+import DayField from "@/components/ui/DayField";
 import { FieldError } from "@/components/ui/FieldError";
 import KindTabs from "./KindTabs";
 
@@ -74,7 +75,12 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
     onDraftChange?.({ from, to, hours: Number(hours) > 0 ? Number(hours) : 0 });
   }, [from, to, hours, onDraftChange]);
 
+  // A day fully on leave (common or the person's own) can't be the start or end of an entry; the browser's date box can't grey it out, so it is refused here.
+  const leaveDays = new Set([...off].filter(([, h]) => h >= FOCUS_HOURS_PER_DAY).map(([d]) => d));
+  const onLeave = (d: string) => leaveDays.has(d) || isWeekend(d);
+
   function setRange(f: string, t: string) {
+    if (onLeave(f) || onLeave(t)) return setError(`${formatDay(onLeave(f) ? f : t)} isn't a working day. Pick another day.`);
     setFrom(f);
     setTo(t);
     setError("");
@@ -126,6 +132,7 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
     if (today < sprint.start) return setError(`${sprint.name} hasn't started yet, so there is nothing to log.`);
     if (to < from) return setError("To can't be before From.");
     if (to > sprint.end) return setError("The To date must be inside the sprint.");
+    if (onLeave(from) || onLeave(to)) return setError("Leave dates and weekends can't be selected. Pick another day.");
     const h = Number(hours);
     if (!(h >= 0)) return setError("Hours can't be negative.");
 
@@ -211,8 +218,8 @@ export default function WorkForm({ sprint, pod, tasks, person, editing, today, c
       </fieldset>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <TextField label="From" type="date" required disabled={!canLog} disabledReason={NEEDS_TASK} min={sprint.start} max={latest} value={from} onChange={(v) => setRange(v, to)} />
-        <TextField label="To" type="date" required disabled={!canLog} disabledReason={NEEDS_TASK} min={from || sprint.start} max={sprint.end} value={to} onChange={(v) => setRange(from, v)} />
+        <DayField label="From" required disabled={!canLog} disabledReason={NEEDS_TASK} min={sprint.start} max={latest} blocked={leaveDays} value={from} onChange={(v) => setRange(v, to)} />
+        <DayField label="To" required disabled={!canLog} disabledReason={NEEDS_TASK} min={from || sprint.start} max={sprint.end} blocked={leaveDays} value={to} onChange={(v) => setRange(from, v)} />
         <TextField
           label="Hours in total"
           type="number"
