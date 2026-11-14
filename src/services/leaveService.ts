@@ -8,15 +8,18 @@ const num = (v: unknown) => (typeof v === "number" && v > 0 ? v : typeof v === "
 
 function fromApi(raw: unknown, sprintId: string, me: string): PersonalLeave | null {
   const r = rec(raw);
-  const date = typeof r?.date === "string" ? r.date.slice(0, 10) : "";
-  if (!r || !date || r.id === undefined) return null;
-  return { id: String(r.id), sprintId: String(r.sprintId ?? sprintId), userId: String(r.userId ?? r.user_id ?? me), date, ...(num(r.hours) ? { hours: num(r.hours) } : {}) };
+  const raw_date = r?.date ?? r?.leaveDate ?? r?.day;
+  const date = typeof raw_date === "string" ? raw_date.slice(0, 10) : "";
+  if (!r || !date) return null;
+  return { id: String(r.id ?? r.leaveId ?? date), sprintId: String(r.sprintId ?? sprintId), userId: String(r.userId ?? r.user_id ?? me), date, ...(num(r.hours) ? { hours: num(r.hours) } : {}) };
 }
 
 /** `GET /work-entries/leaves?sprintId=`: the leave days of the signed-in person in one sprint (closed sprints are read-only history). */
 export async function getLeaves(sprintId: string, me: string): Promise<PersonalLeave[]> {
   const { data } = await apiClient.get<unknown>("/work-entries/leaves", { params: { sprintId: Number(sprintId) } });
-  return listFrom(data, "leaves").flatMap((r) => fromApi(r, sprintId, me) ?? []);
+  // The reply is a list, or an object holding one (under "leaves", "data", "items"… whatever the backend calls it).
+  const rows = Array.isArray(data) ? data : listFrom(data, "leaves").length ? listFrom(data, "leaves") : Object.values(rec(data) ?? {}).find(Array.isArray) ?? [];
+  return rows.flatMap((r) => fromApi(r, sprintId, me) ?? []);
 }
 
 /** `POST /work-entries/leaves`: one day (a working day inside the sprint); `hours` leaves out the whole day. */
