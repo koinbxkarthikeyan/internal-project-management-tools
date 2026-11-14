@@ -42,7 +42,7 @@ export default function TeamWorkPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title="Team Work Details" description="Everyone's PODs, tasks and logged hours in the chosen sprint." />
+      <PageHeader title="Team Work Details" description="PODs, tasks and hours for the sprint." />
       {datedSprints.length === 0 ? (
         <section className={card}>
           <EmptyState title="No sprint added yet" description="Create a sprint to get started." />

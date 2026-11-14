@@ -100,7 +100,7 @@ const UNPLANNED = "Unplanned";
 
 const backlog: BulkSpec = {
   label: "Backlog",
-  hint: "Each row creates one backlog item with the same fields and options as the Create backlog form. New items start as Backlog; the ID is given by the server. Owner, Lead and Team Members are optional here: leave them empty and nobody is assigned (the server decides whether it accepts an item without an owner).",
+  hint: "Each row creates one backlog item, like the Create backlog form. Owner, Lead and Team Members are optional.",
   columns: [
     { key: "owner", label: "Owner", control: "pick", width: 190, emptyLabel: "No owner", create: "owner", options: ownerChoices },
     { key: "title", label: "Title", control: "text", required: true, width: 220, placeholder: "Short name for the work" },
@@ -108,7 +108,7 @@ const backlog: BulkSpec = {
     { key: "type", label: "Type", control: "select", required: true, width: 150, options: () => options(ITEM_TYPES) },
     { key: "priority", label: "Priority", control: "select", width: 130, options: () => options(["Not set", ...PRIORITIES.filter((p) => p !== "Not set")]) },
     { key: "sprint", label: "Sprint", control: "select", required: true, width: 170, options: (c) => c.sprintOptions },
-    { key: "deadline", label: "Expected deadline", control: "date", width: 160 },
+    { key: "deadline", label: "Expected ETA", control: "date", width: 160 },
     { key: "lead", label: "Lead", control: "pick", width: 190, emptyLabel: "No lead", create: "member", options: memberChoices },
     { key: "assignees", label: "Team Members", control: "multi", width: 230, emptyLabel: "No team members", create: "member", options: memberChoices },
     { key: "notes", label: "Notes", control: "text", width: 200 },
@@ -161,7 +161,7 @@ const backlog: BulkSpec = {
 // ---------- Owner ----------
 const owner: BulkSpec = {
   label: "Owner",
-  hint: "Each row creates one owner (an owner is a record of its own, not a user). Team is optional.",
+  hint: "Each row creates one owner. Team is optional.",
   columns: [
     { key: "name", label: "Name", control: "text", required: true, width: 240, placeholder: "e.g. Jordan Blake" },
     { key: "team", label: "Team", control: "text", width: 220, suggestions: (c) => c.ownerTeams },
@@ -187,7 +187,7 @@ const ROLES: AssignableRole[] = ["Admin", "User"];
 
 const users: BulkSpec = {
   label: "Team Member",
-  hint: `Each row adds one team member, as Add Team Member does (only ${ALLOWED_DOMAINS_TEXT} addresses). No password is entered or shown here; new accounts get the standard initial password and Users sign in with an emailed code.`,
+  hint: `Each row adds one team member (${ALLOWED_DOMAINS_TEXT} emails only). No password is needed.`,
   columns: [
     { key: "name", label: "Name", control: "text", required: true, width: 220, format: titleCase, placeholder: "e.g. Jordan Blake" },
     { key: "email", label: "Email", control: "text", required: true, width: 250, placeholder: `name@${ALLOWED_EMAIL_DOMAIN}`, format: (v) => v.toLowerCase(), liveProblem: (v) => emailProblem(v), optionsFor: emailSuggestions },

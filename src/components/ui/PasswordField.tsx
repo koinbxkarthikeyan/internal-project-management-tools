@@ -41,6 +41,13 @@ export function PasswordField({ label, value, onChange, placeholder, required, a
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const hintTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => (clearTimeout(timer.current), clearTimeout(hintTimer.current)), []);
+  // The browser's own Paste (right-click menu, mobile, Edit menu) and a text drop do not always raise a paste event first: stop them as the text is about to go in.
+  useEffect(() => {
+    const el = input.current;
+    const stop = (e: InputEvent) => /^insertFrom(Paste|PasteAsQuotation|Drop|Yank)$/.test(e.inputType) && e.preventDefault();
+    el?.addEventListener("beforeinput", stop);
+    return () => el?.removeEventListener("beforeinput", stop);
+  }, []);
   // Clicking the eye on an empty field has nothing to show: a short popup says what to enter, named after this field ("Enter your new password").
   const [hintOn, setHintOn] = useState(false);
   const hintShown = hintOn && !value && !disabled;
@@ -84,6 +91,12 @@ export function PasswordField({ label, value, onChange, placeholder, required, a
           autoFocus={autoFocus}
           name={name}
           aria-readonly={readOnly || undefined}
+          // Copy, cut, paste and dropping text in are all blocked (also while the password is shown): it has to be typed.
+          onCopy={(e) => e.preventDefault()}
+          onCut={(e) => e.preventDefault()}
+          onPaste={(e) => e.preventDefault()}
+          onDrop={(e) => e.preventDefault()}
+          onDragStart={(e) => e.preventDefault()}
           aria-invalid={invalid || undefined}
           data-valid={(valid && !invalid) || undefined}
           onChange={(e) => onChange(e.target.value)}

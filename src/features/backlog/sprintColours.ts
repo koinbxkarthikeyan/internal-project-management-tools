@@ -6,14 +6,14 @@ const PILL = "inline-flex rounded-full px-2 py-0.5 text-xs font-medium";
 type Colour = { row: string; tint: string; pill: string; dot: string };
 
 const SPRINT_COLOURS: Colour[] = [
-  { row: `${BAR} bg-sky-500/[0.07] before:bg-sky-500/60`, tint: "bg-sky-500/[0.07]", pill: `${PILL} bg-sky-500/15 text-sky-700 dark:text-sky-300`, dot: "bg-sky-500" },
-  { row: `${BAR} bg-violet-500/[0.07] before:bg-violet-500/60`, tint: "bg-violet-500/[0.07]", pill: `${PILL} bg-violet-500/15 text-violet-700 dark:text-violet-300`, dot: "bg-violet-500" },
-  { row: `${BAR} bg-emerald-500/[0.07] before:bg-emerald-500/60`, tint: "bg-emerald-500/[0.07]", pill: `${PILL} bg-emerald-500/15 text-emerald-700 dark:text-emerald-300`, dot: "bg-emerald-500" },
-  { row: `${BAR} bg-amber-500/[0.08] before:bg-amber-500/60`, tint: "bg-amber-500/[0.08]", pill: `${PILL} bg-amber-500/15 text-amber-700 dark:text-amber-300`, dot: "bg-amber-500" },
-  { row: `${BAR} bg-rose-500/[0.07] before:bg-rose-500/60`, tint: "bg-rose-500/[0.07]", pill: `${PILL} bg-rose-500/15 text-rose-700 dark:text-rose-300`, dot: "bg-rose-500" },
-  { row: `${BAR} bg-teal-500/[0.07] before:bg-teal-500/60`, tint: "bg-teal-500/[0.07]", pill: `${PILL} bg-teal-500/15 text-teal-700 dark:text-teal-300`, dot: "bg-teal-500" },
+  { row: `${BAR} bg-sky-500/[0.07] before:bg-sky-500/60`, tint: "bg-sky-500/[0.07]", pill: `${PILL} text-sky-700 dark:text-sky-300`, dot: "bg-sky-500" },
+  { row: `${BAR} bg-violet-500/[0.07] before:bg-violet-500/60`, tint: "bg-violet-500/[0.07]", pill: `${PILL} text-violet-700 dark:text-violet-300`, dot: "bg-violet-500" },
+  { row: `${BAR} bg-emerald-500/[0.07] before:bg-emerald-500/60`, tint: "bg-emerald-500/[0.07]", pill: `${PILL} text-emerald-700 dark:text-emerald-300`, dot: "bg-emerald-500" },
+  { row: `${BAR} bg-amber-500/[0.08] before:bg-amber-500/60`, tint: "bg-amber-500/[0.08]", pill: `${PILL} text-amber-700 dark:text-amber-300`, dot: "bg-amber-500" },
+  { row: `${BAR} bg-rose-500/[0.07] before:bg-rose-500/60`, tint: "bg-rose-500/[0.07]", pill: `${PILL} text-rose-700 dark:text-rose-300`, dot: "bg-rose-500" },
+  { row: `${BAR} bg-teal-500/[0.07] before:bg-teal-500/60`, tint: "bg-teal-500/[0.07]", pill: `${PILL} text-teal-700 dark:text-teal-300`, dot: "bg-teal-500" },
 ];
-const BACKLOG_COLOUR: Colour = { row: `${BAR} bg-slate-500/[0.08] before:bg-slate-500/60`, tint: "bg-slate-500/[0.08]", pill: `${PILL} bg-slate-500/15 text-slate-700 dark:text-slate-300`, dot: "bg-slate-500" };
+const BACKLOG_COLOUR: Colour = { row: `${BAR} bg-slate-500/[0.08] before:bg-slate-500/60`, tint: "bg-slate-500/[0.08]", pill: `${PILL} text-slate-700 dark:text-slate-300`, dot: "bg-slate-500" };
 
 export function sprintColour(sprint: string): Colour {
   if (sprint === "Unplanned") return BACKLOG_COLOUR;

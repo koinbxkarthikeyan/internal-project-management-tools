@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useTabKeys } from "@/hooks/useTabKeys";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import EmptyState from "@/components/ui/EmptyState";
@@ -11,6 +12,7 @@ import { useNotificationConnection, type ConnectionStatus } from "../connection"
 import { EVENT_LABEL, describe, timeAgo } from "../describe";
 import { selectUnread, useNotificationStore } from "../store";
 import type { AppNotification } from "../types";
+import ExpandToggle from "@/components/ui/ExpandToggle";
 
 const WIDTH = 384;
 const STATUS_TEXT: Record<ConnectionStatus, string> = {
@@ -46,9 +48,11 @@ export default function NotificationBell() {
   const loading = useNotificationStore((s) => s.loading);
   const error = useNotificationStore((s) => s.error);
   // The server filters by itself; this keeps the list right while a change is still arriving.
-  const items = filter === "unread" ? allItems.filter((n) => !n.read) : allItems;
+  const items = filter === "unread" ? allItems.filter((n) => !n.read) : filter === "read" ? allItems.filter((n) => n.read) : allItems;
   const unread = useNotificationStore(selectUnread);
   const [open, setOpen] = useState(false);
+  // Full view: the same panel grows wider and taller where it is, and each notification shows its changes in full.
+  const [full, setFull] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0, width: WIDTH });
   const button = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -57,10 +61,41 @@ export default function NotificationBell() {
     if (!open && button.current) {
       const r = button.current.getBoundingClientRect();
       const width = Math.min(WIDTH, window.innerWidth - 16);
-      setPos({ top: r.bottom + 8, left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)), width });
+      // Always under the bell, the same place whether it was clicked or the key was pressed (kept inside the screen).
+      setPos({ top: Math.max(8, r.bottom + 8), left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)), width });
     }
+    setFull(false);
     setOpen((o) => !o);
   }
+
+  // The app has more than one bell (the top bar and the sidebar): only one panel is ever open, and the key does nothing while one is.
+  const me = useRef(useId());
+  useEffect(() => {
+    if (open) window.dispatchEvent(new CustomEvent("notifications-opened", { detail: me.current }));
+    const other = (e: Event) => (e as CustomEvent).detail !== me.current && setOpen(false);
+    window.addEventListener("notifications-opened", other);
+    return () => window.removeEventListener("notifications-opened", other);
+  }, [open]);
+
+  // While the panel is open 1 2 3 pick All, Unread, Read.
+  useTabKeys([{ id: "all" }, { id: "unread" }, { id: "read" }], (id) => useNotificationStore.getState().setFilter(id as "all" | "unread" | "read"), { enabled: open, panel: true });
+
+  // The Menu key (between the right Alt and right Ctrl) opens the panel from anywhere, not while typing in a field or with a form open.
+  useEffect(() => {
+    if (!user || settingsOnly || open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "ContextMenu" || e.ctrlKey || e.metaKey || e.altKey || e.repeat || e.defaultPrevented) return;
+      if ((e.target as HTMLElement | null)?.closest("input, textarea, select, [contenteditable=''], [contenteditable=true], [role=combobox]")) return;
+      if (document.querySelector("dialog[open], [role=dialog][aria-label=Notifications]")) return;
+      // A bell that is not on the screen (the hidden one) leaves the key to the visible bell.
+      if (!button.current || button.current.offsetParent === null) return;
+      e.preventDefault();
+      // The very same path as a click on the bell, so the panel opens in the same place.
+      button.current?.click();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [user, settingsOnly, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -68,16 +103,36 @@ export default function NotificationBell() {
       const t = e.target as Node;
       if (!panel.current?.contains(t) && !button.current?.contains(t)) setOpen(false);
     };
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && (setOpen(false), button.current?.focus());
+    const keys = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        // Full view first returns to the normal size; Esc again closes the panel.
+        if (full) setFull(false);
+        else {
+          setOpen(false);
+          button.current?.focus();
+        }
+        return;
+      }
+      // Ctrl+F (⌘F) while the panel is open switches it to full view, instead of the browser's find bar; Esc takes it back.
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "f") {
+        if (full) return;
+        e.preventDefault();
+        setFull(true);
+      }
+    };
     document.addEventListener("pointerdown", away);
-    document.addEventListener("keydown", esc);
+    document.addEventListener("keydown", keys);
     return () => {
       document.removeEventListener("pointerdown", away);
-      document.removeEventListener("keydown", esc);
+      document.removeEventListener("keydown", keys);
     };
-  }, [open]);
+  }, [open, full]);
 
   if (!user || settingsOnly) return null;
+
+  // Full view keeps the panel under the bell, wider, and slid left only as far as needed to stay on the screen.
+  const fullWidth = Math.min(768, window.innerWidth - 16);
+  const panelStyle = full ? { top: pos.top, left: Math.max(8, Math.min(pos.left, window.innerWidth - fullWidth - 8)), width: fullWidth } : { top: pos.top, left: pos.left, width: pos.width };
 
   function openTask(n: AppNotification) {
     useNotificationStore.getState().markRead(n.id);
@@ -92,6 +147,8 @@ export default function NotificationBell() {
         type="button"
         onClick={toggle}
         aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}
+        aria-keyshortcuts="ContextMenu"
+        title="Notifications (Menu key, between right Alt and Ctrl)"
         aria-haspopup="dialog"
         aria-expanded={open}
         className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent"
@@ -109,25 +166,27 @@ export default function NotificationBell() {
             ref={panel}
             role="dialog"
             aria-label="Notifications"
-            style={{ top: pos.top, left: pos.left, width: pos.width }}
-            className="anim-fade-up fixed z-[60] flex max-h-[min(34rem,calc(100vh-5rem))] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-menu"
+            style={panelStyle}
+            className={`anim-fade-up fixed z-[60] flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-menu ${full ? "h-[calc(100dvh-5rem)] max-h-[48rem]" : "max-h-[min(34rem,calc(100vh-5rem))]"}`}
           >
-            <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
-              <h2 className="text-sm font-semibold">
-                Notifications {unread > 0 && <span className="ml-1 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">{unread} new</span>}
+            <div className="flex items-center gap-2 whitespace-nowrap border-b border-border px-4 py-3">
+              <h2 className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
+                Notifications {unread > 0 && <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">{unread} new</span>}
               </h2>
+              <span className="ml-auto" />
+              <ExpandToggle expanded={full} onToggle={() => setFull((f) => !f)} label={false} />
               <button
                 type="button"
                 disabled={unread === 0}
                 onClick={() => useNotificationStore.getState().markAllRead()}
-                className="rounded-md px-2 py-1 text-xs font-medium text-accent hover:bg-hover disabled:cursor-not-allowed disabled:text-muted disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent"
+                className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-accent hover:bg-hover disabled:cursor-not-allowed disabled:text-muted disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent"
               >
-                Mark all as read
+                Mark all read
               </button>
             </div>
             <ConnectionLine />
             <div role="group" aria-label="Show notifications" className="flex gap-1 border-b border-border px-3 py-1.5">
-              {(["all", "unread"] as const).map((f) => (
+              {(["all", "unread", "read"] as const).map((f) => (
                 <button
                   key={f}
                   type="button"
@@ -135,7 +194,7 @@ export default function NotificationBell() {
                   onClick={() => useNotificationStore.getState().setFilter(f)}
                   className={`rounded-md px-2.5 py-1 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-accent ${filter === f ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-hover hover:text-foreground"}`}
                 >
-                  {f === "all" ? "All" : "Unread"}
+                  {f === "all" ? "All" : f === "unread" ? "Unread" : "Read"}
                 </button>
               ))}
             </div>
@@ -151,7 +210,7 @@ export default function NotificationBell() {
                   </button>
                 </div>
               ) : (
-                <EmptyState compact title={filter === "unread" ? "No unread notifications" : "No notifications yet"} description={filter === "unread" ? "You are all caught up." : "You will be told when a task is assigned to you or changes."} />
+                <EmptyState compact title={filter === "unread" ? "No unread notifications" : filter === "read" ? "No read notifications" : "No notifications yet"} description={filter === "unread" ? "You are all caught up." : filter === "read" ? "Notifications you have read show here." : "You will be told when a task is assigned to you or changes."} />
               )
             ) : (
               <ul className="min-h-0 flex-1 divide-y divide-border overflow-y-auto">
@@ -165,7 +224,7 @@ export default function NotificationBell() {
                       <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read ? "bg-transparent" : "bg-accent"}`} aria-label={n.read ? undefined : "Unread"} />
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center justify-between gap-2">
-                          <span className={`truncate text-sm ${n.read ? "font-medium" : "font-semibold"}`}>
+                          <span className={`text-sm ${full ? "" : "truncate"} ${n.read ? "font-medium" : "font-semibold"}`}>
                             {n.taskCode} · {n.taskTitle}
                           </span>
                           <span className="shrink-0 rounded-full bg-hover px-2 py-0.5 text-[11px] font-medium text-muted">{EVENT_LABEL[n.type]}</span>
@@ -173,6 +232,16 @@ export default function NotificationBell() {
                         <span className="mt-0.5 block text-xs text-muted">
                           {n.message ? n.message : <><span className="font-medium text-foreground">{n.actor.name}</span> {describe(n)}</>}
                         </span>
+                        {full && !!n.changes?.length && (
+                          <span className="mt-1.5 flex flex-wrap gap-1.5">
+                            {n.changes.map((c, i) => (
+                              <span key={i} className="rounded-md border border-border bg-background px-2 py-0.5 text-[11px] text-muted">
+                                <span className="font-medium text-foreground">{c.field}</span>
+                                {c.from || c.to ? <>: {c.from ?? "–"} → {c.to ?? "–"}</> : null}
+                              </span>
+                            ))}
+                          </span>
+                        )}
                         <time dateTime={n.occurredAt} title={new Date(n.occurredAt).toLocaleString()} className="mt-0.5 block text-[11px] text-muted">
                           {timeAgo(n.occurredAt)}
                         </time>

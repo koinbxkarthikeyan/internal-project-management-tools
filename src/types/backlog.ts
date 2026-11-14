@@ -28,6 +28,8 @@ export type Sprint = {
   status?: SprintStatus;
   /** When it was closed (ISO time), set by the server; used to announce the closing once. */
   closedAt?: string;
+  /** Common leave days of the sprint (0 hours for everyone), kept by the backend with the sprint. */
+  commonLeaves?: { date: string; description: string }[];
 };
 
 export type BacklogItemData = {

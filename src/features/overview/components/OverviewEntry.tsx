@@ -3,6 +3,7 @@
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import OverviewPage from "@/features/backlog/components/OverviewPage";
 import { useQueryState } from "@/hooks/useQueryState";
+import { useTabKeys } from "@/hooks/useTabKeys";
 import PersonalOverviewPage from "./PersonalOverviewPage";
 
 const TABS = [
@@ -16,6 +17,7 @@ const TABS = [
 export default function OverviewEntry() {
   const { restricted } = useAuth();
   const [view, setView] = useQueryState<"all" | "mine">("view", ["all", "mine"], "all");
+  useTabKeys(TABS.map((t) => ({ id: t.id })), (id) => setView(id as "all" | "mine"), { enabled: !restricted });
   if (restricted) return <PersonalOverviewPage />;
   const tabs = (
     <div role="group" aria-label="Overview view" className="inline-flex w-fit gap-0.5 rounded-lg border border-border bg-surface p-0.5">

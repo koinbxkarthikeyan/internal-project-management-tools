@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from "react";
-import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
+import PersonLabel from "@/components/ui/PersonLabel";
+import { PriorityBadge, StatusBadge, TypeLabel } from "@/components/ui/Badge";
 import type { BacklogItemData } from "@/types/backlog";
-import { formatDeadline, initials } from "../utils";
+import { formatDeadline } from "../utils";
 import { useBacklog } from "../context/BacklogContext";
 import ActionsMenu from "@/components/ui/ActionsMenu";
 import { EyeIcon } from "@/components/ui/icons";
@@ -39,8 +40,10 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
   const colour = sprintColour(item.sprint);
   const pod = item.podId ? allPods.find((p) => p.id === item.podId)?.name : undefined;
   // A visible row opens the Edit panel when clicked anywhere (the ⋯ menu keeps its own clicks). Hidden rows don't.
-  const openable = !!actions && (closed || !item.hidden);
-  const open = () => (closed ? setViewing(true) : actions?.onEdit(item));
+  // A read-only list (no actions) of delivered tasks, like Done, opens View too, so its details and history can be read in full.
+  const viewOnly = closed || (!actions && item.status === "Completed");
+  const openable = viewOnly || (!!actions && !item.hidden);
+  const open = () => (viewOnly ? setViewing(true) : actions?.onEdit(item));
 
   return (
     <li
@@ -57,7 +60,7 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
               }
             },
             tabIndex: 0,
-            "aria-label": `${closed ? "View" : "Edit"} ${item.title}`,
+            "aria-label": `${viewOnly ? "View" : "Edit"} ${item.title}`,
           }
         : {})}
       className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1.5 px-4 py-3 transition-colors duration-150 hover:bg-row-hover md:py-2 ${
@@ -67,15 +70,12 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
       {/* Narrow screens show the row as a card: the title and the actions in the header, then one label / value line per column. */}
       <div className="col-start-1 row-start-1 min-w-0 md:col-auto md:row-auto">
         <p className="break-words text-sm font-medium md:truncate">{item.title}</p>
-        <p className="mt-0.5 text-xs text-muted">
-          {item.comments} {item.comments === 1 ? "comment" : "comments"}
-        </p>
       </div>
 
       <div className="col-span-2 mt-1 flex flex-col gap-1.5 border-t border-border pt-2 md:contents md:mt-0 md:border-0 md:pt-0">
         <div className="flex items-center justify-between gap-3 md:contents">
           <span className="text-xs text-muted md:hidden">Type</span>
-          <span className="text-sm text-muted">{item.type ?? "–"}</span>
+          <span className="text-sm text-muted"><TypeLabel type={item.type} /></span>
         </div>
         <div className="flex items-center justify-between gap-3 md:contents">
           <span className="text-xs text-muted md:hidden">Priority</span>
@@ -101,20 +101,12 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
       <div className="col-span-2 flex flex-col gap-1.5 text-sm md:contents">
         <div className="flex items-center justify-between gap-3 md:contents">
           <span className="text-xs text-muted md:hidden">Owner</span>
-          <div className="flex min-w-0 items-center gap-2">
-            <span
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[10px] font-medium text-accent"
-              aria-hidden="true"
-            >
-              {initials(item.owner)}
-            </span>
-            <span className="truncate">{item.owner}</span>
-          </div>
+          <PersonLabel kind="owner" name={item.owner} />
         </div>
         <div className="flex items-center justify-between gap-3 md:contents">
-          <span className="text-xs text-muted md:hidden">Deadline</span>
+          <span className="text-xs text-muted md:hidden">Expected ETA</span>
           <time dateTime={item.deadline} className="whitespace-nowrap text-muted">
-            <span className="sr-only">Due </span>
+            <span className="sr-only">Expected ETA </span>
             {formatDeadline(item.deadline)}
           </time>
         </div>
@@ -127,6 +119,10 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
           ) : (
             <RowActionsMenu item={item} onToggleHidden={() => actions.onToggleHidden(item)} onDelete={() => actions.onDelete(item)} />
           )}
+        </div>
+      ) : viewOnly ? (
+        <div data-row-actions className="col-start-2 row-start-1 flex items-center justify-end self-start text-muted md:col-auto md:row-auto md:self-auto">
+          <ActionsMenu label={`Actions for ${item.title}`} actions={[{ key: "view", label: "View", icon: <EyeIcon />, onSelect: () => setViewing(true) }]} />
         </div>
       ) : (
         <div className="hidden md:block" />

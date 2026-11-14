@@ -206,7 +206,7 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
 
     // A comment typed with a status change is saved with it, through the server's status-change call (BACKEND-DEPENDENT, see backlogService.changeStatusWithDetails).
     // Where that isn't available the status still saves as before and the person is told the comment did not, never that it was kept.
-    const COMMENT_NOT_SAVED = "Status saved, but the comment was not: the server can't store a comment with a status change yet.";
+    const COMMENT_NOT_SAVED = "Status saved, but the comment couldn't be.";
     const statusChangeOf = (id: string, status: Status | undefined, comment: string | undefined) => {
       const current = all.find((i) => i.id === id);
       const text = comment?.trim() ?? "";
@@ -497,7 +497,7 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
             setAll((prev) => prev.map((i) => (i.sprint === currentName ? { ...i, sprint: saved.name } : i)));
           }
           // A new start date moves the end date, which the backend works out: take its version of the sprints.
-          if (next.start && next.start !== current.start) void refreshParts(["sprints"], ctx);
+          if ((next.start && next.start !== current.start) || next.commonLeaves) void refreshParts(["sprints"], ctx);
           return "ok";
         } catch (err) {
           const code = getErrorStatus(err);

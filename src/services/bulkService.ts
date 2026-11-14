@@ -19,6 +19,14 @@ export const BULK_ENDPOINTS: Record<BulkKind, string> = {
   users: "/bulk/users",
 };
 
+/** The existing single-create routes (the same ones the Add Owner / Create backlog / Add Team Member forms use). */
+const SINGLE_ENDPOINTS: Record<BulkKind, string> = { backlog: "/items", owner: "/owners", users: "/users" };
+
+/** Saves ONE record through its own create route (never the bulk route); `body` is the same record a bulk row would carry. Rejects with the server's error. */
+export async function submitOne(kind: BulkKind, body: unknown): Promise<void> {
+  await apiClient.post(SINGLE_ENDPOINTS[kind], body);
+}
+
 /** What happened to the rows that were sent, by their position in the request. */
 export type BulkOutcome = { failed: { index: number; message: string }[] };
 

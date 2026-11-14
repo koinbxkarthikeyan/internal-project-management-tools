@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQueryState } from "@/hooks/useQueryState";
+import { useTabKeys } from "@/hooks/useTabKeys";
 import EmptyState from "@/components/ui/EmptyState";
 import { FOCUS_HOURS_PER_DAY, WORK_KINDS } from "@/constants/work";
 import type { BacklogItemData, Sprint } from "@/types/backlog";
@@ -11,7 +12,7 @@ import TaskHistoryModal from "./TaskHistoryModal";
 import { carriedChain } from "./TaskSprintHours";
 import { useUsers } from "@/features/users/hooks/useUsers";
 import { useItemDetailStore } from "@/stores/itemDetailStore";
-import { eachDay, formatDay, formatHours, isWeekend, percentOfTotal } from "../utils";
+import { eachDay, formatDay, formatHours, hoursBySprint, isWeekend, percentOfTotal } from "../utils";
 import { sprintLabel } from "@/constants/backlog-options";
 
 type EveryoneViewProps = {
@@ -44,6 +45,8 @@ type EveryoneViewProps = {
   perPerson: number;
   /** Planned hours for one person over the whole of the sprints. */
   sprintTotal: number;
+  /** One person's own expected hours (their leave dates and the organization holidays count as 0 hours); without it everyone gets `perPerson` / `sprintTotal`. */
+  expectedFor?: (person: string) => { soFar: number; total: number };
   updatedAt: Date | null;
   onRefresh: () => void;
 };
@@ -74,9 +77,11 @@ function Stat({ value, total, label, valueClass = "", totalClass = "text-muted" 
 }
 
 /** Team-wide view for the "Everyone" tab: who has logged time, where it went, and how it spreads over the sprint. */
-export default function EveryoneView({ sprints, entries: teamEntries, people: teamPeople, pods, tasks: teamTasks, allTasks = [], allEntries: teamAllEntries = [], allSprints = [], ownOnly, ownTaskIds, exportable = false, podNames, details = {}, perPerson, sprintTotal, updatedAt, onRefresh }: EveryoneViewProps) {
+export default function EveryoneView({ sprints, entries: teamEntries, people: teamPeople, pods, tasks: teamTasks, allTasks = [], allEntries: teamAllEntries = [], allSprints = [], ownOnly, ownTaskIds, exportable = false, podNames, details = {}, perPerson, sprintTotal, expectedFor, updatedAt, onRefresh }: EveryoneViewProps) {
   const colorOf = makeTaskColor(allTasks, allSprints);
   const [breakdown, setBreakdown] = useQueryState<Breakdown>("by", ["person", "pod", "sprint"], "person");
+  // 1 2 3 pick the breakdown on Team Work Details; the "My PODs & tasks" tab of Your Logged Work (ownOnly) already has its own 1 2 keys above it.
+  useTabKeys(BREAKDOWNS.map((b) => ({ id: b.id })), (id) => setBreakdown(id as Breakdown), { enabled: !ownOnly });
   const [downloading, setDownloading] = useState(false);
   const allUsers = useUsers();
   // For anyone but a Super Admin or enabled Admin: only their own entries and assigned tasks, in every breakdown and the summary.
@@ -95,7 +100,9 @@ export default function EveryoneView({ sprints, entries: teamEntries, people: te
   const logged = sum(entries);
   // Everyone who logged time, even if they are no longer in the owner list.
   const everyPerson = [...new Set([...people, ...entries.map((e) => e.person)])];
-  const capacity = perPerson * everyPerson.length;
+  const expOf = expectedFor ?? (() => ({ soFar: perPerson, total: sprintTotal }));
+  const capacity = everyPerson.reduce((s, p) => s + expOf(p).soFar, 0);
+  const totalCapacity = everyPerson.reduce((s, p) => s + expOf(p).total, 0);
   const filledIn = new Set(entries.map((e) => e.person));
   const podsUsed = new Set(entries.map((e) => e.podId ?? e.pod));
 
@@ -131,7 +138,7 @@ export default function EveryoneView({ sprints, entries: teamEntries, people: te
         <Stat value={String(filledIn.size)} total={String(everyPerson.length)} label="people have filled in" />
         <Stat
           value={formatHours(logged)}
-          total={`${formatHours(capacity)} expected so far · ${formatHours(sprintTotal * everyPerson.length)} total sprint hours`}
+          total={`${formatHours(capacity)} expected so far · ${formatHours(totalCapacity)} total sprint hours`}
           label="logged so far"
           // Worked hours: blue up to the expected hours, orange beyond them.
           valueClass={capacity > 0 && logged > capacity ? "text-orange-600 dark:text-orange-300" : "text-blue-600 dark:text-blue-300"}
@@ -167,7 +174,7 @@ export default function EveryoneView({ sprints, entries: teamEntries, people: te
       </div>
 
       <section className={card} aria-label={BREAKDOWNS.find((b) => b.id === breakdown)?.label}>
-        {breakdown === "person" && <ByPerson people={everyPerson} entries={entries} tasks={tasks} allTasks={allTasks} colorOf={colorOf} podNames={podNames} perPerson={perPerson} sprintTotal={sprintTotal} details={details} />}
+        {breakdown === "person" && <ByPerson people={everyPerson} entries={entries} tasks={tasks} allTasks={allTasks} colorOf={colorOf} podNames={podNames} expOf={expOf} details={details} />}
         {breakdown === "pod" && <ByPod sprints={sprints} pods={pods} entries={entries} tasks={tasks} allTasks={allTasks} colorOf={colorOf} allEntries={allEntries} allSprints={allSprints} people={everyPerson} own={mine !== undefined} />}
         {breakdown === "sprint" && <AcrossSprint sprints={sprints} entries={entries} people={everyPerson} />}
       </section>
@@ -226,8 +233,7 @@ function ByPerson({
   allTasks,
   colorOf,
   podNames,
-  perPerson,
-  sprintTotal,
+  expOf,
   details,
 }: {
   people: string[];
@@ -236,12 +242,11 @@ function ByPerson({
   allTasks: readonly BacklogItemData[];
   colorOf: (taskId: string) => string;
   podNames: Readonly<Record<string, string>>;
-  perPerson: number;
-  sprintTotal: number;
+  expOf: (person: string) => { soFar: number; total: number };
   details: Readonly<Record<string, string>>;
 }) {
   if (people.length === 0) {
-    return <EmptyState compact title="No people yet" description="Add team members on the Team Members page; they show up here with their assigned work." />;
+    return <EmptyState compact title="No people yet" description="Add team members to see their work here." />;
   }
   // One colour per task (from its sprint's colour family), the same under every person.
   const taskColor = (id: string) => (id.startsWith("e:") ? "#8a94ab" : colorOf(id));
@@ -267,6 +272,7 @@ function ByPerson({
     <ul className="min-w-0 divide-y divide-border">
       {active.map(({ name, list, assigned }) => {
         const total = sum(list);
+        const { soFar: perPerson, total: sprintTotal } = expOf(name);
         const pct = perPerson > 0 ? total / perPerson : 0;
         // Over the plan: red. Close to it: green. Under it: amber.
         const tone = list.length === 0 ? undefined : pct > 1.0005 ? RED : pct >= 0.9 ? GREEN : AMBER;
@@ -363,7 +369,7 @@ function ByPerson({
       </section>
     )}
     </div>
-    <p className="mt-3 text-[11px] text-muted">Each colour is one task, the same under every person. Time logged on several tasks at once is shared equally between them.</p>
+    <p className="mt-3 text-[11px] text-muted">Each colour is one task. Time on several tasks is split equally.</p>
     </>
   );
 }
@@ -529,6 +535,7 @@ function ByPod({
                             entries={entries}
                             allTasks={allTasks}
                             allEntries={allEntries}
+                            allSprints={allSprints}
                             own={own}
                             onView={() => setViewing(t)}
                           />
@@ -544,7 +551,7 @@ function ByPod({
           </section>
         );
       })}
-      {viewing && <TaskHistoryModal key={viewing.id} item={viewing} allTasks={allTasks} allSprints={allSprints} allEntries={allEntries} onlyMine onClose={() => setViewing(null)} />}
+      {viewing && <TaskHistoryModal key={viewing.id} item={viewing} allTasks={allTasks} allSprints={allSprints} allEntries={allEntries} onlyMine={own} onClose={() => setViewing(null)} />}
     </div>
   );
 }
@@ -621,6 +628,7 @@ function PodTask({
   entries,
   allTasks,
   allEntries,
+  allSprints,
   own = false,
   onView,
 }: {
@@ -633,6 +641,7 @@ function PodTask({
   entries: readonly WorkEntry[];
   allTasks: readonly BacklogItemData[];
   allEntries: readonly WorkEntry[];
+  allSprints: readonly Sprint[];
   own?: boolean;
   onView: () => void;
 }) {
@@ -659,7 +668,7 @@ function PodTask({
   // Hours per sprint for this task (everyone's, each entry once), oldest sprint first, then the total.
   const unique = [...new Map(allEntries.map((e) => [e.id, e])).values()];
   const records = [...carriedChain(task, allTasks)].reverse().concat(task);
-  const parts = records.map((r) => ({ name: r.sprint, hours: sum(unique.filter((e) => e.itemIds?.includes(r.id))) }));
+  const parts = hoursBySprint(records, unique, allSprints);
   const total = parts.reduce((s, p) => s + p.hours, 0);
 
   // Who logged time on it in the sprint being looked at.
@@ -737,7 +746,7 @@ function AcrossSprint({
 }) {
   const days = [...new Set(sprints.flatMap((s) => eachDay(s.start, s.end)))].sort();
   if (entries.length === 0) {
-    return <EmptyState compact title="Nothing logged yet" description="Hours appear here day by day once people start logging." />;
+    return <EmptyState compact title="Nothing logged yet" description="Logged hours will show here." />;
   }
 
   // Spread each entry's hours evenly over its working days (or all its days if it only spans a weekend), per person.

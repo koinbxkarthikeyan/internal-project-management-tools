@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
+import PersonLabel from "@/components/ui/PersonLabel";
 import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
 import { PRIORITIES, STATUSES, statusLabel } from "@/constants/backlog-options";
 import { useBacklog } from "../context/BacklogContext";
@@ -62,20 +63,20 @@ export default function OverviewPage({ tabs }: { /** Shown in the page header (a
 
       <section style={{ "--i": 3 } as CSSProperties} className="anim-fade-up overflow-hidden rounded-2xl border border-border bg-surface">
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="text-sm font-semibold">Upcoming deadlines</h2>
+          <h2 className="text-sm font-semibold">Upcoming Expected ETAs</h2>
           <Link href="/all-items" className="text-sm text-accent hover:underline">
             View all items
           </Link>
         </div>
         {upcoming.length === 0 && (
-          <EmptyState compact title="No upcoming deadlines" description="Items with a deadline will appear here." />
+          <EmptyState compact title="No upcoming Expected ETAs" description="Items with an Expected ETA will appear here." />
         )}
         <ul className="divide-y divide-border">
           {upcoming.map((i) => (
             <li key={i.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
               <div className="min-w-0 flex-1 basis-56">
                 <p className="truncate text-sm font-medium">{i.title}</p>
-                <p className="text-xs text-muted">{i.owner}</p>
+                <p className="text-xs text-muted"><PersonLabel kind="owner" name={i.owner} size={16} className="gap-1.5" /></p>
               </div>
               <PriorityBadge priority={i.priority} />
               <StatusBadge status={i.status} />

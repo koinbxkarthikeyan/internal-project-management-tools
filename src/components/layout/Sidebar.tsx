@@ -10,6 +10,7 @@ import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, MenuIcon } from "@/compon
 import { DEFAULT_REDIRECT } from "@/constants/auth";
 import { OVERVIEW_HREF } from "@/constants/work";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import ShortcutsButton from "./ShortcutsButton";
 import { useSidebarStore } from "@/stores/sidebarStore";
 
 type SidebarProps = {
@@ -106,6 +107,7 @@ export default function Sidebar({ children }: SidebarProps) {
           <LogoLink />
           <div className="sb-controls flex items-center gap-2">
             <div className="sb-controls hidden items-center gap-2 lg:flex">
+              <ShortcutsButton />
               <NotificationBell />
               <ThemeMenu />
             </div>

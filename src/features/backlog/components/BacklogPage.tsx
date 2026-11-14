@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import {
   PRIORITIES,
-  STATUS_OPTIONS,
   sprintLabel,
 } from "@/constants/backlog-options";
 import { useBacklog } from "../context/BacklogContext";
@@ -19,7 +18,6 @@ import ConfirmDeleteDrawer from "./ConfirmDeleteDrawer";
 import EditBacklogDrawer from "./EditBacklogDrawer";
 
 const STATIC_FILTER_OPTIONS = {
-  status: STATUS_OPTIONS,
   priority: PRIORITIES,
 };
 

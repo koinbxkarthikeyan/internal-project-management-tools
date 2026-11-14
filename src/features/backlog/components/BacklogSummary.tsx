@@ -15,7 +15,7 @@ export default function BacklogSummary({ items, partialTotal }: BacklogSummaryPr
     { label: "Open", value: count((i) => i.status === "Open" || i.status === "In progress"), tone: "text-blue-600 dark:text-blue-300" },
     { label: "Blocked", value: count((i) => i.status === "Blocked"), tone: "text-red-600 dark:text-red-300" },
     { label: "On hold", value: count((i) => i.status === "On hold"), tone: "text-amber-600 dark:text-amber-300" },
-    { label: "Completed", value: count((i) => i.status === "Completed"), tone: "text-emerald-600 dark:text-emerald-300" },
+    { label: "Done", value: count((i) => i.status === "Completed"), tone: "text-emerald-600 dark:text-emerald-300" },
   ];
 
   return (

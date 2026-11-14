@@ -26,7 +26,7 @@ export default function WorkEntryDetailsDrawer({ entry, hoursLine, onClose }: { 
   const same = entry.from === entry.to;
 
   return (
-    <BacklogDrawer heading="Work entry details" submitLabel="" viewOnly onSubmit={() => undefined} onClose={onClose}>
+    <BacklogDrawer heading="Work entry details" submitLabel="" viewOnly compact onSubmit={() => undefined} onClose={onClose}>
       <dl className="flex flex-col gap-4">
         <Row label="Sprint">
           {sprint ? (

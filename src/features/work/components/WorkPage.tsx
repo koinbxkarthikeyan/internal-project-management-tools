@@ -7,7 +7,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
-import { FOCUS_HOURS_PER_DAY, WORK_KINDS, SPRINT_TASKS_POD, UNPLANNED_POD, WORK_LOGGED_HREF, isPseudoPod } from "@/constants/work";
+import { FOCUS_HOURS_PER_DAY, SPRINT_TASKS_POD, UNPLANNED_POD, WORK_LOGGED_HREF, isPseudoPod } from "@/constants/work";
 import ConfirmDeleteDrawer from "@/features/backlog/components/ConfirmDeleteDrawer";
 import { Field, SearchableSelect } from "@/components/ui/FormControls";
 import { refreshUsers } from "@/lib/auth/userStore";
@@ -22,6 +22,8 @@ import type { BacklogItemData } from "@/types/backlog";
 import type { Pod, WorkEntry, WorkEntryInput, WorkKind } from "@/types/work";
 import { useWorkData } from "../hooks/useWorkData";
 import { useChosenSprints } from "../hooks/useChosenSprints";
+import { useOffFor } from "../hooks/useOffDays";
+import MyLeavePanel from "./MyLeavePanel";
 import { formatDay, latestEntry, sprintHours } from "../utils";
 import HoursSummaryLine from "./HoursSummaryLine";
 import SprintGlance from "./SprintGlance";
@@ -46,6 +48,8 @@ export default function WorkPage() {
 
   // Entries are logged as the signed-in registered user, read from the Users data.
   const { user, isAdmin } = useAuth();
+  // Organization holidays and my own leave dates are 0-hour days in the expected hours.
+  const offFor = useOffFor(user?.id);
 
   // The My Task page's lists, which the task picker below reuses.
   const mineStore = useMyTasksStore();
@@ -65,10 +69,12 @@ export default function WorkPage() {
   // The kind of work: the supported kind that matches the person's Team when there is one, otherwise none until one is chosen; it can be changed in
   // the form at any time. The Team itself (e.g. Marketing) is never sent as the kind; it stays on the profile.
   const [kindPick, setKindPick] = useState<WorkKind | null>(null);
-  // Every kind is a team from the same list the Team Members form offers (plus the five the backend lists), so none is left out.
+  // Every kind is a team from the same list the Team Members form offers.
   const teamDeleted = useTeamStore((s) => s.deleted);
   const teamCustom = useTeamStore((s) => s.custom);
-  const kinds = teamOptions(users, WORK_KINDS, { renames, deleted: teamDeleted, custom: teamCustom });
+  // Only the Teams that a Team Member is actually in: the defaults and teams nobody belongs to are left out.
+  const inUse = new Set(users.map((u) => (u.team ? resolveTeam(u.team, renames) : "").trim().toLowerCase()).filter(Boolean));
+  const kinds = teamOptions(users, [], { renames, deleted: teamDeleted, custom: teamCustom }).filter((t) => inUse.has(t.trim().toLowerCase()));
   const kindFromTeam = kinds.find((k) => k.toLowerCase() === (rawTeam || myTeam).trim().toLowerCase());
   const kind: WorkKind | null = kindPick ?? kindFromTeam ?? null;
   // Hours currently in the form, so the bar follows what is being entered.
@@ -106,7 +112,7 @@ export default function WorkPage() {
         <section className={card}>
           <EmptyState
             title="No sprint added yet"
-            description="Create a sprint to get started, then come back to log your work."
+            description="Create a sprint first, then log your work."
             // Only an Admin can create a sprint, so only they are offered the way to do it.
             action={
               isAdmin ? (
@@ -134,7 +140,7 @@ export default function WorkPage() {
   // Expected hours count working days up to today only (weekends excluded); days still to come are not included.
   // A finished sprint counts in full. Hours already logged are never touched by this.
   // What the whole sprint plans for one person (`total`): worked hours beyond this show as the red part of the bar.
-  const { soFar: perPerson, total: sprintLimit } = sprintHours(chosen, today);
+  const { soFar: perPerson, total: sprintLimit } = sprintHours(chosen, today, offFor);
   const expected = perPerson;
   // My hours in every sprint (earlier ones included), each logged entry counted once.
   const newest = latestEntry(scoped);
@@ -314,6 +320,8 @@ export default function WorkPage() {
             </Field>
           </section>
 
+          <MyLeavePanel sprints={chosen} />
+
           <section className={`${card} flex flex-col gap-5`}>
             <SprintSummary logged={logged} limit={sprintLimit} expected={expected} hasPerson={!!person} />
             {chosen.map((s) => (
@@ -337,7 +345,7 @@ export default function WorkPage() {
               everyoneEntries={work.entries}
               onToggle={toggleTask}
             />
-            <DisabledTip reason={otherWorkLocked && (formSprint.status === "Closed" ? "This sprint is closed, so time can't be logged against it." : "Unavailable while a task is selected. Untick the selected tasks to use this.")} className="block w-fit">
+            <DisabledTip reason={otherWorkLocked && (formSprint.status === "Closed" ? "This sprint is closed." : "Untick the selected tasks to use this.")} className="block w-fit">
             <label className={`mt-4 flex w-fit items-center gap-3 text-sm ${otherWorkLocked ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
               <input
                 type="checkbox"

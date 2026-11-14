@@ -5,7 +5,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
-import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
+import { useTabKeys } from "@/hooks/useTabKeys";
+import { PriorityBadge, StatusBadge, TypeLabel } from "@/components/ui/Badge";
 import { DisabledTip } from "@/components/ui/DisabledTip";
 import EmptyState from "@/components/ui/EmptyState";
 import { useQueryState } from "@/hooks/useQueryState";
@@ -82,6 +83,7 @@ export default function MyTaskPage() {
   // tab (in tab order) that has some, so a page never opens on an empty tab while another has tasks. With no tasks anywhere it stays on My Tasks.
   const emptyTab = (id: Tab) => lists[id].length === 0;
   const activeTab: Tab = !emptyTab(tab) ? tab : (TABS.find((t) => !emptyTab(t.id))?.id ?? "mine");
+  useTabKeys(TABS.map((t) => ({ id: t.id, disabled: emptyTab(t.id) })), (id) => setTab(id as Tab));
   const shown = lists[activeTab];
   const COPY: Record<Tab, { noun: string; title: string; description: string; caption: string }> = {
     mine: { noun: "assigned to you", title: "No tasks for you yet", description: "Tasks where you are an Assigned User will show up here.", caption: "Tasks assigned to you" },
@@ -157,8 +159,8 @@ export default function MyTaskPage() {
                   <th scope="col" className={head}>Priority</th>
                   <th scope="col" className={head}>Status</th>
                   <th scope="col" className={head}>Sprint</th>
-                  <th scope="col" className={head}>Expected deadline</th>
-                  <th scope="col" className={head}>Lead Deadline</th>
+                  <th scope="col" className={head}>Expected ETA</th>
+                  <th scope="col" className={head}>Developer ETA</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -172,7 +174,7 @@ export default function MyTaskPage() {
                     className="cursor-pointer transition-colors duration-150 hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-accent"
                   >
                     <td data-primary className="max-w-xs truncate px-4 py-2 font-medium">{item.title}</td>
-                    <td data-label="Type" className="whitespace-nowrap px-4 py-2 text-muted">{item.type ?? "–"}</td>
+                    <td data-label="Type" className="whitespace-nowrap px-4 py-2 text-muted"><TypeLabel type={item.type} /></td>
                     <td data-label="Priority" className="px-4 py-2">
                       <PriorityBadge priority={item.priority} />
                     </td>
@@ -180,10 +182,10 @@ export default function MyTaskPage() {
                       <StatusBadge status={item.status} />
                     </td>
                     <td data-label="Sprint" className="whitespace-nowrap px-4 py-2 text-muted">{sprintLabel(item.sprint)}</td>
-                    <td data-label="Expected deadline" className="whitespace-nowrap px-4 py-2 text-muted">
+                    <td data-label="Expected ETA" className="whitespace-nowrap px-4 py-2 text-muted">
                       {item.deadline ? <time dateTime={item.deadline}>{formatDeadline(item.deadline)}</time> : "–"}
                     </td>
-                    <td data-label="Lead Deadline" className="whitespace-nowrap px-4 py-2 text-muted">
+                    <td data-label="Developer ETA" className="whitespace-nowrap px-4 py-2 text-muted">
                       {item.leadDeadline ? <time dateTime={item.leadDeadline}>{formatDeadline(item.leadDeadline)}</time> : "–"}
                     </td>
                   </tr>

@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
-import { SearchableSelect, controlClass } from "@/components/ui/FormControls";
+import { useOffFor } from "@/features/work/hooks/useOffDays";
+import FilterBar, { DateRangeFilter, FILTER_SELECT_CLASS } from "@/components/ui/FilterBar";
+import { SearchableSelect } from "@/components/ui/FormControls";
 import { STATUS_OPTIONS, sprintLabel } from "@/constants/backlog-options";
 import { AFTER_LOGIN_KEY, WORK_HREF } from "@/constants/work";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -28,6 +30,7 @@ const ALL = "all";
  */
 export default function PersonalOverviewPage({ tabs }: { /** Shown in the page header (a Super Admin / Admin switching between Team and Personal). */ tabs?: ReactNode }) {
   const { user } = useAuth();
+  const offFor = useOffFor(user?.id);
   const router = useRouter();
   const { items, sprints } = useBacklog();
   const work = useWorkData();
@@ -62,7 +65,7 @@ export default function PersonalOverviewPage({ tabs }: { /** Shown in the page h
   const counts = taskCounts(tasks, today);
   const logged = sumHours(entries);
   const focus = focusSprint(datedSprints, filters.sprintId, today);
-  const sprint = focus ? sprintFigures(focus, entries, tasks, today) : null;
+  const sprint = focus ? sprintFigures(focus, entries, tasks, today, offFor) : null;
 
   // What happened on my most recently changed tasks (their own activity lists, read once per task and kept for a minute).
   const recent = useMemo(() => [...tasks].sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? "")).slice(0, 8), [tasks]);
@@ -118,49 +121,38 @@ export default function PersonalOverviewPage({ tabs }: { /** Shown in the page h
   const recentWork = [...entries].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.from.localeCompare(a.from)).slice(0, 5);
   const recentDone = tasks.filter((t) => t.status === "Completed").sort((a, b) => (b.completed ?? "").localeCompare(a.completed ?? "")).slice(0, 5);
   const activity = buildActivity(entries, tasks, details, filters);
-  const filtered = filters.from !== "" || filters.to !== "" || filters.sprintId !== "" || filters.status !== "";
   const set = (patch: Partial<OverviewFilters>) => setFilters((f) => ({ ...f, ...patch }));
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Overview" description="Your tasks, sprint progress, hours and recent activity." actions={tabs} />
+      <PageHeader title="Overview" description="Your tasks, sprint and hours." actions={tabs} />
 
-      <section aria-label="Filters" className="grid gap-3 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] lg:items-end">
-        <label className="flex min-w-0 flex-col gap-1 text-xs font-medium text-muted">
-          From
-          <input type="date" value={filters.from} max={filters.to || undefined} onChange={(e) => set({ from: e.target.value })} className={`${controlClass} h-10`} />
-        </label>
-        <label className="flex min-w-0 flex-col gap-1 text-xs font-medium text-muted">
-          To
-          <input type="date" value={filters.to} min={filters.from || undefined} onChange={(e) => set({ to: e.target.value })} className={`${controlClass} h-10`} />
-        </label>
+      <FilterBar
+        activeCount={[filters.from || filters.to, filters.sprintId, filters.status].filter(Boolean).length}
+        onClear={() => setFilters(EMPTY_FILTERS)}
+        note="The date range filters Expected ETAs (completion date if done) and logged work."
+      >
+        <DateRangeFilter label="Dates" from={filters.from} to={filters.to} onChange={({ from, to }) => set({ from, to })} />
         <SearchableSelect
-          label="Sprint"
+          ariaLabel="Filter by sprint"
           value={filters.sprintId || ALL}
           onChange={(v) => set({ sprintId: v === ALL ? "" : v })}
           options={[{ value: ALL, label: "All sprints" }, ...datedSprints.map((s) => ({ value: s.id, label: sprintLabel(s.name) }))]}
+          className={FILTER_SELECT_CLASS}
         />
         <SearchableSelect
-          label="Status"
+          ariaLabel="Filter by status"
           value={filters.status || ALL}
           onChange={(v) => set({ status: v === ALL ? "" : (v as Status) })}
           options={[{ value: ALL, label: "All statuses" }, ...STATUS_OPTIONS]}
+          className={FILTER_SELECT_CLASS}
         />
-        <button
-          type="button"
-          disabled={!filtered}
-          onClick={() => setFilters(EMPTY_FILTERS)}
-          className="h-10 rounded-xl border border-border px-4 text-sm font-medium transition-colors hover:bg-hover disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-accent"
-        >
-          Reset
-        </button>
-        <p className="text-xs text-muted sm:col-span-2 lg:col-span-full">The date range applies to task deadlines (the completion date for finished tasks) and to the dates of logged work.</p>
-      </section>
+      </FilterBar>
 
       <section aria-label="Summary">
         <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <StatCard label="Assigned tasks" value={counts.total} hint="Assigned to you or led by you" />
-          <StatCard label="Completed" value={counts.completed} tone="text-emerald-600 dark:text-emerald-300" />
+          <StatCard label="Done" value={counts.completed} tone="text-emerald-600 dark:text-emerald-300" />
           <StatCard label="In progress" value={counts.inProgress} tone="text-violet-600 dark:text-violet-300" />
           <StatCard label="To Do" value={counts.todo} tone="text-blue-600 dark:text-blue-300" />
           <StatCard label="Overdue" value={counts.overdue} tone={counts.overdue ? "text-red-600 dark:text-red-300" : undefined} hint="Past deadline, not completed" />
@@ -219,7 +211,7 @@ export default function PersonalOverviewPage({ tabs }: { /** Shown in the page h
           ) : (
             <ul className="flex flex-col gap-2.5 text-sm">
               {perSprint.map(({ s, hours }) => {
-                const planned = sprintFigures(s, entries, [], today).total;
+                const planned = sprintFigures(s, entries, [], today, offFor).total;
                 return (
                   <li key={s.id} className="flex flex-col gap-1">
                     <span className="flex justify-between gap-3">

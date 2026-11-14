@@ -83,9 +83,15 @@ type CreateProps = {
    */
   onCreate?: (name: string) => void | Promise<void>;
   /** An extra row always shown at the end of the list (e.g. "+ Add Team Member"); choosing it calls `onSelect`. */
-  action?: { label: string; onSelect: () => void };  /** Small Rename / Delete buttons on each listed option (e.g. a Team); choosing one closes the list and calls this with the option's label. */
-  onEditOption?: (label: string) => void;
-  onDeleteOption?: (label: string) => void;
+  action?: { label: string; onSelect: () => void };
+  /**
+   * Rename / Delete on each listed option (e.g. a Team), done inside the list itself: the pencil turns the row into a small text box (Enter or the tick saves),
+   * the bin asks "Delete?" on the same row. The callbacks return an error message to show on that row, or nothing when it worked.
+   */
+  onRenameOption?: (from: string, to: string) => string | undefined;
+  onRemoveOption?: (label: string) => string | undefined;
+  /** Returns a reason when an option can't be deleted, so the row says so instead of asking. */
+  removeBlocked?: (label: string) => string | undefined;
 };
 
 type SearchableSelectProps = Omit<SelectFieldProps, "label"> & CreateProps & {
@@ -98,7 +104,7 @@ type SearchableSelectProps = Omit<SelectFieldProps, "label"> & CreateProps & {
   hideArrow?: boolean;
 };
 
-export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hideArrow, value, onChange, options, groups, placeholder, required, disabled, disabledReason, onCreate, action, onEditOption, onDeleteOption, className = "" }: SearchableSelectProps) {
+export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hideArrow, value, onChange, options, groups, placeholder, required, disabled, disabledReason, onCreate, action, onRenameOption, onRemoveOption, removeBlocked, className = "" }: SearchableSelectProps) {
   const listId = useId();
   const [open, setOpen] = useState(false);
   const [up, setUp] = useState(false);
@@ -111,6 +117,18 @@ export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hi
   };
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
+  // The row being renamed (with its new text), the row being asked "Delete?", and the message for that row.
+  const [edit, setEdit] = useState<{ from: string; text: string } | null>(null);
+  const [asking, setAsking] = useState<string | null>(null);
+  const [rowError, setRowError] = useState("");
+  const [askBlocked, setAskBlocked] = useState(false);
+  const resetRow = () => (setEdit(null), setAsking(null), setRowError(""), setAskBlocked(false));
+  const saveEdit = () => {
+    if (!edit) return;
+    const err = onRenameOption?.(edit.from, edit.text);
+    if (err) setRowError(err);
+    else resetRow();
+  };
 
   const choices: Choice[] = [
     ...(groups ?? []).flatMap((g) => g.options.map((o) => ({ value: o, label: o, group: g.label }))),
@@ -129,6 +147,7 @@ export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hi
   function close() {
     setOpen(false);
     setQuery("");
+    resetRow();
   }
   function pick(c: Choice) {
     close();
@@ -160,7 +179,13 @@ export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hi
             placeholder={placeholder ?? "Select"}
             onFocus={show}
             onClick={show}
-            onChange={(e) => (setQuery(e.target.value), show(), setActive(0))}
+            onChange={(e) => {
+              // Typing + alone (where the list offers "+ Add New …") opens that create form at once.
+              if (action && e.target.value.trim() === "+") return setQuery(""), close(), action.onSelect();
+              setQuery(e.target.value);
+              show();
+              setActive(0);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Escape" && open) return e.preventDefault(), e.stopPropagation(), close();
               if (e.key === "ArrowDown") return e.preventDefault(), show(), setActive((i) => Math.min(i + 1, rows.length - 1));
@@ -203,6 +228,50 @@ export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hi
           {rows.map((c, i) => (
             <li key={`${c.group ?? ""}:${c.value}`} role="option" aria-selected={c.value === value}>
               {c.group && c.group !== rows[i - 1]?.group && <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-muted">{c.group}</p>}
+              {edit?.from === c.label ? (
+                <div className="flex flex-col gap-1 px-2 py-1.5">
+                  <div className="flex items-center gap-1">
+                    <input
+                      autoFocus
+                      aria-label={`New name for ${c.label}`}
+                      value={edit.text}
+                      onChange={(e) => (setEdit({ from: edit.from, text: e.target.value }), setRowError(""))}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") return e.preventDefault(), e.stopPropagation(), saveEdit();
+                        if (e.key === "Escape") return e.preventDefault(), e.stopPropagation(), resetRow();
+                      }}
+                      className={`${controlClass} h-8 min-w-0 flex-1 px-2 text-sm`}
+                    />
+                    <button type="button" onClick={saveEdit} aria-label="Save name" title="Save" className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-accent hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent">Save</button>
+                    <button type="button" onClick={resetRow} aria-label="Cancel" title="Cancel" className="shrink-0 rounded-md px-2 py-1 text-xs text-muted hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent">Cancel</button>
+                  </div>
+                  {rowError && <p role="alert" className="text-xs text-red-600 dark:text-red-300">{rowError}</p>}
+                </div>
+              ) : asking === c.label ? (
+                <div className="flex flex-col gap-1 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="min-w-0 truncate">{askBlocked ? c.label : <>Delete &ldquo;{c.label}&rdquo;?</>}</span>
+                    <span className="flex shrink-0 gap-1">
+                      {!askBlocked && (
+                      <button
+                        type="button"
+                        autoFocus
+                        onClick={() => {
+                          const err = onRemoveOption?.(c.label);
+                          if (err) setRowError(err);
+                          else resetRow();
+                        }}
+                        className="rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent dark:text-red-300"
+                      >
+                        Delete
+                      </button>
+                      )}
+                      <button type="button" onClick={resetRow} className="rounded-md px-2 py-1 text-xs text-muted hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent">{askBlocked ? "OK" : "Cancel"}</button>
+                    </span>
+                  </div>
+                  {rowError && <p role="alert" className="text-xs text-red-600 dark:text-red-300">{rowError}</p>}
+                </div>
+              ) : (
               <div className={`flex items-center rounded-lg ${i === active ? "bg-hover" : ""}`}>
               <button
                 type="button"
@@ -216,11 +285,11 @@ export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hi
                 <span className="min-w-0 truncate">{c.label}</span>
                 {!c.create && c.value === value && c.value !== "" && <span className="shrink-0 text-xs">✓</span>}
               </button>
-              {!c.create && c.value !== "" && onEditOption && (
+              {!c.create && c.value !== "" && onRenameOption && (
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => (close(), onEditOption(c.label))}
+                  onClick={() => (resetRow(), setEdit({ from: c.label, text: c.label }))}
                   aria-label={`Rename ${c.label}`}
                   title="Rename"
                   className="shrink-0 rounded-md p-1.5 text-muted hover:bg-hover hover:text-accent focus-visible:outline-2 focus-visible:outline-accent"
@@ -228,11 +297,19 @@ export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hi
                   <EditIcon width={14} height={14} />
                 </button>
               )}
-              {!c.create && c.value !== "" && onDeleteOption && (
+              {!c.create && c.value !== "" && onRemoveOption && (
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => (close(), onDeleteOption(c.label))}
+                  onClick={() => {
+                    const blocked = removeBlocked?.(c.label);
+                    resetRow();
+                    setAsking(c.label);
+                    if (blocked) {
+                      setRowError(blocked);
+                      setAskBlocked(true);
+                    }
+                  }}
                   aria-label={`Delete ${c.label}`}
                   title="Delete"
                   className="mr-1 shrink-0 rounded-md p-1.5 text-muted hover:bg-hover hover:text-red-600 focus-visible:outline-2 focus-visible:outline-accent dark:hover:text-red-300"
@@ -241,6 +318,7 @@ export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hi
                 </button>
               )}
               </div>
+              )}
             </li>
           ))}
           </ul>
