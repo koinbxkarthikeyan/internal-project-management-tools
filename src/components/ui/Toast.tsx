@@ -67,7 +67,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         popover="manual"
         role="status"
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-4 top-4 z-[60] m-0 flex flex-col items-center gap-2 overflow-visible border-0 bg-transparent p-0 sm:inset-x-auto sm:right-4 sm:left-auto sm:items-end"
+        className="pointer-events-none fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] top-auto z-[60] m-0 flex flex-col items-center gap-2 overflow-visible border-0 bg-transparent p-0 sm:inset-x-auto sm:left-auto sm:right-4 sm:w-96 sm:items-stretch"
       >
         {toasts.map((t) => {
           const Icon = ICON[t.tone];
@@ -75,7 +75,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <div
               key={t.id}
               role={t.tone === "danger" || t.tone === "warning" ? "alert" : undefined}
-              className={`pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium shadow-menu ring-1 ring-black/10 ${STYLE[t.tone]} ${
+              className={`pointer-events-auto flex w-full max-w-sm items-center gap-3 sm:max-w-none rounded-xl px-4 py-3 text-sm font-medium shadow-menu ring-1 ring-black/10 ${STYLE[t.tone]} ${
                 t.leaving ? "anim-toast-out" : "anim-toast-in"
               }`}
             >

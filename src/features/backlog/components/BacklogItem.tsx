@@ -1,5 +1,6 @@
 "use client";
 
+import { PRIORITY_ROW } from "../priorityTint";
 import { useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from "react";
 import PersonLabel from "@/components/ui/PersonLabel";
 import { PriorityBadge, StatusBadge, TypeLabel } from "@/components/ui/Badge";
@@ -63,7 +64,7 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
             "aria-label": `${viewOnly ? "View" : "Edit"} ${item.title}`,
           }
         : {})}
-      className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1.5 px-4 py-3 transition-colors duration-150 hover:bg-row-hover md:py-2 ${
+      className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1.5 px-4 py-3 transition-colors duration-150 md:py-2 ${PRIORITY_ROW[item.priority]} ${
         openable ? "cursor-pointer focus-visible:outline-2 focus-visible:outline-accent" : ""
       } ${leaving ? "anim-row-out" : "anim-row-in"} ${ROW_GRID}`}
     >

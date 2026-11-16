@@ -4,16 +4,16 @@
 
 /* Theme tokens. Light is the default; `.dark` on <html> switches to dark. */
 :root {
-  --background: #f6f7fb;
-  --foreground: #0f1226;
+  --background: #f4f6fa;
+  --foreground: #111827;
   --surface: #ffffff;
-  --border: #e4e7ef;
-  --muted: #5b6178;
-  --hover: #eef0f8;
+  --border: #dde2ec;
+  --muted: #5a6478;
+  --hover: #edf0f6;
   --row-hover: color-mix(in srgb, var(--muted) 20%, transparent); /* the grey a table row takes on hover (20% of the muted text colour) */
-  --accent: #425df3; /* logo blue */
+  --accent: #3a54d4; /* logo blue, deeper so it reads as text */
   --accent-foreground: #ffffff;
-  --accent-soft: #eef1ff; /* 4.5:1 with the accent text on it (the old #e8ecff gave 4.4:1) */
+  --accent-soft: #eaeefb; /* the selected / active background */
   /* Form feedback: errors and the "this field is valid" state. */
   --danger: #dc2626;
   --danger-text: #b91c1c;
@@ -25,8 +25,8 @@
   /* The one colour of the primary buttons' hover effect: grey (a mid grey on the light theme, a lighter one on dark, both keeping the white label readable). */
   --btn-fx: #6b7280;
   /* Brand gradient (primary buttons, card borders on the sign-in screens). */
-  --brand-from: #4152e0;
-  --brand-to: #00b8f0;
+  --brand-from: #3447c9;
+  --brand-to: #0ea5d9;
   --brand-border-gradient: linear-gradient(135deg, #00c5f6, #425df3, #182b96, #425df3, #00c5f6); /* the sign-in card border; */
   --shadow-card: 0 10px 30px -12px rgb(30 40 90 / 0.18);
   /* Elevation by role, so every floating layer reads the same: tooltips, menus and dropdowns, modals and side panels. */
@@ -42,15 +42,15 @@
 }
 
 .dark {
-  --background: #141b2b;
-  --foreground: #eceffd;
-  --surface: #1b2438;
-  --border: #2c3856;
-  --muted: #9aa8c7;
-  --hover: #232e47;
+  --background: #111827;
+  --foreground: #e8ecf4;
+  --surface: #1a2234;
+  --border: #2a3650;
+  --muted: #9aa6bd;
+  --hover: #222c42;
   --accent: #00c5f6; /* logo cyan */
   --accent-foreground: #061024;
-  --accent-soft: #14304f;
+  --accent-soft: #15304c;
   --danger: #ef4444;
   --danger-text: #fecaca;
   --success: #34d399;
@@ -58,8 +58,8 @@
   --tone-below: #fbbf24;
   --tone-over: #f87171;
   --btn-fx: #9ca3af;
-  --brand-from: #3447d8;
-  --brand-to: #00a8dc;
+  --brand-from: #3447c9;
+  --brand-to: #0ea5d9;
   --shadow-card: 0 14px 34px -14px rgb(0 0 0 / 0.55);
   --elev-tip: 0 4px 12px -4px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.3);
   --elev-menu: 0 16px 34px -10px rgb(0 0 0 / 0.6), 0 2px 6px -2px rgb(0 0 0 / 0.35);
@@ -69,6 +69,9 @@
 
 /* Tailwind's own `transition-*` and `animate-*` utilities follow the same standards. */
 @theme {
+  /* One corner-radius scale for the whole app: controls 8px (lg), cards and inputs 10px (xl), panels, menus and modals 12px (2xl); pills are fully round. */
+  --radius-xl: 0.625rem;
+  --radius-2xl: 0.75rem;
   --default-transition-duration: 150ms;
   --default-transition-timing-function: ease-out;
   --animate-spin: spin 800ms linear infinite;
@@ -121,7 +124,7 @@ body {
   --ease-standard: ease-in-out;
   --ease-out: ease-out;
 
-  --button-hover-duration: 180ms;
+  --button-hover-duration: var(--motion-standard); /* 150ms */
   --input-transition-duration: var(--motion-standard);
   --menu-transition-duration: 180ms; /* dropdowns and menus open / close; also a modal's backdrop */
   --modal-transition-duration: var(--motion-medium);
@@ -162,11 +165,12 @@ body {
 @keyframes fade-out {
   to { opacity: 0; }
 }
+/* Toasts sit at the bottom of the screen and rise 8px into place. */
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(-8px); }
+  from { opacity: 0; transform: translateY(8px); }
 }
 @keyframes toast-out {
-  to { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 0; transform: translateY(8px); }
 }
 @keyframes grow-x {
   from { transform: scaleX(0); }

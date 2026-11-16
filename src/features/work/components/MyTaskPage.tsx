@@ -1,5 +1,6 @@
 "use client";
 
+import { PRIORITY_ROW } from "@/features/backlog/priorityTint";
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
@@ -171,7 +172,7 @@ export default function MyTaskPage() {
                     onClick={() => setOpen(item)}
                     onKeyDown={(e) => handleKeyDown(e, item)}
                     aria-label={`View ${item.title}`}
-                    className="cursor-pointer transition-colors duration-150 hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-accent"
+                    className={`cursor-pointer transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-accent ${PRIORITY_ROW[item.priority]}`}
                   >
                     <td data-primary className="max-w-xs truncate px-4 py-2 font-medium">{item.title}</td>
                     <td data-label="Type" className="whitespace-nowrap px-4 py-2 text-muted"><TypeLabel type={item.type} /></td>

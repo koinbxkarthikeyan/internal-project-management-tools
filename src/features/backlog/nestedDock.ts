@@ -15,7 +15,7 @@ export const NearTriggerContext = createContext(false);
 
 /** Where a panel opened over another form sits: in the middle of that form (`top` is its vertical middle: the panel is lifted by half its own height), no taller than the form (less a margin). */
 export type NestedDock = { left: number; top: number; height: number };
-export const NESTED_WIDTH = 368; // 23rem
+export const NESTED_WIDTH = 448; // 28rem, as every small dialog
 
 type Found = { parent: Element; dock: NestedDock } | null;
 
