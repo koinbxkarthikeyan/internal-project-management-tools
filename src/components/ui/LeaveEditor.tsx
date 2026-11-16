@@ -1,5 +1,6 @@
 "use client";
 
+import DayField from "./DayField";
 import { useEffect, useRef, useState } from "react";
 import { EditIcon, TrashIcon } from "@/components/ui/icons";
 import MultiDatePicker from "@/components/ui/MultiDatePicker";
@@ -117,7 +118,7 @@ export default function LeaveEditor({ kind, rows, canEdit, named = false, min, m
             {named && <input value={draft.name} maxLength={80} onChange={(e) => setDraft({ ...draft, name: e.target.value })} onKeyDown={enter(add)} placeholder="Note (optional)" aria-label="Description" className={`${input} min-w-0 flex-1`} />}
             <button type="button" onClick={add} disabled={draft.dates.length === 0 || busy} aria-label={addLabel} title={addLabel} className={`${btn} btn-brand font-semibold disabled:opacity-50`}>Add</button>
             {pop && (
-              <div role="dialog" aria-label="Select leave days" className="absolute bottom-full left-0 z-30 mb-1 rounded-xl border border-border bg-surface p-2 shadow-menu">
+              <div ref={(el) => el?.scrollIntoView({ block: "nearest" })} role="dialog" aria-label="Select leave days" className="absolute left-0 top-full z-30 mt-1 rounded-xl border border-border bg-surface p-2 shadow-menu">
                 <MultiDatePicker value={draft.dates} onChange={(dates) => (setDraft({ ...draft, dates }), setError(""))} min={min} max={max} taken={new Set(rows.map((r) => r.date))} compact />
                 <div className="mt-1 flex items-center justify-between gap-3 px-1">
                   <span className="text-xs text-muted">{draft.dates.length ? `${draft.dates.length} selected` : "Click days to select"}</span>
@@ -141,7 +142,7 @@ export default function LeaveEditor({ kind, rows, canEdit, named = false, min, m
             editing?.id === r.id ? (
               <li key={r.id} className="flex flex-col gap-1.5 p-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <input type="date" min={min} max={max} value={editing.date} onChange={(e) => setEditing({ ...editing, date: e.target.value })} onKeyDown={enter(save)} aria-label="Leave date" className={`${input} w-40`} />
+                  <div className="w-40"><DayField bare value={editing.date} min={min} max={max} onChange={(v) => setEditing({ ...editing, date: v })} ariaLabel="Leave date" className={`${input} w-full`} /></div>
                   {!named && <input type="number" min={0.5} max={6} step={0.5} value={editing.hours} onChange={(e) => setEditing({ ...editing, hours: e.target.value })} onKeyDown={enter(save)} placeholder="Hours off" title="Hours off (empty = the whole day)" aria-label="Hours off (empty = the whole day)" className={`${input} w-24 shrink-0`} />}
                   {named && <input value={editing.name} maxLength={80} onChange={(e) => setEditing({ ...editing, name: e.target.value })} onKeyDown={enter(save)} placeholder="Description (optional)" aria-label="Description" className={`${input} min-w-36 flex-1`} />}
                   <button type="button" onClick={save} className={`${btn} text-accent hover:bg-hover`}>Save</button>

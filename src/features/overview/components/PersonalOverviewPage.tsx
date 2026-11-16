@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import { useOffFor } from "@/features/work/hooks/useOffDays";
-import FilterBar, { DateRangeFilter, FILTER_SELECT_CLASS } from "@/components/ui/FilterBar";
-import { SearchableSelect } from "@/components/ui/FormControls";
+import FilterBar, { DateRangeFilter, FilterPill } from "@/components/ui/FilterBar";
 import { STATUS_OPTIONS, sprintLabel } from "@/constants/backlog-options";
 import { AFTER_LOGIN_KEY, WORK_HREF } from "@/constants/work";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -22,7 +21,6 @@ import { buildActivity, chartDays, filterEntries, filterTasks, focusSprint, hour
 import { ActivityList, BarChart, Panel, ProgressBar, RecentCompleted, RecentWork, StatCard, StatusChart } from "./OverviewPanels";
 
 const EMPTY_FILTERS: OverviewFilters = { from: "", to: "", sprintId: "", status: "" };
-const ALL = "all";
 
 /**
  * The Overview for a Team Member (and a Disabled Admin): their own tasks, sprint, hours and activity, from the same backend data My Task
@@ -124,29 +122,18 @@ export default function PersonalOverviewPage({ tabs }: { /** Shown in the page h
   const set = (patch: Partial<OverviewFilters>) => setFilters((f) => ({ ...f, ...patch }));
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <PageHeader title="Overview" description="Your tasks, sprint and hours." actions={tabs} />
 
       <FilterBar
         activeCount={[filters.from || filters.to, filters.sprintId, filters.status].filter(Boolean).length}
         onClear={() => setFilters(EMPTY_FILTERS)}
         note="The date range filters Expected ETAs (completion date if done) and logged work."
+        advancedCount={filters.from || filters.to ? 1 : 0}
+        advanced={<DateRangeFilter label="Dates" from={filters.from} to={filters.to} onChange={({ from, to }) => set({ from, to })} />}
       >
-        <DateRangeFilter label="Dates" from={filters.from} to={filters.to} onChange={({ from, to }) => set({ from, to })} />
-        <SearchableSelect
-          ariaLabel="Filter by sprint"
-          value={filters.sprintId || ALL}
-          onChange={(v) => set({ sprintId: v === ALL ? "" : v })}
-          options={[{ value: ALL, label: "All sprints" }, ...datedSprints.map((s) => ({ value: s.id, label: sprintLabel(s.name) }))]}
-          className={FILTER_SELECT_CLASS}
-        />
-        <SearchableSelect
-          ariaLabel="Filter by status"
-          value={filters.status || ALL}
-          onChange={(v) => set({ status: v === ALL ? "" : (v as Status) })}
-          options={[{ value: ALL, label: "All statuses" }, ...STATUS_OPTIONS]}
-          className={FILTER_SELECT_CLASS}
-        />
+        <FilterPill label="Sprint" value={filters.sprintId} onChange={(v) => set({ sprintId: v })} options={datedSprints.map((x) => ({ value: x.id, label: sprintLabel(x.name) }))} />
+        <FilterPill label="Status" value={filters.status} onChange={(v) => set({ status: v as Status | "" })} options={STATUS_OPTIONS} />
       </FilterBar>
 
       <section aria-label="Summary">
@@ -235,7 +222,7 @@ export default function PersonalOverviewPage({ tabs }: { /** Shown in the page h
               <span>Completion</span>
               <span className="tabular-nums font-semibold text-foreground">{counts.percent}%</span>
             </div>
-            <ProgressBar percent={counts.percent} label="Task completion" color="#5fcf8e" />
+            <ProgressBar percent={counts.percent} label="Task completion" color="var(--success)" />
           </div>
           <div>
             <h3 className="mb-2 text-xs font-medium text-muted">Recently completed</h3>

@@ -3,9 +3,8 @@
 import { useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
-import FilterBar, { FILTER_SELECT_CLASS, FilterSegments } from "@/components/ui/FilterBar";
+import FilterBar, { FilterPill, FilterSegments } from "@/components/ui/FilterBar";
 import { PersonIcon } from "@/components/ui/PersonLabel";
-import { SearchableSelect } from "@/components/ui/FormControls";
 import { PlusIcon } from "@/components/ui/icons";
 import ActionsMenu from "@/components/ui/ActionsMenu";
 import { EditIcon, TrashIcon } from "@/components/ui/icons";
@@ -57,7 +56,7 @@ export default function OwnersSprintsPage() {
   const count = (owner: string, sprint?: string) => items.filter((i) => i.owner === owner && (sprint ? i.sprint === sprint : sprintNames.includes(i.sprint))).length;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
         title="Owners & sprints"
         description={`How work is distributed across ${owners.length} owners and ${allSprintNames.length} sprints.`}
@@ -78,6 +77,7 @@ export default function OwnersSprintsPage() {
         }
       />
       <FilterBar
+        count={{ shown: shownOwners.length, total: owners.length }}
         search={<BacklogSearch value={filters.query} onChange={(query) => setFilters({ ...filters, query })} placeholder="Search name, role or team…" ariaLabel="Search owners" />}
         activeCount={Object.values(filters).filter(Boolean).length}
         onClear={() => setFilters({ query: "", team: "", role: "" })}
@@ -88,8 +88,8 @@ export default function OwnersSprintsPage() {
           onChange={setScope}
           options={[{ value: "active", label: "Active sprint" }, { value: "previous", label: "Previous 2" }, { value: "all", label: "All" }]}
         />
-        <SearchableSelect ariaLabel="Filter by team" value={filters.team} onChange={(team) => setFilters({ ...filters, team })} options={teamChoices} placeholder="Team: All" className={FILTER_SELECT_CLASS} />
-        <SearchableSelect ariaLabel="Filter by role" value={filters.role} onChange={(role) => setFilters({ ...filters, role })} options={roleChoices} placeholder="Role: All" className={FILTER_SELECT_CLASS} />
+        <FilterPill label="Team" value={filters.team} onChange={(team) => setFilters({ ...filters, team })} options={teamChoices} />
+        <FilterPill label="Role" value={filters.role} onChange={(role) => setFilters({ ...filters, role })} options={roleChoices} />
       </FilterBar>
 
       <section className="overflow-hidden rounded-2xl border border-border bg-surface">

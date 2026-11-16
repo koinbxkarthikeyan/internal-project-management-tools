@@ -1,5 +1,4 @@
-import FilterBar, { DateRangeFilter, FILTER_SELECT_CLASS } from "@/components/ui/FilterBar";
-import { SearchableSelect } from "@/components/ui/FormControls";
+import FilterBar, { DateRangeFilter, FilterPill } from "@/components/ui/FilterBar";
 import BacklogSearch from "./BacklogSearch";
 
 export type FilterState = {
@@ -46,19 +45,12 @@ export default function BacklogFilters({ filters, onChange, options }: BacklogFi
       search={<BacklogSearch value={filters.query} onChange={(query) => onChange({ ...filters, query })} />}
       activeCount={Object.values(filters).filter(Boolean).length}
       onClear={() => onChange(EMPTY_FILTERS)}
+      advancedCount={filters.deadlineFrom || filters.deadlineTo ? 1 : 0}
+      advanced={<DateRangeFilter label="Expected ETA" from={filters.deadlineFrom} to={filters.deadlineTo} onChange={({ from, to }) => onChange({ ...filters, deadlineFrom: from, deadlineTo: to })} />}
     >
       {SELECTS.map(({ key, label }) => (
-        <SearchableSelect
-          key={key}
-          ariaLabel={`Filter by ${label.toLowerCase()}`}
-          value={filters[key]}
-          onChange={(v) => onChange({ ...filters, [key]: v })}
-          options={options[key]}
-          placeholder={`${label}: All`}
-          className={FILTER_SELECT_CLASS}
-        />
+        <FilterPill key={key} label={label} value={filters[key]} onChange={(v) => onChange({ ...filters, [key]: v })} options={options[key]} />
       ))}
-      <DateRangeFilter label="Expected ETA" from={filters.deadlineFrom} to={filters.deadlineTo} onChange={({ from, to }) => onChange({ ...filters, deadlineFrom: from, deadlineTo: to })} />
     </FilterBar>
   );
 }

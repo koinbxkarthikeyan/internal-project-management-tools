@@ -9,7 +9,7 @@ export default function CompletedPage() {
   const completed = items.filter((i) => i.status === "Completed");
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <PageHeader title="Done" description="Items that have been delivered." />
       <BacklogList items={completed} total={completed.length} emptyTitle="No done items yet" emptyMessage="Items marked as Done will show up here." />
     </div>

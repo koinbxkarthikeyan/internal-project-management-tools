@@ -107,7 +107,7 @@ export default function WorkPage() {
 
   if (datedSprints.length === 0) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-5">
         <PageHeader title="What are you working on?" />
         <section className={card}>
           <EmptyState

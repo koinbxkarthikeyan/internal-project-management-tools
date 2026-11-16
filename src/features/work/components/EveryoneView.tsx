@@ -68,7 +68,7 @@ function Stat({ value, total, label, valueClass = "", totalClass = "text-muted" 
   return (
     <div className="rounded-2xl border border-border bg-surface p-4">
       <p>
-        <span className={`text-2xl font-semibold tabular-nums ${valueClass}`}>{value}</span>{" "}
+        <span className={`text-xl font-semibold tabular-nums ${valueClass}`}>{value}</span>{" "}
         <span className={`text-sm tabular-nums ${totalClass}`}>/ {total}</span>
       </p>
       <p className="mt-1 text-xs text-muted">{label}</p>
@@ -219,7 +219,6 @@ const KIND_COLORS: Record<string, string> = { Backend: "#4a8fe0", Frontend: "#ff
 const GREEN = "#5fcf8e";
 const RED = "#ff5c52";
 const BLUE = "#4a8fe0";
-const AMBER = "#f5a524";
 
 const assigneeKeys = (value?: string) => (value ?? "").split(",").map((n) => n.trim().replace(/^@+/, "").trim().toLowerCase()).filter(Boolean);
 
@@ -274,8 +273,8 @@ function ByPerson({
         const total = sum(list);
         const { soFar: perPerson, total: sprintTotal } = expOf(name);
         const pct = perPerson > 0 ? total / perPerson : 0;
-        // Over the plan: red. Close to it: green. Under it: amber.
-        const tone = list.length === 0 ? undefined : pct > 1.0005 ? RED : pct >= 0.9 ? GREEN : AMBER;
+        // Over the plan: red. Close to it: green. Under it: amber (the theme's own hours colours, readable as text in light and dark).
+        const tone = list.length === 0 ? undefined : pct > 1.0005 ? "var(--tone-over)" : pct >= 0.9 ? "var(--tone-above)" : "var(--tone-below)";
         const scale = Math.max(perPerson, total);
         const sorted = [...list].sort((x, y) => x.from.localeCompare(y.from));
         // This person's hours per task. An entry that covers several tasks has no split on the backend, so its hours are
@@ -482,7 +481,7 @@ function ByPod({
   if (sprints.length === 0) return <EmptyState compact title="No sprint selected" description="Pick a sprint above to see its PODs." />;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       {sections.map(({ sprint, blocks }) => {
         const max = Math.max(...blocks.map((b) => b.hours), 0);
         return (

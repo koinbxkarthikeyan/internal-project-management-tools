@@ -127,20 +127,34 @@ export default function EditBacklogDrawer({ item, onSave, onClose }: EditBacklog
       onClose={onClose}
     >
       {detailError && <FieldError>Couldn&apos;t load the latest details ({detailError}). What you see may be out of date.</FieldError>}
-      <FormSection title="Basics" hint="What the work is and who it belongs to.">
+      {/* Wide: two columns at their natural height (Basics, People and Notes on the left; Status and classification and Planning on the right). Narrower: one column, in the same order. */}
+      <div className="@container">
+        <div className="grid items-start gap-4 @3xl:grid-cols-2">
+          <div className="contents @3xl:flex @3xl:flex-col @3xl:gap-4">
+            <FormSection className="order-1" title="Basics" hint="What the work is and who it belongs to.">
         <OwnerSelect value={draft.owner} onChange={(v) => set("owner", v)} />
         <TextField label="Title" required value={draft.title} onChange={(v) => set("title", v)} />
-        <div className="sm:col-span-2">
+        <div className="@sm:col-span-2">
           <TextAreaField label="Description" rows={5} value={draft.description ?? ""} onChange={(v) => set("description", v)} />
         </div>
       </FormSection>
-
-      <FormSection title="Status and classification">
+            <FormSection className="order-4" title="People">
+        <LeadSelect value={draft.lead ?? ""} onChange={(v) => setDraft((d) => ({ ...d, lead: v, ...(v !== (d.lead ?? "") ? { leadDeadline: "" } : {}) }))} />
+        <AssigneeField value={draft.assignees ?? ""} onChange={(v) => set("assignees", v)} />
+      </FormSection>
+            <FormSection className="order-5" title="Notes">
+        <div className="@sm:col-span-2">
+          <TextAreaField label="Notes" value={draft.notes ?? ""} onChange={(v) => set("notes", v)} placeholder="Anything else the team should know." />
+        </div>
+      </FormSection>
+          </div>
+          <div className="contents @3xl:flex @3xl:flex-col @3xl:gap-4">
+            <FormSection className="order-2" title="Status and classification">
         <SelectField label="Status" value={draft.status} onChange={(v) => set("status", v as Status)} options={statusOptions} />
         <SelectField label="Type" value={draft.type ?? ""} onChange={(v) => set("type", v as ItemType)} options={ITEM_TYPES} placeholder="Choose type" />
         <SelectField label="Priority" value={draft.priority} onChange={(v) => set("priority", v as Priority)} options={PRIORITIES} />
         {commenting && (
-          <div className="sm:col-span-2">
+          <div className="@sm:col-span-2">
             <TextAreaField
               label={needsReason ? "Why is it blocked or on hold?" : "Comment (optional)"}
               required={needsReason}
@@ -152,24 +166,15 @@ export default function EditBacklogDrawer({ item, onSave, onClose }: EditBacklog
           </div>
         )}
       </FormSection>
-
-      <FormSection title="Planning" hint="When it should be done and in which sprint.">
+            <FormSection className="order-3" title="Planning" hint="When it should be done and in which sprint.">
         <TaskPlacementFields value={placement} onChange={setPlacement} current={{ sprint: base.sprint, podId: base.podId }} />
         <TextField label="Expected ETA" type="date" value={draft.deadline} onChange={(v) => set("deadline", v)} />
         <TextField label="Created" type="date" value={draft.created ?? ""} onChange={(v) => set("created", v)} />
         <TextField label="Done on" type="date" value={draft.completed ?? ""} onChange={(v) => set("completed", v)} />
       </FormSection>
-
-      <FormSection title="People">
-        <LeadSelect value={draft.lead ?? ""} onChange={(v) => setDraft((d) => ({ ...d, lead: v, ...(v !== (d.lead ?? "") ? { leadDeadline: "" } : {}) }))} />
-        <AssigneeField value={draft.assignees ?? ""} onChange={(v) => set("assignees", v)} />
-      </FormSection>
-
-      <FormSection title="Notes">
-        <div className="sm:col-span-2">
-          <TextAreaField label="Notes" value={draft.notes ?? ""} onChange={(v) => set("notes", v)} placeholder="Anything else the team should know." />
+          </div>
         </div>
-      </FormSection>
+      </div>
 
       <div className="border-t border-border pt-3">
         <ActivityTimeline compact item={base} activity={base.activity} />

@@ -65,7 +65,7 @@ export default function WorkLoggedPage() {
   const header = <PageHeader title="Your Logged Work" description="Everything you logged in the chosen sprint." actions={<Link href={WORK_HREF} className={backLink}>Back to Log Work Sprint</Link>} />;
   if (datedSprints.length === 0) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-5">
         {header}
         <section className={card}>
           <EmptyState title="No sprint added yet" description="Create a sprint to get started." />

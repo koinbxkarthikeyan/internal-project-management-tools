@@ -8,8 +8,8 @@ import type { WorkEntry } from "@/types/work";
 import type { Activity } from "../stats";
 
 const card = "rounded-2xl border border-border bg-surface p-5";
-/** The same colours the status badges use. */
-export const STATUS_COLOR: Record<Status, string> = { Open: "#4a8fe0", "In progress": "#a78bfa", Blocked: "#ff5c52", "On hold": "#f5a524", Completed: "#5fcf8e" };
+/** The hues of the status badges (slate, violet, rose, amber, emerald), as the fills of the status chart. */
+export const STATUS_COLOR: Record<Status, string> = { Open: "#64748b", "In progress": "#8b5cf6", Blocked: "#f43f5e", "On hold": "#f59e0b", Completed: "#10b981" };
 
 export function Panel({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
   return (
@@ -27,13 +27,13 @@ export function StatCard({ label, value, hint, tone = "text-foreground" }: { lab
   return (
     <div className="min-w-0 rounded-2xl border border-border bg-surface p-4">
       <dt className="text-xs font-medium text-muted">{label}</dt>
-      <dd className={`mt-1 truncate text-2xl font-semibold tabular-nums ${tone}`}>{value}</dd>
+      <dd className={`mt-1 truncate text-xl font-semibold tabular-nums ${tone}`}>{value}</dd>
       {hint && <p className="mt-0.5 truncate text-xs text-muted">{hint}</p>}
     </div>
   );
 }
 
-export function ProgressBar({ percent, label, color = "var(--accent, #2563eb)" }: { percent: number; label: string; color?: string }) {
+export function ProgressBar({ percent, label, color = "var(--accent)" }: { percent: number; label: string; color?: string }) {
   const p = Math.max(0, Math.min(100, percent));
   return (
     <div role="progressbar" aria-label={label} aria-valuenow={p} aria-valuemin={0} aria-valuemax={100} className="h-2 overflow-hidden rounded-full bg-hover">

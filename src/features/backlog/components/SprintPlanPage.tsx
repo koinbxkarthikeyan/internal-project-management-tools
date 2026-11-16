@@ -229,7 +229,7 @@ export default function SprintPlanPage() {
   const expandedClosedId = openClosed === undefined ? (closed[0]?.id ?? null) : openClosed;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       {dropTip.bubble}
       <PageHeader
         title="Sprint plan"

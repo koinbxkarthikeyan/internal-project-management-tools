@@ -27,7 +27,7 @@ export default function DashboardLayout({ children }: LayoutProps<"/">) {
       <SprintNotifications />
       <LeaveLoader />
       <NotificationFeed />
-      <main className="sb-main min-w-0 px-4 pb-8 pt-16 sm:px-6 lg:pl-80 lg:pr-8 lg:pt-4">
+      <main className="sb-main min-w-0 px-4 pb-6 pt-16 sm:px-6 lg:pl-80 lg:pr-8 lg:pt-4">
         <NotificationTicker />
         <BacklogDataGate>{children}</BacklogDataGate>
       </main>

@@ -108,7 +108,7 @@ export default function AssigneeField({ value, onChange, placeholder }: Assignee
       </Field>
       {open && (
         // Only the names scroll; "+ Add New Team Member" stays fixed at the bottom.
-        <div className={`anim-fade-up absolute inset-x-0 z-10 flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-menu ${up ? "bottom-full mb-1" : "top-full mt-1"}`}>
+        <div ref={(el) => void (el && requestAnimationFrame(() => el.scrollIntoView({ block: "nearest" })))} className={`anim-fade-up absolute inset-x-0 z-10 flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-menu ${up ? "bottom-full mb-1" : "top-full mt-1"}`}>
           <ul id={listId} role="listbox" aria-label="Registered users" className="max-h-48 min-h-0 flex-1 overflow-y-auto p-1">
           {matches.length === 0 && (
             <li className="px-3 py-2 text-sm text-muted">
@@ -128,7 +128,10 @@ export default function AssigneeField({ value, onChange, placeholder }: Assignee
                   }`}
                 >
                   <span className="min-w-0 truncate">{u.name}</span>
-                  <span className="shrink-0 text-xs text-muted">{on ? "✓" : u.email}</span>
+                  <span className="flex shrink-0 items-center gap-2 text-xs">
+                    {u.team && <span className="text-muted">{u.team}</span>}
+                    {on && <span>✓</span>}
+                  </span>
                 </button>
               </li>
             );

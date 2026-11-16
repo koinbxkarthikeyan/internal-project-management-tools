@@ -24,7 +24,7 @@ const NEEDS_CURRENT = `Enter your current password (at least ${MIN_PASSWORD_LENG
 const SAME_AS_CURRENT = "New password must be different from the current password.";
 const INITIAL_REUSED = "Choose a password different from the initial password.";
 const MISMATCH = "New password and confirm password do not match.";
-const card = "flex h-full flex-col gap-4 rounded-2xl border border-border bg-surface p-5 sm:p-6";
+const card = "flex h-full flex-col gap-4 rounded-2xl border border-border bg-surface p-4 sm:p-5";
 const cancelClass =
   "rounded-xl border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-hover disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 const submitClass =
@@ -131,13 +131,13 @@ export default function SettingsPage() {
   const initialsOf = user.name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
 
   return (
-    <div className="flex w-full flex-col gap-6">
+    <div className="flex w-full flex-col gap-5">
       <PageHeader title="Settings" description="Manage your profile and keep your account secure." />
 
       {forced && !noticeDone && <PasswordChangeNotice onContinue={() => setNoticeDone(true)} />}
 
       {/* Who is signed in: a summary strip across the whole width. */}
-      <section aria-label="Account" className="flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-surface p-5 sm:p-6">
+      <section aria-label="Account" className="flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-surface p-4 sm:p-5">
         <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent-soft text-lg font-semibold text-accent" aria-hidden="true">
           {initialsOf || "?"}
         </span>
@@ -158,7 +158,7 @@ export default function SettingsPage() {
       <div className="grid items-stretch gap-6 lg:grid-cols-2">
         <form onSubmit={saveName} noValidate className={card} aria-label="Profile">
           <header>
-            <h2 className="text-base font-semibold">Profile</h2>
+            <h2 className="text-sm font-semibold">Profile</h2>
             <p className="mt-0.5 text-sm text-muted">Your name, and the email you sign in with (read-only).</p>
           </header>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
@@ -190,7 +190,7 @@ export default function SettingsPage() {
 
         <form onSubmit={savePassword} noValidate className={card} aria-label="Change password">
           <header>
-            <h2 className="text-base font-semibold">Change password</h2>
+            <h2 className="text-sm font-semibold">Change password</h2>
             <p className="mt-0.5 text-sm text-muted">Use at least 8 characters. You&apos;ll need your current password.</p>
           </header>
           <PasswordField

@@ -385,7 +385,7 @@ export default function BulkUploadPage() {
 
   if (!isAdmin) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-5">
         <PageHeader title="Bulk Upload" />
         <section className="rounded-2xl border border-border bg-surface">
           <EmptyState title="Admins only" description="Admins only." />
@@ -398,7 +398,7 @@ export default function BulkUploadPage() {
   const enteredIn = (t: BulkType) => drafts[t].filter((r) => !BULK_SPECS[t].columns.every((c) => (r.values[c.key] ?? "") === (BULK_SPECS[t].blank()[c.key] ?? ""))).length;
 
   return (
-    <div className="flex flex-col gap-6 pb-32">
+    <div className="flex flex-col gap-5 pb-32">
       <PageHeader
         title="Bulk Upload"
         description="Add several records at once. Pick a tab, fill the table, then submit. Drafts are kept on this device."
@@ -625,6 +625,7 @@ export default function BulkUploadPage() {
           heading="Import from Excel"
           submitLabel="Replace existing rows"
           compact
+          narrow
           danger
           onSubmit={() => applyImport(importing.tab, importing.rows, "replace")}
           onClose={() => setImporting(null)}
@@ -651,6 +652,7 @@ export default function BulkUploadPage() {
           heading="Download Excel template"
           submitLabel="Download"
           compact
+          narrow
           onSubmit={() => void runExcel(() => downloadTemplate(type, ctx))}
           onClose={() => setConfirmDownload(false)}
         >
@@ -663,6 +665,7 @@ export default function BulkUploadPage() {
           heading={`Clear ${spec.label} entries`}
           submitLabel="Clear all"
           compact
+          narrow
           danger
           onSubmit={clearAll}
           onClose={() => setClearing(false)}

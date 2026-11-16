@@ -337,7 +337,7 @@ export function HistoryDialog({ title, label, onClose, children }: { title: stri
       onClick={(e) => e.target === ref.current && ref.current?.close()}
       aria-label={label}
       className={`fixed m-auto flex flex-col overflow-hidden border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-black/50 ${
-        full ? "h-dvh max-h-dvh w-screen max-w-none rounded-none" : "h-[85vh] w-[min(64rem,calc(100vw-2rem))] max-w-none rounded-2xl"
+        full ? "h-dvh max-h-dvh w-screen max-w-none rounded-none" : "h-[85dvh] w-[min(64rem,calc(100vw-2rem))] max-w-none rounded-2xl"
       }`}
     >
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-3">

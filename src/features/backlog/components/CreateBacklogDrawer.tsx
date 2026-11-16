@@ -69,19 +69,25 @@ function CreateForm() {
 
   return (
     <BacklogDrawer side heading="Create backlog" subtitle="Add a task to the backlog or to a sprint." mode="Create" submitLabel="Create backlog" onSubmit={submit} onClose={closeCreate}>
-      <dl className="flex gap-6 rounded-xl border border-border bg-background px-4 py-3">
+      <dl className="backlog-info flex gap-6 rounded-xl border border-border bg-background px-4 py-3">
         {metaItem("Created", formatDeadline(created))}
         {metaItem("Status", "To Do")}
       </dl>
 
-      <FormSection title="Basics" hint="What the work is and who it belongs to.">
+      {/* Wide (the panel is 48rem or more): two columns that fill the panel's height, the long Description on the left and the Notes box taking what is left on the right, so there is no
+          empty area and no scrolling. Narrower: one column, in the same order. */}
+      <div className="@container flex flex-1 flex-col">
+        <div className="backlog-cols grid flex-1 items-stretch gap-4 @3xl:grid-cols-2">
+          <div className="backlog-cols contents @3xl:flex @3xl:flex-col @3xl:gap-4">
+            <FormSection className="order-1 @3xl:flex-1" gridClassName="flex-1 @sm:grid-rows-[auto_1fr]" title="Basics" hint="What the work is and who it belongs to.">
         <OwnerSelect required excludeUnassigned value={owner} onChange={setOwner} />
         <div className="flex min-w-0 flex-col gap-1.5">
           <TextField label="Title" required value={title} onChange={(v) => (setTitle(v), setTitleError(""))} placeholder="Short name for the work" />
           {titleError && <FieldError>{titleError}</FieldError>}
         </div>
-        <div className="sm:col-span-2">
+        <div className="@sm:col-span-2 flex flex-col">
           <TextAreaField
+            grow
             label="Description"
             rows={4}
             value={description}
@@ -90,27 +96,28 @@ function CreateForm() {
           />
         </div>
       </FormSection>
-
-      <FormSection title="Classification">
+          </div>
+          <div className="backlog-cols contents @3xl:flex @3xl:flex-col @3xl:gap-4">
+            <FormSection className="order-2" title="Classification">
         <SelectField label="Type" required value={type} onChange={(v) => setType(v as ItemType)} options={ITEM_TYPES} placeholder="Choose type" />
         <SelectField label="Priority" value={priority} onChange={(v) => setPriority(v as Priority)} options={["Not set", ...PRIORITIES.filter((p) => p !== "Not set")]} />
       </FormSection>
-
-      <FormSection title="Planning" hint="When it should be done and in which sprint.">
+            <FormSection className="order-3" title="Planning" hint="When it should be done and in which sprint.">
         <TextField className="order-3" label="Expected ETA" type="date" value={deadline} onChange={setDeadline} />
         <TaskPlacementFields value={placement} onChange={setPlacement} createLayout />
       </FormSection>
-
-      <FormSection title="People">
+            <FormSection className="order-4" title="People">
         <LeadSelect value={lead} onChange={setLead} />
         <AssigneeField value={assignees} onChange={setAssignees} />
       </FormSection>
-
-      <FormSection title="Notes">
-        <div className="sm:col-span-2">
-          <TextAreaField label="Notes" value={notes} onChange={setNotes} placeholder="Anything else the team should know." />
+            <FormSection className="order-5 @3xl:flex-1" gridClassName="flex-1" title="Notes">
+        <div className="@sm:col-span-2 flex flex-col">
+          <TextAreaField grow label="Notes" value={notes} onChange={setNotes} placeholder="Anything else the team should know." />
         </div>
       </FormSection>
+          </div>
+        </div>
+      </div>
     </BacklogDrawer>
   );
 }

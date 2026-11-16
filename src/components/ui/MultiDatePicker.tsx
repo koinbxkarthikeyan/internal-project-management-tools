@@ -19,14 +19,16 @@ type Props = {
   taken?: ReadonlySet<string>;
   /** Only the calendar (the picked days are shown by the caller): for a popup. */
   compact?: boolean;
+  /** Saturdays and Sundays can be picked (a leave calendar leaves them off: they are already 0 hours). */
+  allowWeekends?: boolean;
 };
 
 /**
  * A small month calendar where any number of separate days are clicked on and off (weekends are already 0 hours, so they can't be picked), with the picked
  * days listed on the right (each removable). Months move with the arrows, within the allowed range.
  */
-export default function MultiDatePicker({ value, onChange, min, max, taken, compact = false }: Props) {
-  const start = min ?? new Date().toISOString().slice(0, 10);
+export default function MultiDatePicker({ value, onChange, min, max, taken, compact = false, allowWeekends = false }: Props) {
+  const start = value[0] ?? min ?? new Date().toISOString().slice(0, 10);
   const [view, setView] = useState({ y: Number(start.slice(0, 4)), m: Number(start.slice(5, 7)) - 1 });
   const first = new Date(Date.UTC(view.y, view.m, 1));
   const lead = (first.getUTCDay() + 6) % 7; // Monday first
@@ -38,23 +40,24 @@ export default function MultiDatePicker({ value, onChange, min, max, taken, comp
   const move = (by: number) => setView(({ y, m }) => ({ y: y + Math.floor((m + by) / 12), m: (((m + by) % 12) + 12) % 12 }));
   const toggle = (d: string) => onChange(value.includes(d) ? value.filter((x) => x !== d) : [...value, d].sort());
   const sorted = [...value].sort();
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="flex flex-wrap items-start gap-3">
-      <div className="w-56 shrink-0 rounded-xl border border-border bg-background p-2">
-        <div className="mb-1 flex items-center justify-between">
-          <button type="button" onClick={() => move(-1)} disabled={!canPrev} aria-label="Previous month" className="rounded-md px-2 py-0.5 text-muted hover:bg-hover disabled:opacity-30">‹</button>
-          <span className="text-xs font-medium">{MONTH.format(first)}</span>
-          <button type="button" onClick={() => move(1)} disabled={!canNext} aria-label="Next month" className="rounded-md px-2 py-0.5 text-muted hover:bg-hover disabled:opacity-30">›</button>
+      <div className={`shrink-0 ${compact ? "w-64 p-1" : "w-56 rounded-xl border border-border bg-background p-2"}`}>
+        <div className="mb-2 flex items-center justify-between">
+          <button type="button" onClick={() => move(-1)} disabled={!canPrev} aria-label="Previous month" className="rounded-md px-2 py-0.5 text-base leading-none text-muted hover:bg-hover disabled:opacity-30">‹</button>
+          <span className="text-sm font-semibold">{MONTH.format(first)}</span>
+          <button type="button" onClick={() => move(1)} disabled={!canNext} aria-label="Next month" className="rounded-md px-2 py-0.5 text-base leading-none text-muted hover:bg-hover disabled:opacity-30">›</button>
         </div>
         <div className="grid grid-cols-7 gap-0.5 text-center text-[11px]">
           {WEEK.map((w) => (
-            <span key={w} className="py-0.5 text-muted">{w}</span>
+            <span key={w} className="py-1 font-medium text-muted">{w}</span>
           ))}
           {cells.map((d, i) => {
             if (!d) return <span key={`b${i}`} />;
             const out = (!!min && d < min) || (!!max && d > max);
-            const off = out || isWeekend(d) || !!taken?.has(d);
+            const off = out || (!allowWeekends && isWeekend(d)) || !!taken?.has(d);
             const on = value.includes(d);
             return (
               <button
@@ -64,8 +67,8 @@ export default function MultiDatePicker({ value, onChange, min, max, taken, comp
                 aria-pressed={on}
                 aria-label={SHORT.format(new Date(`${d}T00:00:00Z`))}
                 onClick={() => toggle(d)}
-                className={`h-7 rounded-md text-xs tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-accent ${
-                  on ? "bg-accent font-semibold text-white" : taken?.has(d) ? "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300" : off ? "text-muted/40" : "hover:bg-hover"
+                className={`rounded-md text-xs tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-accent ${compact ? "h-8" : "h-7"} ${
+                  on ? "bg-accent font-semibold text-white" : taken?.has(d) ? "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300" : off ? "text-muted/40" : d === today ? "font-semibold text-accent ring-1 ring-inset ring-accent hover:bg-hover" : "font-medium hover:bg-hover"
                 }`}
               >
                 {Number(d.slice(8))}

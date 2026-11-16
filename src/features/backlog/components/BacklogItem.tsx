@@ -1,6 +1,6 @@
 "use client";
 
-import { PRIORITY_ROW } from "../priorityTint";
+import { TaskAssignees } from "@/components/ui/AssigneeStack";
 import { useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from "react";
 import PersonLabel from "@/components/ui/PersonLabel";
 import { PriorityBadge, StatusBadge, TypeLabel } from "@/components/ui/Badge";
@@ -64,7 +64,7 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
             "aria-label": `${viewOnly ? "View" : "Edit"} ${item.title}`,
           }
         : {})}
-      className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1.5 px-4 py-3 transition-colors duration-150 md:py-2 ${PRIORITY_ROW[item.priority]} ${
+      className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1.5 px-4 py-3 transition-colors duration-150 hover:bg-row-hover md:py-1.5 ${
         openable ? "cursor-pointer focus-visible:outline-2 focus-visible:outline-accent" : ""
       } ${leaving ? "anim-row-out" : "anim-row-in"} ${ROW_GRID}`}
     >
@@ -103,6 +103,10 @@ export default function BacklogItem({ item, actions, leaving = false, index = 0 
         <div className="flex items-center justify-between gap-3 md:contents">
           <span className="text-xs text-muted md:hidden">Owner</span>
           <PersonLabel kind="owner" name={item.owner} />
+        </div>
+        <div className="flex items-center justify-between gap-3 md:contents">
+          <span className="text-xs text-muted md:hidden">Assignee</span>
+          <TaskAssignees item={item} size={24} />
         </div>
         <div className="flex items-center justify-between gap-3 md:contents">
           <span className="text-xs text-muted md:hidden">Expected ETA</span>

@@ -26,7 +26,7 @@ export default function ConfirmDeleteDrawer({
   onClose,
 }: ConfirmDeleteDrawerProps) {
   return (
-    <BacklogDrawer heading={title} submitLabel={confirmLabel} onSubmit={onConfirm} onClose={onClose} compact danger>
+    <BacklogDrawer heading={title} submitLabel={confirmLabel} onSubmit={onConfirm} onClose={onClose} compact narrow danger>
       <div role="alertdialog" aria-label={title} className="flex flex-col gap-2">
         <p className="text-sm">
           Are you sure you want to delete <strong className="font-semibold">{name}</strong>?

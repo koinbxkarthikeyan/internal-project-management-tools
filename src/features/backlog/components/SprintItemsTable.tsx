@@ -1,5 +1,6 @@
 "use client";
 
+import { TaskAssignees } from "@/components/ui/AssigneeStack";
 import { useState, type CSSProperties, type KeyboardEvent } from "react";
 import { useHoverTip } from "@/components/ui/HoverTip";
 import PersonLabel from "@/components/ui/PersonLabel";
@@ -80,6 +81,7 @@ export default function SprintItemsTable({ items, onOpen, onView, onStep, onDrop
             <th scope="col" className={head}>Priority</th>
             <th scope="col" className={head}>Status</th>
             <th scope="col" className={head}>Owner</th>
+            <th scope="col" className={head}>Assignee</th>
             <th scope="col" className={head}>Expected ETA</th>
             {onView && <th scope="col" className={`${head} text-right`}>Action</th>}
           </tr>
@@ -153,6 +155,9 @@ export default function SprintItemsTable({ items, onOpen, onView, onStep, onDrop
               </td>
               <td data-label="Owner" className="px-4 py-2">
                 <PersonLabel kind="owner" name={item.owner} />
+              </td>
+              <td data-label="Assignee" className="px-4 py-2">
+                <TaskAssignees passive item={item} size={24} />
               </td>
               <td data-label="Expected ETA" className="whitespace-nowrap px-4 py-2 text-muted">
                 <time dateTime={item.deadline}>{formatDeadline(item.deadline)}</time>

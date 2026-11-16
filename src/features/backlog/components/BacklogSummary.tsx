@@ -28,7 +28,7 @@ export default function BacklogSummary({ items, partialTotal }: BacklogSummaryPr
             className="anim-fade-up rounded-2xl border border-border bg-surface p-4 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-md"
           >
             <dt className="text-xs font-medium text-muted">{s.label}</dt>
-            <dd className={`mt-1 text-2xl font-semibold tabular-nums ${s.tone}`}>{s.value}</dd>
+            <dd className={`mt-1 text-xl font-semibold tabular-nums ${s.tone}`}>{s.value}</dd>
           </div>
         ))}
       </dl>

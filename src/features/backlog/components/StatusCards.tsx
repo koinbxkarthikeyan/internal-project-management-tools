@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+
 import { StatusIcon } from "@/components/ui/Badge";
 import { STATUSES, statusLabel } from "@/constants/backlog-options";
 import type { BacklogItemData, Status } from "@/types/backlog";
@@ -33,30 +34,32 @@ export default function StatusCards({ items, selected, onSelect, partial = false
 
   return (
     <section aria-label="Backlog summary">
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      {/* The cards, in one line at every width: equal cards that share the row. Narrow: the icon and the count only (the name is the tooltip and the screen-reader label). */}
+      <dl className="flex gap-2 sm:gap-3">
         {stats.map((s, i) => {
           const on = selected === s.key;
           return (
-            <div key={s.label} style={{ "--i": i } as CSSProperties} className="anim-fade-up">
+            <div key={s.label} style={{ "--i": i } as CSSProperties} className="anim-fade-up min-w-0 flex-1 basis-0">
               <button
                 type="button"
                 aria-pressed={on}
+                title={s.label}
                 onClick={() => onSelect(on && s.key !== "" ? "" : s.key)}
-                className={`block w-full rounded-2xl border bg-surface p-4 text-left transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-accent ${
+                className={`flex h-full w-full flex-col items-center gap-1 rounded-2xl border bg-surface px-1 py-3 text-center transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-accent sm:items-start sm:px-4 sm:py-3 sm:text-left ${
                   on ? "border-accent ring-2 ring-accent/40" : "border-border"
                 }`}
               >
-                <dt className="flex items-center gap-1.5 text-xs font-medium text-muted">
+                <dt className="flex max-w-full items-center gap-1.5 text-xs font-medium leading-4 text-muted sm:items-start">
                   {s.icon ? (
-                    <span className={s.tone}><StatusIcon status={s.icon} /></span>
+                    <span className={`sm:mt-px ${s.tone}`}><StatusIcon status={s.icon} /></span>
                   ) : (
-                    <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
+                    <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 sm:mt-px">
                       <path d="M5 7h14M5 12h14M5 17h14" />
                     </svg>
                   )}
-                  {s.label}
+                  <span className="sr-only sm:not-sr-only sm:line-clamp-2">{s.label}</span>
                 </dt>
-                <dd className={`mt-1 text-2xl font-semibold tabular-nums ${s.tone}`}>{s.value}</dd>
+                <dd className={`text-xl font-semibold tabular-nums sm:mt-0.5 ${s.tone}`}>{s.value}</dd>
               </button>
             </div>
           );

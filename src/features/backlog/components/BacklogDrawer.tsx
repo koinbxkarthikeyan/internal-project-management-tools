@@ -35,8 +35,12 @@ type BacklogDrawerProps = {
   aside?: ReactNode;
   /** Shown as a card in the page (a full-page view) instead of a slide-over panel: no Expand / Close, a Back button in the footer, and the page stays after a save. */
   inline?: boolean;
+  /** A plain confirmation that only asks a question (no fields): the narrow card, 28rem, instead of the 36rem every small form gets. */
+  narrow?: boolean;
   /** A large form that slides in as a full-height panel from the right instead of the centred card (Create backlog, Edit backlog). */
   side?: boolean;
+  /** No Expand button and no Ctrl+F: the panel stays the size it opens at. */
+  noExpand?: boolean;
 };
 
 /**
@@ -44,7 +48,7 @@ type BacklogDrawerProps = {
  * card (and can be expanded to nearly the whole window); a small one (`compact`: a name, a few fields, a confirmation) is a card of the height its content needs, 23rem wide, centred across and a little above the middle of the screen (never against the top edge), that
  * grows as validation messages or more content appear and scrolls only when it would pass the screen.
  */
-export default function BacklogDrawer({ heading, subtitle, mode: modeProp, submitLabel, onSubmit, onClose, compact = false, danger = false, viewOnly = false, screenCentre: centred = false, canSubmit = true, children, aside, inline = false, side = false }: BacklogDrawerProps) {
+export default function BacklogDrawer({ heading, subtitle, mode: modeProp, submitLabel, onSubmit, onClose, compact = false, narrow = false, danger = false, viewOnly = false, screenCentre: centred = false, canSubmit = true, children, aside, inline = false, side = false, noExpand = false }: BacklogDrawerProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -57,8 +61,8 @@ export default function BacklogDrawer({ heading, subtitle, mode: modeProp, submi
   const keyCentred = byKey && compact;
   const screenCentre = centred || keyCentred;
   const nearWanted = useContext(NearTriggerContext) && !keyCentred;
-  const near = useNearButton(compact && !inline && !dock && nearWanted);
-  const centre = useContentCentre(compact && !inline && !dock && !near && !screenCentre);
+  const near = useNearButton(false && compact && !inline && !dock && nearWanted);
+  const centre = useContentCentre(false && compact && !inline && !dock && !near && !screenCentre);
   // Next to the field it opened from: below it when the whole form fits, else above it (worked out once the form's height is known).
   const [nearTop, setNearTop] = useState<number | null>(null);
   useLayoutEffect(() => {
@@ -146,7 +150,7 @@ export default function BacklogDrawer({ heading, subtitle, mode: modeProp, submi
         const form = e.currentTarget;
         requestAnimationFrame(() => clearFilled(form));
       }}
-      className={inline ? "flex flex-col" : compact ? "flex max-h-[calc(100dvh-2rem)] flex-col" : "flex h-full flex-col"}
+      className={inline ? "flex flex-col" : compact ? "flex max-h-[inherit] flex-col" : "flex h-full flex-col"}
     >
       <header
         className={`flex items-start gap-3 border-b border-border ${compact ? "px-5 py-3.5" : "px-6 py-4"} ${movable ? "cursor-grab touch-none select-none active:cursor-grabbing" : ""}`}
@@ -167,7 +171,7 @@ export default function BacklogDrawer({ heading, subtitle, mode: modeProp, submi
         </div>
         {!inline && (
           <div className="flex items-center gap-1">
-            <ExpandToggle expanded={expanded} onToggle={() => setExpanded((v) => !v)} className={compact ? "hidden" : "hidden sm:flex"} />
+            {!noExpand && <ExpandToggle expanded={expanded} onToggle={() => setExpanded((v) => !v)} className={compact ? "hidden" : "hidden sm:flex"} />}
             <button
               type="button"
               onClick={requestClose}
@@ -238,14 +242,14 @@ export default function BacklogDrawer({ heading, subtitle, mode: modeProp, submi
       onClick={(e) => e.target === ref.current && requestClose()}
       // Ctrl+F (⌘F) expands every form that has an Expand button (instead of the browser's find bar); once expanded, only Esc shrinks it.
       onKeyDown={(e) => {
-        if (inline || compact || expanded || !(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "f") return;
+        if (inline || compact || noExpand || expanded || !(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "f") return;
         e.preventDefault();
         e.stopPropagation();
         setExpanded(true);
       }}
       aria-label="Backlog item"
       style={screenCentre && !pos ? { left: "50%", top: "50%", right: "auto", bottom: "auto", margin: 0, translate: "-50% -50%" } : pos ? { left: pos.left, top: pos.top, width: pos.width, right: "auto", bottom: "auto", margin: 0, translate: "none", height: "fit-content" } : dock ? { left: dock.left, top: dock.top, right: "auto", bottom: "auto", margin: 0, translate: "0 -50%", width: NESTED_WIDTH, maxHeight: dock.height } : near ? { left: near.left, top: nearTop ?? near.buttonBottom + 8, right: "auto", bottom: "auto", margin: 0, translate: "none", height: "fit-content" } : centre ? { left: centre, right: "auto", top: "10dvh", bottom: "auto", margin: 0, translate: "-50% 0" } : undefined}
-      className={dock ? `nested-panel nested-center fixed h-fit overflow-hidden rounded-2xl border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-transparent` : `fixed border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-black/50 ${side && !compact && !expanded ? `drawer inset-y-0 right-0 m-0 ml-auto h-dvh max-h-dvh w-full rounded-none border-y-0 border-r-0 ${expanded ? "max-w-none" : aside ? "max-w-5xl" : "max-w-3xl"}` : `compact-modal inset-0 m-auto overflow-hidden rounded-2xl ${compact ? "inset-y-auto bottom-[10dvh] top-0 h-fit max-h-[calc(90dvh-2rem)] w-[min(28rem,calc(100vw-2rem))]" : `h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] ${expanded ? "max-w-6xl" : aside ? "max-w-5xl" : "max-w-3xl"}`}`}`}
+      className={dock ? `nested-panel nested-center fixed h-fit overflow-hidden rounded-2xl border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-transparent` : `fixed border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-black/50 ${!compact && expanded ? "compact-modal inset-0 m-0 h-dvh max-h-dvh w-screen max-w-none overflow-hidden rounded-none border-0" : side && !compact ? `drawer inset-y-0 right-0 m-0 ml-auto h-dvh max-h-dvh w-full rounded-none border-y-0 border-r-0 max-w-6xl` : `compact-modal inset-0 m-auto overflow-hidden rounded-2xl ${compact ? `inset-y-auto bottom-[4dvh] top-0 h-fit max-h-[calc(96dvh-2rem)] ${narrow ? "w-[min(28rem,calc(100vw-2rem))]" : "w-[min(36rem,calc(100vw-2rem))]"}` : `h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] ${aside ? "max-w-5xl" : "max-w-3xl"}`}`}`}
     >
       {form}
     </dialog>

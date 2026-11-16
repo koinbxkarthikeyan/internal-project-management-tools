@@ -1,7 +1,8 @@
 "use client";
 
 import { DisabledTip } from "./DisabledTip";
-import { useId, useRef, useState, type ReactNode } from "react";
+import DayField from "./DayField";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { AlertCircleIcon, EditIcon, TrashIcon } from "./icons";
 
 // Shared look of every text input, dropdown and textarea; its hover / focus / invalid states live in `.field` (styles/globals.css).
@@ -54,6 +55,8 @@ type SelectFieldProps = {
   /** Why it is disabled; shown as a tooltip on hover and keyboard focus. */
   disabledReason?: string;
   className?: string;
+  /** The list is laid over the page (fixed position), so a scrolling or clipping box around the field (a popup, a card) neither cuts it off nor has to scroll to show it. */
+  floating?: boolean;
 };
 
 function FieldOrNot({ label, required, children }: { label?: string; required?: boolean; children: ReactNode }) {
@@ -104,7 +107,7 @@ type SearchableSelectProps = Omit<SelectFieldProps, "label"> & CreateProps & {
   hideArrow?: boolean;
 };
 
-export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hideArrow, value, onChange, options, groups, placeholder, required, disabled, disabledReason, onCreate, action, onRenameOption, onRemoveOption, removeBlocked, className = "" }: SearchableSelectProps) {
+export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hideArrow, floating, value, onChange, options, groups, placeholder, required, disabled, disabledReason, onCreate, action, onRenameOption, onRemoveOption, removeBlocked, className = "" }: SearchableSelectProps) {
   const listId = useId();
   const [open, setOpen] = useState(false);
   const [up, setUp] = useState(false);
@@ -117,6 +120,14 @@ export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hi
   };
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
+  // A floating list is placed once, when it opens: it closes if the page behind it scrolls or resizes (scrolling inside the list itself doesn't count).
+  useEffect(() => {
+    if (!floating || !open) return;
+    const away = (e: Event) => !(e.target instanceof Node && wrapRef.current?.contains(e.target)) && setOpen(false);
+    window.addEventListener("scroll", away, true);
+    window.addEventListener("resize", away);
+    return () => (window.removeEventListener("scroll", away, true), window.removeEventListener("resize", away));
+  }, [floating, open]);
   // The row being renamed (with its new text), the row being asked "Delete?", and the message for that row.
   const [edit, setEdit] = useState<{ from: string; text: string } | null>(null);
   const [asking, setAsking] = useState<string | null>(null);
@@ -208,7 +219,7 @@ export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hi
             strokeLinecap="round"
             strokeLinejoin="round"
             aria-hidden="true"
-            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted"
+            className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted transition-transform duration-150 ${open ? "rotate-180" : ""}`}
           >
             <path d="m5 8 5 5 5-5" />
           </svg>
@@ -220,8 +231,21 @@ export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hi
       {required && <input tabIndex={-1} aria-hidden="true" required value={value} onChange={() => {}} className="pointer-events-none absolute bottom-0 left-1/2 h-0 w-0 opacity-0" />}
       {open && !disabled && (
         // Only the options scroll; the action ("+ Add …") stays fixed at the bottom of the list.
+        // Scrolled into view, so a list opening near the bottom of a scrolling box (a panel, a popup) is never cut off.
         <div
-          className={`anim-menu-in absolute inset-x-0 z-20 flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-menu ${up ? "bottom-full mb-1" : "top-full mt-1"}`}
+          ref={(el) => {
+            if (!el) return;
+            if (!floating) return void requestAnimationFrame(() => el.scrollIntoView({ block: "nearest" }));
+            // Floating: placed under the field (or above it when there is little room below), in window coordinates.
+            const r = wrapRef.current?.getBoundingClientRect();
+            if (!r) return;
+            const above = window.innerHeight - r.bottom < 240 && r.top > window.innerHeight - r.bottom;
+            el.style.left = `${r.left}px`;
+            el.style.width = `${r.width}px`;
+            el.style.top = above ? "auto" : `${r.bottom + 4}px`;
+            el.style.bottom = above ? `${window.innerHeight - r.top + 4}px` : "auto";
+          }}
+          className={`anim-menu-in flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-menu ${floating ? "fixed z-[60]" : `absolute inset-x-0 z-20 ${up ? "bottom-full mb-1" : "top-full mt-1"}`}`}
         >
           <ul id={listId} role="listbox" aria-label={label ?? ariaLabel} className="max-h-48 min-h-0 flex-1 overflow-y-auto p-1">
           {rows.length === 0 && <li className="px-3 py-2 text-sm text-muted">No matches.</li>}
@@ -358,6 +382,8 @@ type TextFieldProps = {
 };
 
 export function TextField({ label, value, onChange, placeholder, required, type = "text", disabled, disabledReason, min, max, step, className }: TextFieldProps) {
+  // Every date is picked from the application's calendar, not the browser's own date box.
+  if (type === "date") return <DayField label={label} value={value} onChange={onChange} required={required} disabled={disabled} disabledReason={disabledReason} min={min} max={max} allowWeekends fieldClassName={className} />;
   return (
     <Field label={label} required={required} className={className}>
       <DisabledTip reason={disabled && disabledReason}>
@@ -386,18 +412,20 @@ type TextAreaFieldProps = {
   required?: boolean;
   rows?: number;
   invalid?: boolean;
+  /** Fill the height the parent gives it (a large form with room to spare) instead of a fixed number of rows; never shorter than 5rem. */
+  grow?: boolean;
 };
 
-export function TextAreaField({ label, value, onChange, placeholder, required, rows = 3, invalid }: TextAreaFieldProps) {
+export function TextAreaField({ label, value, onChange, placeholder, required, rows = 3, invalid, grow = false }: TextAreaFieldProps) {
   return (
-    <Field label={label} required={required}>
+    <Field label={label} required={required} className={grow ? "h-full" : ""}>
       <textarea
         value={value}
         rows={rows}
         required={required}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className={`${controlClass} resize-y py-2 ${invalid ? "border-red-500 bg-red-500/10" : ""}`}
+        className={`${controlClass} py-2 ${grow ? "min-h-20 flex-1 resize-none" : "resize-y"} ${invalid ? "border-red-500 bg-red-500/10" : ""}`}
       />
     </Field>
   );
@@ -467,7 +495,7 @@ export function ComboField({ label, value, onChange, suggestions, placeholder, r
             }}
             className={`${controlClass} h-10 pr-8`}
           />
-          <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
+          <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted transition-transform duration-150 ${open ? "rotate-180" : ""}`}>
             <path d="m5 8 5 5 5-5" />
           </svg>
         </span>

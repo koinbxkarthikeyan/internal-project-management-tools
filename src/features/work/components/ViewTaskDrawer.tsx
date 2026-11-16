@@ -1,7 +1,7 @@
 "use client";
 
 import { statusOptionsFor } from "@/features/backlog/statusOptions";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/FormControls";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -16,6 +16,7 @@ import { formatDeadline } from "@/features/backlog/utils";
 import { getErrorMessage } from "@/lib/apiClient";
 import { sprintLabel } from "@/constants/backlog-options";
 import { carryOverSource } from "@/features/backlog/carryOver";
+import { taskRights } from "../taskRights";
 import { useItemDetailStore } from "@/stores/itemDetailStore";
 import type { BacklogItemData, Status } from "@/types/backlog";
 import { FieldError } from "@/components/ui/FieldError";
@@ -26,19 +27,36 @@ type Row = { label: string; value: React.ReactNode };
  * Details of a task. For everyone it is read-only (nothing to delete), except that the task's Lead can also manage
  * the Assigned Users and set the Developer ETA here.
  */
-export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly = false }: { item: BacklogItemData; onClose: () => void; /** Details only: no editing controls, even for the task's Lead. */ viewOnly?: boolean }) {
+export default function ViewTaskDrawer({ item: listItem, onClose, viewOnly: forceViewOnly = false, noExpand = false }: { item: BacklogItemData; onClose: () => void; /** No Expand button or Ctrl+F. */ noExpand?: boolean; /** Details only: no editing controls, even for the task's Lead. */ viewOnly?: boolean }) {
   const { allPods, sprints, items, hiddenItems, leadUpdateItem } = useBacklog();
-  // A task of a closed sprint is history: details only, no status / assignee / deadline changes.
-  const sprintClosed = sprints.some((s) => s.name === item.sprint && s.status === "Closed");
   const { user, isAdmin } = useAuth();
   const toast = useToast();
   // The task's detail (activity, and whether I may change it) comes from the backend when the panel opens.
   const [detail, setDetail] = useState<BacklogItemData | null>(null);
+  // The lists carry only part of a task (the Lead, assignees, description… can be missing), so what the panel shows is the list's copy completed by the task's own detail.
+  const item = useMemo<BacklogItemData>(() => (detail ? { ...listItem, ...detail } : listItem), [listItem, detail]);
+  // A task of a closed sprint is history: details only, no status / assignee / deadline changes.
+  const sprintClosed = sprints.some((s) => s.name === item.sprint && s.status === "Closed");
   const [detailError, setDetailError] = useState("");
+  const activity = detail?.activity?.length ? detail.activity : listItem.activity;
+  const { isLead, canEdit, etaLocked } = taskRights({ item, user, isAdmin, sprintClosed, viewOnly: forceViewOnly });
+  const [assigned, setAssigned] = useState(item.assignees ?? "");
+  const [leadDeadline, setLeadDeadline] = useState(item.leadDeadline ?? "");
+  const [status, setStatus] = useState<Status>(item.status);
+  const [reason, setReason] = useState(item.blockedReason ?? "");
+  const [error, setError] = useState("");
   useEffect(() => {
     let cancelled = false;
     useItemDetailStore.getState().get(item.id).then(
-      (d) => !cancelled && setDetail(d),
+      (d) => {
+        if (cancelled) return;
+        setDetail(d);
+        // The fields started from the list's copy; they now take the task's own values, so a field the list left out is never shown (or saved) empty by mistake.
+        setAssigned(d.assignees ?? "");
+        setLeadDeadline(d.leadDeadline ?? "");
+        setStatus(d.status);
+        setReason(d.blockedReason ?? "");
+      },
       // The list's copy is shown, but the person is told the latest details (activity, what they may change) are missing.
       (err) => !cancelled && setDetailError(getErrorMessage(err)),
     );
@@ -46,19 +64,6 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
       cancelled = true;
     };
   }, [item.id]);
-  const activity = detail?.activity?.length ? detail.activity : item.activity;
-  const byName = !!item.lead && user?.name.toLowerCase() === item.lead.toLowerCase();
-  const isLead = !forceViewOnly && !sprintClosed && !(detail?.readOnly ?? item.readOnly) && (detail?.canLeadEdit ?? item.canLeadEdit ?? byName);
-  // An assigned user (not the Lead) may change the task's status and its Developer ETA, nothing else.
-  const isAssignee = !isLead && !forceViewOnly && !sprintClosed && !(detail?.readOnly ?? item.readOnly) && !!user && [detail ?? item, item].some((t) => (t.assigneeIds ?? []).map(String).includes(String(user.id)) || (t.assignees ?? "").split(",").some((n) => n.trim().toLowerCase() === user.name.toLowerCase()));
-  const canEdit = isLead || isAssignee;
-  // The Developer ETA is entered once by the Lead / an assigned user; after that only a Super Admin or an enabled Admin may change it.
-  const etaLocked = !isAdmin && !!item.leadDeadline;
-  const [assigned, setAssigned] = useState(item.assignees ?? "");
-  const [leadDeadline, setLeadDeadline] = useState(item.leadDeadline ?? "");
-  const [status, setStatus] = useState<Status>(item.status);
-  const [reason, setReason] = useState(item.blockedReason ?? "");
-  const [error, setError] = useState("");
   const needsReason = status === "Blocked" || status === "On hold";
   // Any status change can carry a comment; Blocked and On hold require one (why).
   const commenting = needsReason || status !== item.status;
@@ -95,7 +100,16 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
   ];
 
   return (
-    <BacklogDrawer heading="Task details" subtitle="Everything about this task in one place." submitLabel="Save changes" onSubmit={canEdit ? save : () => {}} canSubmit={taskChanged} onClose={onClose} viewOnly={!canEdit}>
+    <BacklogDrawer noExpand={noExpand} heading="Task details" subtitle="Everything about this task in one place." submitLabel="Save changes" onSubmit={canEdit ? save : () => {}} canSubmit={taskChanged} onClose={onClose}
+      viewOnly={!canEdit}
+      // Wide: the task on the left, its logged hours and activity beside it, so the panel needs little or no scrolling. Narrow: one column, in the same order.
+      aside={
+        <div className="flex flex-col gap-4 px-6 py-5 @3xl:overflow-y-auto">
+          <TaskLoggedHours taskId={item.id} />
+          <ActivityTimeline item={item} activity={activity} />
+        </div>
+      }
+    >
       {detailError && (
         <FieldError>
           Couldn&apos;t load the latest details ({detailError}). What you see may be out of date.
@@ -121,10 +135,6 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
             </div>
           ))}
       </dl>
-      <div>
-        <p className="text-xs font-medium text-muted">Task Title</p>
-        <p className="mt-1 break-words text-sm font-semibold">{item.title}</p>
-      </div>
       {canEdit && (
         <div className="flex flex-col gap-4 rounded-xl border border-border bg-background/60 p-4">
           <p className="text-xs text-muted">{isLead ? "You lead this task. Update status, assignees and Developer ETA." : "You're assigned. Update status and Developer ETA."}</p>
@@ -160,8 +170,6 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
           <p className="mt-1 whitespace-pre-line break-words text-sm">{item.notes}</p>
         </div>
       )}
-      <TaskLoggedHours taskId={item.id} />
-      <ActivityTimeline compact item={detail ?? item} activity={activity} />
     </BacklogDrawer>
   );
 }

@@ -20,7 +20,7 @@ type BacklogListProps = {
   onLoadMore?: () => void;
 };
 
-const COLUMNS = ["Title", "Type", "Priority", "Status", "Sprint", "Owner", "Expected ETA", "Actions"];
+const COLUMNS = ["Title", "Type", "Priority", "Status", "Sprint", "Owner", "Assignee", "Expected ETA", "Actions"];
 
 export default function BacklogList({ items, total, actions, leavingIds, emptyTitle = "No items yet", emptyMessage, header, hasMore = false, loadingMore = false, onLoadMore }: BacklogListProps) {
   const scroller = useRef<HTMLUListElement>(null);
@@ -42,7 +42,7 @@ export default function BacklogList({ items, total, actions, leavingIds, emptyTi
     >
       {header}
       <div
-        className={`hidden border-b border-border bg-background/60 px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted ${ROW_GRID}`}
+        className={`hidden border-b border-border bg-background/60 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted ${ROW_GRID}`}
         aria-hidden="true"
       >
         {COLUMNS.map((c, i) => (

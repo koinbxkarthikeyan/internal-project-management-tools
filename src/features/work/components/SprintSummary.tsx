@@ -48,7 +48,7 @@ export default function SprintSummary({ logged, limit, expected, hasPerson }: Sp
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p>
-          <span className={`text-2xl font-semibold tabular-nums ${state.text}`}>{formatHours(logged)}</span>{" "}
+          <span className={`text-xl font-semibold tabular-nums ${state.text}`}>{formatHours(logged)}</span>{" "}
           <span className={`text-sm font-medium ${state.text}`}>logged</span>
           <span className="text-sm text-muted"> · </span>
           <span className="text-sm font-semibold tabular-nums">{formatHours(expected)}</span>{" "}

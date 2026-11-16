@@ -49,7 +49,7 @@ export default function BacklogPage() {
     onToggleHidden: (item) =>
       exitThen(item.id, async () => {
         if (item.hidden) {
-          if (await restoreItem(item.id)) toast.show(`${item.title} restored to All items`);
+          if (await restoreItem(item.id)) toast.show(`${item.title} restored to Backlog items`);
         } else if (await hideItem(item.id)) {
           toast.show(`${item.title} hidden`, "info");
         }
@@ -86,7 +86,7 @@ export default function BacklogPage() {
   const otherFilters = Object.entries(filters).some(([key, value]) => key !== "status" && !!value);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <BacklogHeader />
       <StatusCards items={matching} selected={filters.status} onSelect={(status) => setFilters({ ...filters, status })} partial={!itemsPaging.complete} partialTotal={otherFilters ? undefined : itemsPaging.totalShown} />
       <BacklogFilters filters={filters} onChange={setFilters} options={{ ...STATIC_FILTER_OPTIONS, owner: owners, sprint: sprintNames.map((n) => ({ value: n, label: sprintLabel(n) })) }} />

@@ -11,7 +11,7 @@ export const BACKLOG_NAV_ITEMS: readonly {
   href: string;
 }[] = [
   { id: "overview", label: "Overview", href: "/overview" },
-  { id: "all-items", label: "All items", href: "/all-items" },
+  { id: "all-items", label: "Backlog items", href: "/all-items" },
   { id: "sprint-plan", label: "Sprint plan", href: "/sprint-plan" },
   { id: "completed", label: "Done", href: "/completed" },
   { id: "owners-sprints", label: "Owners & sprints", href: "/owners-sprints" },

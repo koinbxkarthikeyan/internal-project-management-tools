@@ -46,7 +46,7 @@ export default function OverviewPage({ tabs }: { /** Shown in the page header (a
     .slice(0, 5);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <PageHeader title="Overview" description="A snapshot of backlog health across all sprints." actions={tabs} />
       <BacklogSummary items={items} />
 
@@ -65,7 +65,7 @@ export default function OverviewPage({ tabs }: { /** Shown in the page header (a
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
           <h2 className="text-sm font-semibold">Upcoming Expected ETAs</h2>
           <Link href="/all-items" className="text-sm text-accent hover:underline">
-            View all items
+            View backlog items
           </Link>
         </div>
         {upcoming.length === 0 && (

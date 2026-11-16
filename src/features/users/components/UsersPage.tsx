@@ -5,8 +5,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import ActionsMenu from "@/components/ui/ActionsMenu";
 import EmptyState from "@/components/ui/EmptyState";
-import FilterBar, { FILTER_SELECT_CLASS, FilterSegments } from "@/components/ui/FilterBar";
-import { SearchableSelect } from "@/components/ui/FormControls";
+import FilterBar, { FilterPill, FilterSegments } from "@/components/ui/FilterBar";
 import { EditIcon, EyeIcon, EyeOffIcon, PlusIcon, TrashIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -57,7 +56,7 @@ export default function UsersPage() {
 
   if (!isAdmin) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-5">
         <PageHeader title="Team Members" />
         <section className="rounded-2xl border border-border bg-surface">
           <EmptyState title="Admins only" description="Admins only." />
@@ -70,7 +69,7 @@ export default function UsersPage() {
 
   if (status === "error") {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-5">
         <PageHeader title="Team Members" />
         <section role="alert" className="rounded-2xl border border-border bg-surface">
           <EmptyState
@@ -92,7 +91,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
         title="Team Members"
         description="Only registered users can sign in. Admins add team members; only the Super Admin can edit, delete or disable accounts."
@@ -111,6 +110,7 @@ export default function UsersPage() {
       />
 
       <FilterBar
+        count={{ shown: shown.length, total: users.length }}
         search={<BacklogSearch value={filters.query} onChange={(query) => setFilters({ ...filters, query })} placeholder="Search name, email or team…" ariaLabel="Search team members" />}
         activeCount={Object.values(filters).filter(Boolean).length}
         onClear={() => setFilters({ query: "", team: "", role: "", status: "" })}
@@ -121,8 +121,8 @@ export default function UsersPage() {
           onChange={(status) => setFilters({ ...filters, status })}
           options={[{ value: "", label: "All" }, { value: "Enabled", label: "Enabled" }, { value: "Disabled", label: "Disabled" }]}
         />
-        <SearchableSelect ariaLabel="Filter by team" value={filters.team} onChange={(team) => setFilters({ ...filters, team })} options={teamChoices} placeholder="Team: All" className={FILTER_SELECT_CLASS} />
-        <SearchableSelect ariaLabel="Filter by role" value={filters.role} onChange={(role) => setFilters({ ...filters, role })} options={roleChoices} placeholder="Role: All" className={FILTER_SELECT_CLASS} />
+        <FilterPill label="Team" value={filters.team} onChange={(team) => setFilters({ ...filters, team })} options={teamChoices} />
+        <FilterPill label="Role" value={filters.role} onChange={(role) => setFilters({ ...filters, role })} options={roleChoices} />
       </FilterBar>
 
       <TeamsPanel users={users} />
