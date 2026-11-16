@@ -7,7 +7,7 @@ export type Rec = Record<string, unknown>;
 export type Req = { params: Rec; data: Rec; query: Rec };
 
 export const nowISO = () => new Date().toISOString();
-export const todayISO = () => new Date().toISOString().slice(0, 10);
+export { todayISO } from "@/lib/today";
 export const addDays = (iso: string, days: number) => {
   const d = new Date(`${iso}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);

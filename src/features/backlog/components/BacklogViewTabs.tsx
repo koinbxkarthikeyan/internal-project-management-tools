@@ -1,4 +1,5 @@
 import { DisabledTip } from "@/components/ui/DisabledTip";
+import { useTabKeys } from "@/hooks/useTabKeys";
 export type BacklogView = "visible" | "hidden";
 
 type BacklogViewTabsProps = {
@@ -13,6 +14,7 @@ const TABS: { id: BacklogView; label: string }[] = [
 ];
 
 export default function BacklogViewTabs({ view, onChange, counts }: BacklogViewTabsProps) {
+  useTabKeys(TABS.map((t) => ({ id: t.id, disabled: t.id !== view && counts[t.id] === 0 })), (id) => onChange(id as BacklogView));
   return (
     <div role="group" aria-label="View" className="inline-flex rounded-xl border border-border bg-surface p-1">
       {TABS.map((t) => {

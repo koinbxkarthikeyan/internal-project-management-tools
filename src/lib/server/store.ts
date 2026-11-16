@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { todayISO } from "@/lib/today";
+import { dailyBackup } from "./dailyBackup";
 
 /**
  * The shared storage of the app, on the machine that runs it: one JSON document for the data (written whole and atomically after every change, so a crash never leaves a
@@ -39,7 +41,21 @@ function writeAtomic(file: string, data: string | Uint8Array) {
 
 const dbFile = () => path.join(dataDir(), "db.json");
 export const readDbText = (): string | null => (fs.existsSync(dbFile()) ? fs.readFileSync(dbFile(), "utf8") : null);
-export const writeDbText = (text: string) => writeAtomic(dbFile(), text);
+/**
+ * Where the daily safety copies of the database go: `KOINBX_BACKUP_DIR`, or a folder next to the data folder (`.data-backups`). Never inside `public/`, so nothing is served. Point it at
+ * another disk (or a synced folder) to survive a failed disk; `KOINBX_BACKUP_KEEP` is how many days are kept (14 by default).
+ */
+export const backupDir = () => path.resolve(/*turbopackIgnore: true*/ process.env.KOINBX_BACKUP_DIR || `${dataDir()}-backups`);
+
+export const writeDbText = (text: string) => {
+  writeAtomic(dbFile(), text);
+  // The daily copy must never stop a save, so any trouble with it is only reported.
+  try {
+    dailyBackup(text, { dir: backupDir(), day: todayISO(), keep: Number(process.env.KOINBX_BACKUP_KEEP) || 14 });
+  } catch (err) {
+    console.error("The daily backup could not be written:", err);
+  }
+};
 export const bumpRev = () => ++state().rev;
 
 /** One request at a time touches the data (the handlers read and change it in place), so two people saving together can never overwrite each other. */
@@ -53,7 +69,7 @@ export function runExclusive<T>(fn: () => Promise<T>): Promise<T> {
 // ---------- who is asking ----------
 
 /** The signed-in person of the request being answered (set by the API route from the session cookie; handlers read it through `currentUser()`). */
-export const requestContext = new AsyncLocalStorage<{ userId?: number }>();
+export const requestContext = new AsyncLocalStorage<{ userId?: number; ip?: string }>();
 
 // ---------- images ----------
 

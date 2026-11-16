@@ -1,5 +1,6 @@
 "use client";
 
+import { disclosureKeys } from "@/lib/disclosureKeys";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import PageHeader from "@/components/layout/PageHeader";
@@ -51,16 +52,38 @@ export default function QaTaskPage() {
   const [reopening, setReopening] = useState(false);
   // The main task's full details, opened by the arrow beside the Owner name.
   const [more, setMore] = useState(false);
-  const header = useRef<HTMLDivElement>(null);
-  // The details float over the page like a menu: a click outside them or Escape closes them.
+  const panel = useRef<HTMLDivElement>(null);
+  const toggler = useRef<HTMLButtonElement>(null);
+  // The details float over the page like a menu: a click (or tap) anywhere outside them, other than on their own arrow button, or Escape closes them.
   useEffect(() => {
     if (!more) return;
-    const away = (e: MouseEvent) => !header.current?.contains(e.target as Node) && setMore(false);
+    const away = (e: PointerEvent) => {
+      const t = e.target as HTMLElement;
+      // A form or list opened from inside the details (drawn on the page itself) is part of them.
+      if (t.closest?.("dialog, [role=dialog], [popover]")) return;
+      if (!panel.current?.contains(t) && !toggler.current?.contains(t)) setMore(false);
+    };
     const esc = (e: KeyboardEvent) => e.key === "Escape" && setMore(false);
-    document.addEventListener("mousedown", away);
+    document.addEventListener("pointerdown", away);
     document.addEventListener("keydown", esc);
-    return () => (document.removeEventListener("mousedown", away), document.removeEventListener("keydown", esc));
+    return () => (document.removeEventListener("pointerdown", away), document.removeEventListener("keydown", esc));
   }, [more]);
+  // Down arrow opens the details (↑ closes them), as long as the person isn't typing, choosing from a list, or in a form; the arrow keys keep scrolling the page otherwise.
+  const canMore = !!item && ticketsVisible(item.status) && !(mine && !(item.status === "Ready for QA" || item.status === "Testing"));
+  useEffect(() => {
+    if (!canMore) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.key !== "ArrowDown" && e.key !== "ArrowUp") || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.defaultPrevented) return;
+      const t = e.target as HTMLElement | null;
+      if (t?.closest("input, textarea, select, [contenteditable=''], [contenteditable=true], [role=combobox], [role=listbox], [role=menu], [role=option], [role=menuitem]")) return;
+      if (document.querySelector("dialog[open]")) return;
+      if ((e.key === "ArrowDown") === more) return;
+      e.preventDefault();
+      setMore(e.key === "ArrowDown");
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [canMore, more]);
   // Opening a task for testing happens here, on the task's own page (its status can be changed once all Tickets are Done).
   const [asking, setAsking] = useState(false);
 
@@ -93,7 +116,7 @@ export default function QaTaskPage() {
   return (
     <div className="flex flex-col gap-6">
       <BackLink href={base.href} label={base.label} />
-      <div ref={header} className="relative flex flex-col gap-6">
+      <div className="relative flex flex-col gap-6">
       <PageHeader
         title={item.title}
         description={
@@ -101,11 +124,15 @@ export default function QaTaskPage() {
             {item.id}{item.type ? ` · ${item.type}` : ""} · {sprintLabel(item.sprint)} · Owner {item.owner}
             {tickets && !(mine && !withQa) && (
               <button
+                ref={toggler}
                 type="button"
                 onClick={() => setMore((m) => !m)}
+                onKeyDown={disclosureKeys(more, () => setMore((m) => !m))}
                 aria-expanded={more}
+                aria-keyshortcuts="ArrowDown ArrowUp"
+                data-disclosure
                 aria-label={more ? "Hide task details" : "Show more task details"}
-                title={more ? "Hide task details" : "More task details"}
+                title={more ? "Hide task details (Up arrow)" : "More task details (Down arrow)"}
                 className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border bg-hover text-foreground transition-colors hover:bg-border focus-visible:outline-2 focus-visible:outline-accent"
               >
                 <ChevronRightIcon width={14} height={14} className={`transition-transform ${more ? "rotate-90" : ""}`} />
@@ -144,7 +171,7 @@ export default function QaTaskPage() {
       />
       {tickets && !(mine && !withQa) && <QaTaskMeta task={item} />}
       {more && tickets && !(mine && !withQa) && (
-        <div className="anim-menu-in absolute inset-x-0 top-full z-30 mt-2 max-h-[min(36rem,calc(100dvh-8rem))] overflow-y-auto overscroll-contain rounded-2xl shadow-menu">
+        <div ref={panel} className="anim-menu-in absolute inset-x-0 top-full z-30 mt-2 max-h-[min(36rem,calc(100dvh-8rem))] overflow-y-auto overscroll-contain rounded-2xl shadow-menu">
           <ViewTaskDrawer key={`${item.id}:${item.status}`} inline hideComments item={item} onClose={() => setMore(false)} onSaved={load} />
         </div>
       )}

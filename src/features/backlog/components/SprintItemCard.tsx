@@ -1,7 +1,8 @@
 import type { KeyboardEvent } from "react";
+import PersonLabel from "@/components/ui/PersonLabel";
 import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
 import type { BacklogItemData } from "@/types/backlog";
-import { formatDeadline, initials } from "../utils";
+import { formatDeadline } from "../utils";
 
 type SprintItemCardProps = {
   item: BacklogItemData;
@@ -39,15 +40,7 @@ export default function SprintItemCard({ item, onOpen }: SprintItemCardProps) {
       </div>
 
       <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs">
-        <span className="flex min-w-0 items-center gap-1.5">
-          <span
-            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[10px] font-medium text-accent"
-            aria-hidden="true"
-          >
-            {initials(item.owner)}
-          </span>
-          <span className="truncate">{item.owner}</span>
-        </span>
+        <PersonLabel kind="owner" name={item.owner} size={20} className="gap-1.5" />
         <time dateTime={item.deadline} className="shrink-0 text-muted">
           {formatDeadline(item.deadline)}
         </time>

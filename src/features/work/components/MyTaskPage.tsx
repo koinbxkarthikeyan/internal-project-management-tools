@@ -5,7 +5,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
-import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
+import { useTabKeys } from "@/hooks/useTabKeys";
+import { PriorityBadge, StatusBadge, TypeLabel } from "@/components/ui/Badge";
 import { DisabledTip } from "@/components/ui/DisabledTip";
 import { unreadForTask, unreadNoticesForTask } from "@/features/notifications/forTask";
 import { useOpenNotification } from "@/features/notifications/open";
@@ -20,8 +21,9 @@ import { useBacklog } from "@/features/backlog/context/BacklogContext";
 import { formatDeadline } from "@/features/backlog/utils";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useMyTasksStore } from "@/stores/myTasksStore";
-import type { BacklogItemData } from "@/types/backlog";
-import { sprintLabel } from "@/constants/backlog-options";
+import type { BacklogItemData, Status } from "@/types/backlog";
+import QaStatusDialog from "@/features/backlog/components/QaStatusDialog";
+import { sprintLabel, statusLabel } from "@/constants/backlog-options";
 import { MY_TASK_HREF } from "@/constants/work";
 import { DEVELOPER_ETA, EXPECTED_ETA } from "@/constants/eta";
 
@@ -39,7 +41,7 @@ const TABS: { id: Tab; label: string }[] = [
  * enough for either. Who "I" am is decided by user id (with the name only as a fallback when the backend sent no id).
  */
 export default function MyTaskPage() {
-  const { items: shared, activeSprint } = useBacklog();
+  const { items: shared, activeSprint, refreshItems, sprints } = useBacklog();
   const { user } = useAuth();
   const router = useRouter();
   // A task opens as its own full page (its details, its Tickets as a board, history and comments); Back returns here.
@@ -112,6 +114,7 @@ export default function MyTaskPage() {
   // tab (in tab order) that has some, so a page never opens on an empty tab while another has tasks. With no tasks anywhere it stays on My Tasks.
   const emptyTab = (id: Tab) => lists[id].length === 0;
   const activeTab: Tab = !emptyTab(tab) ? tab : (TABS.find((t) => !emptyTab(t.id))?.id ?? "mine");
+  useTabKeys(TABS.map((t) => ({ id: t.id, disabled: emptyTab(t.id) })), (id) => setTab(id as Tab));
   const shown = lists[activeTab];
   const COPY: Record<Tab, { noun: string; title: string; description: string; caption: string }> = {
     mine: { noun: "assigned to you", title: "No tasks for you yet", description: "Tasks where you are an Assigned User will show up here.", caption: "Tasks assigned to you" },
@@ -120,6 +123,15 @@ export default function MyTaskPage() {
   };
   const copy = COPY[activeTab];
   const mine = (item: BacklogItemData) => !!user && (item.assigneeIds ?? []).includes(user.id);
+  // Any card (but a closed sprint's or a read-only one) can be dragged, and the usual comment is asked for on a drop. Where it may be dropped is limited below; the server still has the
+  // last word, exactly as for the status field in the task details, and shows its reason if it refuses.
+  const { isAdmin, isQa } = useAuth();
+  const [moving, setMoving] = useState<{ task: BacklogItemData; to: Status } | null>(null);
+  const canChangeStatus = (t: BacklogItemData) => !!user && !t.readOnly && !sprints.some((s) => s.name === t.sprint && s.status === "Closed");
+  const moveTask = (t: BacklogItemData, to: Status) => setMoving({ task: t, to });
+  // Where a card may be dropped, by role (the other columns are shown but take no drop): normal users on In Progress or Ready for QA (handing a task over); the QA team only on Testing or
+  // Done; the admins on any column.
+  const canDrop = (_t: BacklogItemData, to: Status) => isAdmin || (isQa ? to === "Testing" || to === "Done" : to === "In progress" || to === "Ready for QA");
 
   function handleKeyDown(e: KeyboardEvent<HTMLTableRowElement>, item: BacklogItemData) {
     if (e.key === "Enter" || e.key === " ") {
@@ -184,7 +196,7 @@ export default function MyTaskPage() {
         })}
       </div>
       {view === "board" && shown.length > 0 ? (
-        <MyTaskBoard tasks={shown} isMine={mine} openTicketsFor={openTicketsFor} unreadFor={unreadFor} onBell={openLatestNotice} onOpen={(t) => (useNotificationStore.getState().markTaskRead(t), setOpen(t))} />
+        <MyTaskBoard canDrag={canChangeStatus} onMove={moveTask} canDrop={canDrop} tasks={shown} isMine={mine} openTicketsFor={openTicketsFor} unreadFor={unreadFor} onBell={openLatestNotice} onOpen={(t) => (useNotificationStore.getState().markTaskRead(t), setOpen(t))} />
       ) : (
       <section className="overflow-hidden rounded-2xl border border-border bg-surface">
         {shown.length === 0 ? (
@@ -220,7 +232,7 @@ export default function MyTaskPage() {
                   >
                     <td data-label="ID" className="whitespace-nowrap px-4 py-2 font-mono text-xs text-muted">{item.id}</td>
                     <td data-primary className="max-w-xs truncate px-4 py-2 font-medium">{item.title}{openTicketsFor(item) > 0 && <span className="ml-2 rounded-full bg-amber-500/25 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-200">{openTicketsFor(item)} {openTicketsFor(item) === 1 ? "Ticket" : "Tickets"} for you</span>}</td>
-                    <td data-label="Type" className="whitespace-nowrap px-4 py-2 text-muted">{item.type ?? "–"}</td>
+                    <td data-label="Type" className="whitespace-nowrap px-4 py-2 text-muted"><TypeLabel type={item.type} /></td>
                     <td data-label="Priority" className="px-4 py-2">
                       <PriorityBadge priority={item.priority} />
                     </td>
@@ -250,6 +262,18 @@ export default function MyTaskPage() {
 </div>
         )}
       </section>
+      )}
+      {moving && (
+        <QaStatusDialog
+          key={`${moving.task.id}:${moving.to}`}
+          task={moving.task}
+          status={moving.to}
+          title={`Move to ${statusLabel(moving.to)}`}
+          confirm={`Move to ${statusLabel(moving.to)}`}
+          placeholder="What did you do? Add a note about this status change"
+          onClose={() => setMoving(null)}
+          onDone={() => (void loadMine(scope, true), refreshItems())}
+        />
       )}
     </div>
   );

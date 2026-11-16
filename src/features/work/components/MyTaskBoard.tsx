@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { StatusBadge } from "@/components/ui/Badge";
 import ColumnEmpty from "@/components/ui/ColumnEmpty";
 import { sprintLabel } from "@/constants/backlog-options";
@@ -10,12 +11,13 @@ import CreateTicketButton from "@/features/backlog/components/CreateTicketButton
 import { formatDeadline } from "@/features/backlog/utils";
 
 /** The columns, in flow order, and the statuses each holds (Blocked and On hold stay in To Do with their own badge, as on the Tickets board). */
-const COLUMNS: { title: string; statuses: readonly Status[] }[] = [
-  { title: "To Do", statuses: ["Open", "Blocked", "On hold"] },
-  { title: "In Progress", statuses: ["In progress"] },
-  { title: "Ready for QA", statuses: ["Ready for QA"] },
-  { title: "Testing", statuses: ["Testing"] },
-  { title: "Done", statuses: ["Done"] },
+/** `drop` is the status a card dropped on the column gets. */
+const COLUMNS: { title: string; statuses: readonly Status[]; drop: Status }[] = [
+  { title: "To Do", statuses: ["Open", "Blocked", "On hold"], drop: "Open" },
+  { title: "In Progress", statuses: ["In progress"], drop: "In progress" },
+  { title: "Ready for QA", statuses: ["Ready for QA"], drop: "Ready for QA" },
+  { title: "Testing", statuses: ["Testing"], drop: "Testing" },
+  { title: "Done", statuses: ["Done"], drop: "Done" },
 ];
 
 /**
@@ -23,13 +25,41 @@ const COLUMNS: { title: string; statuses: readonly Status[] }[] = [
  * notifications at the top right; type and sprint, the ETAs and the Ready for QA date as details). A task assigned to the signed-in person has an accent edge, one with
  * an open Ticket for them an amber edge. A card opens the task's own page, like a row does.
  */
-export default function MyTaskBoard({ tasks, isMine, openTicketsFor, unreadFor, onBell, onOpen }: { tasks: readonly BacklogItemData[]; isMine: (task: BacklogItemData) => boolean; /** How many open Tickets assigned to me a task has (it gets the amber edge). */ openTicketsFor: (task: BacklogItemData) => number; /** How many unread notices there are about a task (or my Tickets under it). */ unreadFor: (task: BacklogItemData) => number; /** Opens the latest unread notice about a task (marking it read). */ onBell: (task: BacklogItemData) => void; onOpen: (task: BacklogItemData) => void }) {
+export default function MyTaskBoard({ tasks, isMine, openTicketsFor, unreadFor, onBell, onOpen, canDrag, onMove, canDrop }: { /** A card of a task this person may change the status of can be dragged; `onMove` is told the task and the status of the column it was dropped on (it checks the move and asks for the comment). */ canDrag?: (task: BacklogItemData) => boolean; onMove?: (task: BacklogItemData, to: Status) => void; /** Whether the dragged task may be dropped on a column with this status; a column that says no does not light up and refuses the drop. */ canDrop?: (task: BacklogItemData, to: Status) => boolean; tasks: readonly BacklogItemData[]; isMine: (task: BacklogItemData) => boolean; /** How many open Tickets assigned to me a task has (it gets the amber edge). */ openTicketsFor: (task: BacklogItemData) => number; /** How many unread notices there are about a task (or my Tickets under it). */ unreadFor: (task: BacklogItemData) => number; /** Opens the latest unread notice about a task (marking it read). */ onBell: (task: BacklogItemData) => void; onOpen: (task: BacklogItemData) => void }) {
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [over, setOver] = useState<string | null>(null);
   return (
     <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
       {COLUMNS.map((col) => {
         const cards = tasks.filter((t) => col.statuses.includes(t.status));
         return (
-          <section key={col.title} aria-label={`${col.title}, ${cards.length}`} className={`flex min-w-0 flex-col gap-2 rounded-2xl border border-border bg-surface p-2.5 ${cards.length === 0 ? "self-start" : ""}`}>
+          <section
+            key={col.title}
+            aria-label={`${col.title}, ${cards.length}`}
+            onDragOver={
+              onMove
+                ? (e) => {
+                    const t = tasks.find((x) => x.id === dragging);
+                    if (t && canDrop && !canDrop(t, col.drop)) return;
+                    e.preventDefault();
+                    setOver(col.title);
+                  }
+                : undefined
+            }
+            onDragLeave={onMove ? () => setOver((o) => (o === col.title ? null : o)) : undefined}
+            onDrop={
+              onMove
+                ? (e) => {
+                    e.preventDefault();
+                    const t = tasks.find((x) => x.id === (dragging ?? e.dataTransfer.getData("text/plain")));
+                    setOver(null);
+                    setDragging(null);
+                    if (t && !col.statuses.includes(t.status) && (!canDrop || canDrop(t, col.drop))) onMove(t, col.drop);
+                  }
+                : undefined
+            }
+            className={`flex min-w-0 flex-col gap-2 self-start rounded-2xl border p-2.5 transition-colors min-h-[15.5rem] ${over === col.title ? "border-accent bg-accent-soft/30" : "border-border bg-surface"}`}
+          >
             <h2 className="flex items-baseline gap-2 px-1 text-sm font-semibold">
               {col.title} <span className="rounded-full bg-hover px-2 py-0.5 text-xs font-medium" title="Tasks">{cards.length}</span>
             </h2>
@@ -38,7 +68,13 @@ export default function MyTaskBoard({ tasks, isMine, openTicketsFor, unreadFor, 
             ) : (
               <ul className="flex flex-col gap-2">
                 {cards.map((t) => (
-                  <li key={t.id}>
+                  <li
+                    key={t.id}
+                    draggable={!!onMove && !!canDrag?.(t)}
+                    onDragStart={onMove && canDrag?.(t) ? (e) => (e.dataTransfer.setData("text/plain", t.id), (e.dataTransfer.effectAllowed = "move"), setDragging(t.id)) : undefined}
+                    onDragEnd={onMove ? () => (setDragging(null), setOver(null)) : undefined}
+                    className={dragging === t.id ? "opacity-50" : ""}
+                  >
                     <TaskCard
                       title={t.title}
                       code={t.id}
@@ -48,6 +84,7 @@ export default function MyTaskBoard({ tasks, isMine, openTicketsFor, unreadFor, 
                       onBell={() => onBell(t)}
                       tall
                       more={<TaskCardMore task={t} />}
+                      className={onMove && canDrag?.(t) ? "cursor-grab" : ""}
                       onOpen={() => onOpen(t)}
                       ariaLabel={`View ${t.title}${isMine(t) ? " (assigned to you)" : ""}`}
                       hint={openTicketsFor(t) ? `${openTicketsFor(t)} Ticket${openTicketsFor(t) === 1 ? "" : "s"} assigned to you` : isMine(t) ? "Assigned to you" : undefined}

@@ -22,7 +22,7 @@ export type DbUser = {
 };
 export type DbOwner = { id: number; name: string; role?: string; team?: string };
 export type DbPod = { id: number; name: string; hidden?: boolean };
-export type DbSprint = { id: number; name: string; startDate: string; endDate: string; goal?: string; status: "ACTIVE" | "PAUSED" | "CLOSED"; closedAt?: string; createdAt: string };
+export type DbSprint = { id: number; name: string; startDate: string; endDate: string; goal?: string; status: "ACTIVE" | "PAUSED" | "CLOSED"; closedAt?: string; createdAt: string; /** Company holidays: 0 hours for everyone. */ commonLeaves?: { date: string; description: string }[] };
 /** A reopen, kept whole in the history: who (id and name at that time), when, from which status to which, and the reason if one was given. */
 export type DbReopen = { kind: "Task" | "Ticket"; byId: number; byName: string; at: string; from: string; to: string; comment?: string };
 export type DbActivity = { id: number; text: string; createdAt: string; userId?: number; reopen?: DbReopen };
@@ -62,6 +62,13 @@ export type DbItem = {
   updatedById?: number;
   activity: DbActivity[];
 };
+/** One person's own leave day in a sprint (`hours` absent = the whole day). */
+export type DbLeave = { id: number; sprintId: number; userId: number; date: string; hours?: number };
+/**
+ * One line of the audit log: who (the signed-in person at the time, by id and by the name they had), what (`action`, a short code such as "user.role_changed"), to what (`target`, in
+ * words) and when. `detail` says how it changed ("User → Admin"). It never holds a password, a hash or a token.
+ */
+export type DbAudit = { id: number; at: string; actorId: number | null; actorName: string; action: string; target: string; detail?: string };
 export type DbEntry = { id: number; sprintId: number; userId: number; itemIds: number[]; note?: string; kind: string; fromDate: string; toDate: string; hours: number; createdAt: string };
 /** An image attached to a Ticket: its details only. The file itself is in the image store (blobStore.ts) under the same id. */
 export type DbAttachment = { id: number; itemId: number; taskId: number; name: string; type: string; size: number; originalSize?: number; createdAt: string; userId: number; /** Set when the image belongs to a comment (shown in it), not to the Ticket's own attachments. */ commentId?: number };
@@ -86,13 +93,16 @@ export type DbNotification = {
 
 export type Db = {
   version: 1;
-  seq: Record<"user" | "owner" | "pod" | "sprint" | "item" | "entry" | "comment" | "notification" | "activity" | "ticket" | "attachment", number>;
+  seq: Record<"user" | "owner" | "pod" | "sprint" | "item" | "entry" | "comment" | "notification" | "activity" | "ticket" | "attachment" | "leave" | "audit", number>;
   users: DbUser[];
   owners: DbOwner[];
   pods: DbPod[];
   sprints: DbSprint[];
   items: DbItem[];
   entries: DbEntry[];
+  leaves: DbLeave[];
+  /** The audit log, oldest first (see lib/localApi/audit.ts). */
+  audit: DbAudit[];
   comments: DbComment[];
   notifications: DbNotification[];
   attachments: DbAttachment[];
@@ -100,13 +110,15 @@ export type Db = {
 
 const empty = (): Db => ({
   version: 1,
-  seq: { user: 0, owner: 0, pod: 0, sprint: 0, item: 0, entry: 0, comment: 0, notification: 0, activity: 0, ticket: 0, attachment: 0 },
+  seq: { user: 0, owner: 0, pod: 0, sprint: 0, item: 0, entry: 0, comment: 0, notification: 0, activity: 0, ticket: 0, attachment: 0, leave: 0, audit: 0 },
   users: [],
   owners: [],
   pods: [],
   sprints: [],
   items: [],
   entries: [],
+  leaves: [],
+  audit: [],
   comments: [],
   notifications: [],
   attachments: [],
@@ -137,6 +149,9 @@ export function save(): void {
 
 /** Replaces the whole database (restoring a backup, or importing the data of a browser). The caller has already checked its shape. */
 export function replaceDb(next: Db): void {
+  // A file made before the audit log existed has none; the log is never missing.
+  next.audit ??= [];
+  next.seq = { ...empty().seq, ...next.seq };
   state().cache = next;
   save();
 }

@@ -17,6 +17,7 @@ import { refreshUsers } from "@/lib/auth/userStore";
 import { changePassword } from "@/services/authApi";
 import { updateUser } from "@/services/userService";
 import { FieldError } from "@/components/ui/FieldError";
+import AuditLogCard from "./AuditLogCard";
 import DataBackupCard from "./DataBackupCard";
 import PasswordChangeNotice from "./PasswordChangeNotice";
 
@@ -149,9 +150,10 @@ export default function SettingsPage() {
         <ul className="flex flex-wrap gap-2 text-xs">
           <li className="rounded-full border border-border px-3 py-1 text-muted">{user.role}</li>
           {user.team && <li className="rounded-full border border-border px-3 py-1 text-muted">{user.team}</li>}
-          <li className={`rounded-full px-3 py-1 font-medium ${user.status === "Enabled" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" : "bg-slate-100 text-slate-600 dark:bg-slate-500/20 dark:text-slate-300"}`}>
-            {user.status}
-          </li>
+          {/* "Enabled" is the normal state and is not shown here; only a Disabled account is flagged. */}
+          {user.status !== "Enabled" && (
+            <li className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600 dark:bg-slate-500/20 dark:text-slate-300">{user.status}</li>
+          )}
         </ul>
       </section>
 
@@ -260,6 +262,7 @@ export default function SettingsPage() {
       </div>
 
       {isSuperAdmin && !forced && <DataBackupCard />}
+      {isSuperAdmin && !forced && <AuditLogCard />}
     </div>
   );
 }

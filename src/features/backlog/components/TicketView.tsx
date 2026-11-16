@@ -1,5 +1,7 @@
 "use client";
 
+import AssigneeStack, { assigneePeople } from "@/components/ui/AssigneeStack";
+import AssigneeField, { cleanAssignees } from "./AssigneeField";
 import { useCallback, useEffect, useState } from "react";
 import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
 import { SelectField, TextAreaField } from "@/components/ui/FormControls";
@@ -20,7 +22,7 @@ import TicketAttachments from "./TicketAttachments";
 
 function Prop({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[7rem_minmax(0,1fr)] items-center gap-2 border-b border-border/60 py-2 text-sm">
+    <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2 border-b border-border/60 py-2 text-sm">
       <dt className="text-xs text-muted">{label}</dt>
       <dd className="min-w-0 break-words">{children}</dd>
     </div>
@@ -47,6 +49,8 @@ export default function TicketView({ ticket: first, task, initialStatus }: { tic
   const [description, setDescription] = useState(first.description ?? "");
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<Status>(initialStatus ?? first.status);
+  // The Assignees being picked (names separated by commas); saved with the Save button under the field.
+  const [assignDraft, setAssignDraft] = useState(first.assignees ?? "");
   const [comment, setComment] = useState("");
   const [changing, setChanging] = useState(false);
 
@@ -55,6 +59,7 @@ export default function TicketView({ ticket: first, task, initialStatus }: { tic
     setTitle(t.title);
     setDescription(t.description ?? "");
     setStatus(t.status);
+    setAssignDraft(t.assignees ?? "");
     setComment("");
     setEditing(false);
   }, []);
@@ -67,10 +72,14 @@ export default function TicketView({ ticket: first, task, initialStatus }: { tic
   }, [first.apiId, apply, initialStatus]);
   useEffect(load, [load]);
 
-  const mine = !!user && (ticket.assigneeIds ?? []).includes(user.id);
   // Only QA, the admins, the Ticket's assignee and the person who created it work on it (the creator may finish it): being the task's Lead or an Assigned User gives no say over other people's Tickets.
   const creator = !!user && ticket.createdById === user.id;
-  const canEdit = isQa || isAdmin || mine || creator;
+  // Only the person who created the Ticket (and the admins) can change its Assignees, Priority and images; its assigned users can change its status. QA and everyone else see it, and
+  // its comments and history, but change nothing here.
+  const canEdit = isAdmin || creator;
+  // The Ticket's assigned users also change its status (and only that).
+  const mine = !!user && (ticket.assigneeIds ?? []).includes(user.id);
+  const canSetDetails = canEdit;
   const dirty = title.trim() !== ticket.title || description !== (ticket.description ?? "");
   // Something was saved: My Task and the notifications read the Tickets again.
   const changed = () => user && refreshTicketViews(user.id);
@@ -99,6 +108,7 @@ export default function TicketView({ ticket: first, task, initialStatus }: { tic
       toast.show(done);
     } catch (err) {
       toast.show(getErrorMessage(err), "danger");
+      setAssignDraft(ticket.assignees ?? "");
     }
   }
 
@@ -125,8 +135,8 @@ export default function TicketView({ ticket: first, task, initialStatus }: { tic
   const btn = "h-8 rounded-lg px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60";
 
   return (
-    <div aria-label={`Ticket ${ticket.id}`} className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(24rem,30rem)] xl:items-start">
-      <article className="flex min-w-0 flex-col gap-5 rounded-2xl border border-border bg-surface p-6">
+    <div aria-label={`Ticket ${ticket.id}`} className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(24rem,30rem)] 2xl:items-start">
+      <article className="@container flex min-w-0 flex-col gap-5 rounded-2xl border border-border bg-surface p-6">
         <header className="flex flex-col gap-3">
           <p className="flex min-w-0 items-center gap-2 text-sm text-muted">
             <span className="shrink-0 rounded-md bg-hover px-2 py-0.5 font-mono text-xs font-semibold text-foreground">{ticket.id}</span>
@@ -160,19 +170,24 @@ export default function TicketView({ ticket: first, task, initialStatus }: { tic
         {error && <p role="alert" className="text-sm text-red-600 dark:text-red-300">{error}</p>}
 
         <section aria-label="Properties">
-          <dl className="grid gap-x-10 border-t border-border/60 sm:grid-cols-2">
+          <dl className="grid gap-x-8 border-t border-border/60 @2xl:grid-cols-2">
             <Prop label="Status">
               <div className="flex flex-col gap-1.5">
-                <SelectField label="" value={status} onChange={(v) => setStatus(v as Status)} options={options} disabled={!(isQa || isAdmin || mine || creator) || ticket.status === "Done"} disabledReason={ticket.status === "Done" ? "Use Reopen to change a completed Ticket." : "You can't change this Ticket's status."} />
+                <SelectField label="" value={status} onChange={(v) => setStatus(v as Status)} options={options} disabled={!(canEdit || mine) || ticket.status === "Done"} disabledReason={ticket.status === "Done" ? "Use Reopen to change a completed Ticket." : "You can't change this Ticket's status."} />
                 {status !== ticket.status && <span className="text-xs text-muted">Write the comment for this change in the Comments, then press Save status.</span>}
               </div>
             </Prop>
             <Prop label="Assignee">
-              {canEdit ? <SelectField label="" value={ticket.assignees ?? ""} onChange={(v) => void quick({ assignee: v }, v ? `Assigned to ${v}` : "Unassigned")} options={["", ...users.map((u) => u.name)].map((n) => ({ value: n, label: n || "Unassigned" }))} /> : ticket.assignees || "Unassigned"}
+              {canSetDetails ? (
+                // Ticking or unticking a person saves at once (no Save button).
+                <AssigneeField bare value={assignDraft} onChange={setAssignDraft} onPick={(v) => void quick({ assignee: cleanAssignees(v) }, cleanAssignees(v) ? `Assigned to ${cleanAssignees(v)}` : "Unassigned")} />
+              ) : (
+                <AssigneeStack people={assigneePeople(ticket.assignees, users)} />
+              )}
             </Prop>
-            <Prop label="Assigned team">{ticket.assignees ? (ticket.assignedTeam ?? "No team") : "–"}</Prop>
+            <Prop label="Assigned team">{ticket.assignees ? ([...new Set(assigneePeople(ticket.assignees, users).map((p) => p.team).filter(Boolean))].join(", ") || ticket.assignedTeam || "No team") : "–"}</Prop>
             <Prop label="Priority">
-              {canEdit ? <SelectField label="" value={ticket.priority} onChange={(v) => void quick({ priority: v as Priority }, `Priority set to ${v}`)} options={PRIORITIES} /> : <PriorityBadge priority={ticket.priority} />}
+              {canSetDetails ? <SelectField label="" value={ticket.priority} onChange={(v) => void quick({ priority: v as Priority }, `Priority set to ${v}`)} options={PRIORITIES} /> : <PriorityBadge priority={ticket.priority} />}
             </Prop>
             {ticket.deadline && <Prop label="Due date">{formatDeadline(ticket.deadline)}</Prop>}
             <Prop label="Created by">{ticket.createdBy ?? "–"}{ticket.createdByTeam ? ` · ${ticket.createdByTeam}` : ""}</Prop>
@@ -203,7 +218,7 @@ export default function TicketView({ ticket: first, task, initialStatus }: { tic
         <TicketAttachments ticketCode={ticket.id} canEdit={canEdit} />
       </article>
 
-      <aside aria-label="Activity" className="flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-surface p-4 xl:sticky xl:top-4">
+      <aside aria-label="Activity" className="flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-surface p-4 2xl:sticky 2xl:top-4">
         <div role="tablist" aria-label="Comments and activity" className="flex gap-1 border-b border-border pb-1">
           <button type="button" role="tab" aria-selected={tab === "comments"} onClick={() => setTab("comments")} className={tabClass(tab === "comments")}>Comments</button>
           <button type="button" role="tab" aria-selected={tab === "history"} onClick={() => setTab("history")} className={tabClass(tab === "history")}>Activity</button>

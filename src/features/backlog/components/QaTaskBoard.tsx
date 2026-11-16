@@ -36,7 +36,7 @@ export default function QaTaskBoard({ tasks, totals, filtering, onOpen, onMove, 
                   }
                 : undefined
             }
-            className={`flex min-w-0 flex-col gap-2 rounded-2xl border p-2.5 transition-colors ${cards.length === 0 ? "self-start" : ""} ${over === col.status ? "border-accent bg-accent-soft/30" : "border-border bg-surface"}`}
+            className={`flex min-w-0 flex-col gap-2 self-start rounded-2xl border p-2.5 transition-colors min-h-[14rem] ${over === col.status ? "border-accent bg-accent-soft/30" : "border-border bg-surface"}`}
           >
             <h2 className="flex flex-wrap items-center gap-2 px-1 text-sm font-semibold">
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${col.tone}`}>{col.title}</span>

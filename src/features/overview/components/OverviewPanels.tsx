@@ -122,7 +122,7 @@ export function RecentCompleted({ tasks }: { tasks: readonly BacklogItemData[] }
 export function ActivityList({ activity }: { activity: readonly Activity[] }) {
   if (activity.length === 0) return <EmptyState compact title="No recent activity" description="Assignments, status changes and logged work show here." />;
   return (
-    <ul className="divide-y divide-border text-sm">
+    <ul className="max-h-96 divide-y divide-border overflow-y-auto pr-2 text-sm">
       {activity.map((a, i) => (
         <li key={`${a.at}-${i}`} className="flex items-baseline justify-between gap-3 py-2 first:pt-0 last:pb-0">
           <span className="min-w-0">

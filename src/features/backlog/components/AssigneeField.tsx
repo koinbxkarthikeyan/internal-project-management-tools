@@ -14,6 +14,10 @@ type AssigneeFieldProps = {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  /** Called with the new names each time a person is ticked or unticked in the list (not while typing): for a field that saves as soon as a choice is made. */
+  onPick?: (value: string) => void;
+  /** No label above the field (the caller already names it). */
+  bare?: boolean;
 };
 
 const clean = (token: string) => token.trim().replace(/^@+/, "").trim();
@@ -34,10 +38,11 @@ export const cleanAssignees = (value: string) => assigneeNames(value).join(", ")
  * Assignees field: type to search the registered users (with or without "@"), pick as many as needed.
  * Picked names stay in the field, separated by commas; picking a name again removes it.
  */
-export default function AssigneeField({ value, onChange, placeholder = "Search or select team members, or add a new team member." }: AssigneeFieldProps) {
+export default function AssigneeField({ value, onChange, placeholder, onPick, bare = false }: AssigneeFieldProps) {
   const users = useUsers();
   const usersStatus = useUsersStore((st) => st.optionsStatus);
   const { isAdmin } = useAuth();
+  const hint = placeholder ?? (isAdmin ? "Search or select team members. Type + to add a new team member." : "Search or select team members.");
   const [adding, setAdding] = useState(false);
   const [up, setUp] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -73,7 +78,9 @@ export default function AssigneeField({ value, onChange, placeholder = "Search o
     const next = chosen.includes(name.toLowerCase())
       ? kept.filter((n) => n.toLowerCase() !== name.toLowerCase())
       : [...kept, name];
-    onChange(next.length ? `${next.join(", ")}, ` : "");
+    const out = next.length ? `${next.join(", ")}, ` : "";
+    onChange(out);
+    onPick?.(out);
   }
 
   return (
@@ -82,19 +89,28 @@ export default function AssigneeField({ value, onChange, placeholder = "Search o
         setOpen(false);
         if (value) onChange(cleanAssignees(value));
       }}>
-      <Field label="Assignees, separated by commas">
+      <Field label={bare ? "" : "Assignees, separated by commas"}>
         <input
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            // Typing + as the entry being typed (admins) opens the Add New Team Member form at once.
+            const last = e.target.value.split(",").pop()?.trim();
+            if (isAdmin && last === "+") return onChange(e.target.value.replace(/\+\s*$/, "")), setOpen(false), setAdding(true);
+            onChange(e.target.value);
+          }}
           onFocus={show}
           onKeyDown={(e) => e.key === "Escape" && open && (e.stopPropagation(), setOpen(false))}
-          placeholder={placeholder}
+          placeholder={hint}
           role="combobox"
           aria-expanded={open}
           aria-controls={listId}
           aria-haspopup="listbox"
-          className={`${controlClass} h-10`}
+          className={`${controlClass} h-10 pr-8`}
         />
+        {/* The same arrow as the other dropdown fields (Owner, Lead): this one is a list to pick from too. */}
+        <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="pointer-events-none absolute bottom-[13px] right-3 text-muted">
+          <path d="m5 8 5 5 5-5" />
+        </svg>
       </Field>
       {open && (
         // Only the names scroll; "+ Add New Team Member" stays fixed at the bottom.
@@ -118,7 +134,7 @@ export default function AssigneeField({ value, onChange, placeholder = "Search o
                   }`}
                 >
                   <span className="min-w-0 truncate">{u.name}</span>
-                  <span className="shrink-0 text-xs text-muted">{on ? "✓" : u.email}</span>
+                  {on && <span className="shrink-0 text-xs text-muted">✓</span>}
                 </button>
               </li>
             );

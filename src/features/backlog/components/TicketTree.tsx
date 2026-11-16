@@ -1,5 +1,8 @@
 "use client";
 
+import AssigneeStack, { assigneePeople } from "@/components/ui/AssigneeStack";
+import { useUsers } from "@/features/users/hooks/useUsers";
+import { disclosureKeys } from "@/lib/disclosureKeys";
 import { useState } from "react";
 import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
 import type { BacklogItemData } from "@/types/backlog";
@@ -15,7 +18,8 @@ const when = (iso?: string) => {
  * row is highlighted) and a chevron that opens a short summary (who created it and their team, the assigned team, the date) without changing the selection.
  */
 export default function TicketTree({ tickets, selectedId, onSelect }: { tickets: readonly BacklogItemData[]; selectedId?: string; onSelect: (ticket: BacklogItemData) => void }) {
-  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
+    const users = useUsers();
+const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const toggle = (id: string) => setOpen((s) => (s.has(id) ? new Set([...s].filter((x) => x !== id)) : new Set(s).add(id)));
   return (
     <ul className="flex flex-col gap-1.5">
@@ -28,6 +32,8 @@ export default function TicketTree({ tickets, selectedId, onSelect }: { tickets:
               <button
                 type="button"
                 onClick={() => toggle(t.id)}
+                onKeyDown={disclosureKeys(expanded, () => toggle(t.id))}
+                data-disclosure
                 aria-expanded={expanded}
                 aria-label={`${expanded ? "Hide" : "Show"} summary of ${t.id}`}
                 className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-md text-muted hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent"
@@ -43,8 +49,10 @@ export default function TicketTree({ tickets, selectedId, onSelect }: { tickets:
                 <span className="flex flex-wrap items-center gap-1.5">
                   <StatusBadge status={t.status} />
                   <PriorityBadge priority={t.priority} />
+                  <span className="ml-auto">
+                    <AssigneeStack passive people={assigneePeople(t.assignees, users)} size={22} />
+                  </span>
                 </span>
-                <span className="truncate text-[11px] text-muted">{t.assignees || "Unassigned"}{t.assignees && t.assignedTeam ? ` · ${t.assignedTeam}` : ""}</span>
               </button>
             </div>
             {expanded && (
@@ -52,7 +60,7 @@ export default function TicketTree({ tickets, selectedId, onSelect }: { tickets:
                 <dt className="text-muted">Created by</dt>
                 <dd className="break-words">{t.createdBy ?? "–"}{t.createdByTeam ? ` · ${t.createdByTeam}` : ""}</dd>
                 <dt className="text-muted">Assigned team</dt>
-                <dd>{t.assignees ? (t.assignedTeam ?? "No team") : "–"}</dd>
+                <dd>{t.assignees ? ([...new Set(assigneePeople(t.assignees, users).map((p) => p.team).filter(Boolean))].join(", ") || t.assignedTeam || "No team") : "–"}</dd>
                 <dt className="text-muted">Created</dt>
                 <dd>{when(t.createdAt)}</dd>
                 {t.description && (

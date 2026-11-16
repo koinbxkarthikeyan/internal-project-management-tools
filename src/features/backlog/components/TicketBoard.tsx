@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import AssigneeStack, { assigneePeople } from "@/components/ui/AssigneeStack";
+import { useUsers } from "@/features/users/hooks/useUsers";
 import { StatusBadge } from "@/components/ui/Badge";
 import { useOpenNotification } from "@/features/notifications/open";
 import { useNotificationStore } from "@/features/notifications/store";
@@ -21,7 +23,8 @@ const COLUMNS: { title: string; statuses: readonly Status[]; /** The status a ca
 
 /** A task's Tickets as a board, Jira style: a column per status (Ready for QA only for a Ticket that still has it) with its count and a card per Ticket (ID, title, priority, assignee, created date). Click a card to open the Ticket. */
 export default function TicketBoard({ tickets, onOpen, selectedId, onMove }: { tickets: readonly BacklogItemData[]; onOpen?: (ticket: BacklogItemData) => void; /** The Ticket whose details are showing: its card is marked. */ selectedId?: string; /** Makes the cards draggable; called with the Ticket and the status of the column it was dropped on (the caller decides whether that is allowed). */ onMove?: (ticket: BacklogItemData, to: Status) => void }) {
-  const [dragging, setDragging] = useState<string | null>(null);
+    const users = useUsers();
+const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
   // The unread notices about a Ticket (its own code), shown on its card like a task's.
   const notices = useNotificationStore((s) => s.items);
@@ -49,7 +52,7 @@ export default function TicketBoard({ tickets, onOpen, selectedId, onMove }: { t
                     }
                   : undefined
               }
-              className={`flex min-w-0 flex-col gap-2 rounded-2xl border p-2.5 transition-colors ${cards.length === 0 ? "self-start" : ""} ${over === col.title ? "border-accent bg-accent-soft/30" : "border-border bg-surface"}`}
+              className={`flex min-w-0 flex-col gap-2 self-start rounded-2xl border p-2.5 transition-colors min-h-[14rem] ${over === col.title ? "border-accent bg-accent-soft/30" : "border-border bg-surface"}`}
             >
               <h3 className="flex items-baseline gap-2 px-1 text-sm font-semibold">
                 {col.title} <span className="rounded-full bg-hover px-2 py-0.5 text-xs font-medium">{cards.length}</span>
@@ -79,9 +82,12 @@ export default function TicketBoard({ tickets, onOpen, selectedId, onMove }: { t
                           <>
                             <ReopenedBadge item={t} />
                             {(t.status === "Blocked" || t.status === "On hold") && <StatusBadge status={t.status} />}
+                            {/* The assignee sits at the right end of the id / priority row. */}
+                            <span className="ml-auto" onClick={(e) => e.stopPropagation()}>
+                              <AssigneeStack people={assigneePeople(t.assignees, users)} size={22} />
+                            </span>
                           </>
                         }
-                        footer={<span className="truncate" title={t.assignees ? `${t.assignees}${t.assignedTeam ? ` · ${t.assignedTeam}` : ""}` : "Unassigned"}>{t.assignees || "Unassigned"}{t.assignees && t.assignedTeam ? ` · ${t.assignedTeam}` : ""}</span>}
                       >
                         <span>{t.created ? formatDeadline(t.created) : "–"}</span>
                         <span title="Created by (team)">By {t.createdBy ?? "–"}{t.createdByTeam ? ` · ${t.createdByTeam}` : ""}</span>

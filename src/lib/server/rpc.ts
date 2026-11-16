@@ -1,3 +1,4 @@
+import { clientAddress } from "@/lib/localApi/rateLimit";
 import { db } from "@/lib/localApi/db";
 import { LocalApiError } from "@/lib/localApi/errors";
 import { dispatch, type Method } from "@/lib/localApi/routes";
@@ -54,7 +55,7 @@ export async function handleRpc(req: Request): Promise<Response> {
       const userId = sessionUser(token);
       const path = url.split("?")[0];
       const headers: Record<string, string> = {};
-      const data = await requestContext.run({ userId }, async () => {
+      const data = await requestContext.run({ userId, ip: clientAddress(req.headers) }, async () => {
         if (method === "POST" && path === "/auth/sign-out") {
           endSession(token);
           headers["set-cookie"] = setCookie(req, "", 0);

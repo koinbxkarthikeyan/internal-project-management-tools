@@ -5,7 +5,8 @@
  */
 export type PasswordRecord = { salt: string; hash: string; iterations: number; engine: "subtle" | "js" };
 
-const SUBTLE_ROUNDS = 150_000;
+/** PBKDF2-HMAC-SHA256 rounds with WebCrypto: 600,000, the OWASP recommendation. Older records keep the rounds they were made with (the record says how many) and are rebuilt at the next sign-in. */
+export const SUBTLE_ROUNDS = 600_000;
 const JS_ROUNDS = 15_000;
 
 const hex = (bytes: Uint8Array) => Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
@@ -88,6 +89,9 @@ async function derive(password: string, salt: Uint8Array, iterations: number, en
   }
   return hex(pbkdf2Js(bytes, salt, iterations));
 }
+
+/** True for a hash made with fewer rounds, or with the plain-JavaScript fallback, than a new one gets (this runs on the server now, where WebCrypto always exists). */
+export const passwordNeedsUpgrade = (record: PasswordRecord) => subtleAvailable() && (record.engine !== "subtle" || record.iterations < SUBTLE_ROUNDS);
 
 const subtleAvailable = () => typeof crypto !== "undefined" && !!crypto.subtle;
 

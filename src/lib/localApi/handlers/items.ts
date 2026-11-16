@@ -1,3 +1,4 @@
+import { recordAudit } from "../audit";
 import { db, nextId, save, type DbItem, type DbUser } from "../db";
 import { clean, codeOf, findItem, isAdminUser, isQaUser, isSprintClosed, logActivity, nowISO, num, requireAdmin, requireUser, str, todayISO, userRef, type Req, type Rec } from "../core";
 import { fail } from "../errors";
@@ -335,7 +336,20 @@ const WITH_QA = "This task is with QA now, so only QA or an admin can change it.
 /** A Ticket's own people: the person who created it (besides its assignee, QA and the admins). Being the Lead or an Assigned User of the task does not give a say over Tickets other people made or hold. */
 const ticketPerson = (item: DbItem, me: DbUser) => item.type === "TICKET" && item.createdById === me.id;
 
-const canWork = (item: DbItem, me: DbUser) => isAdminUser(me) || item.leadId === me.id || item.assigneeIds.includes(me.id) || ticketPerson(item, me) || (isQaUser(me) && (inQa(item) || item.type === "TICKET"));
+/**
+ * Who may change what (the permissions table; the screens mirror it, this is where it is enforced):
+ *
+ *   Task status / Lead panel   the task's Lead, its assigned users, the admins; QA while the task is with QA (Ready for QA, Testing). Once a task is with QA only QA and the admins.
+ *   Ticket status              the Ticket's creator, its assigned users, the admins. Done needs more: an admin, QA, or the Ticket's creator (see applyStatus). QA and everyone else do not
+ *                              change a Ticket they have no part in.
+ *   Ticket Assignees, Priority, images   the Ticket's creator and the admins.
+ *   Ticket title, description            the Ticket's creator and the Super Admin.
+ *   Anyone signed in can read a Ticket and its comments.
+ */
+const canWork = (item: DbItem, me: DbUser) =>
+  item.type === "TICKET"
+    ? isAdminUser(me) || item.assigneeIds.includes(me.id) || ticketPerson(item, me)
+    : isAdminUser(me) || item.leadId === me.id || item.assigneeIds.includes(me.id) || (isQaUser(me) && inQa(item));
 
 /** The task's Lead (or an admin) changes status, the assigned users and the Developer ETA. An Assigned User may set the Developer ETA too. */
 export function leadUpdate({ params, data }: Req) {
@@ -426,7 +440,9 @@ export function remove({ params }: Req) {
   if (isSprintClosed(item.sprintId)) fail(403, CLOSED);
   // A task's child Tickets are deleted with it; child tasks of any other kind must be dealt with first.
   if (db().items.some((c) => c.parentId === item.id && c.type !== "TICKET")) fail(409, "This task has child tasks. Delete or move them first.");
-  for (const ticket of descendants(item.id)) eraseItem(ticket);
+  const tickets = descendants(item.id);
+  recordAudit(item.type === "TICKET" ? "ticket.deleted" : "task.deleted", `${codeOf(item)} · ${item.title}`, tickets.length ? `With ${tickets.length} Ticket${tickets.length === 1 ? "" : "s"}` : undefined);
+  for (const ticket of tickets) eraseItem(ticket);
   eraseItem(item);
   save();
   return null;
@@ -439,6 +455,7 @@ export function removeHidden() {
   const hidden = d.items.filter((i) => i.hidden);
   const doomed = hidden.filter((i) => !isSprintClosed(i.sprintId));
   const all = [...new Map(doomed.flatMap((i) => [i, ...descendants(i.id)]).map((i) => [i.id, i])).values()];
+  recordAudit("tasks.hidden_removed", "All hidden tasks", `${all.filter((i) => i.type !== "TICKET").length} tasks and ${all.filter((i) => i.type === "TICKET").length} Tickets removed`);
   for (const item of all) eraseItem(item);
   save();
   return { tasks: all.filter((i) => i.type !== "TICKET").length, tickets: all.filter((i) => i.type === "TICKET").length, skipped: hidden.length - doomed.length };
@@ -546,15 +563,15 @@ function addAssignee(task: DbItem, me: DbUser) {
   notify(task, "task.reassigned", me, [task.leadId, ...before], [{ field: "Assigned", from: names(before), to: names(task.assigneeIds) }]);
 }
 
-/** Who may change a Ticket's own things (its fields, its images): QA, the admins, the Ticket's assignee and the person who created it. */
-export const canManageTicket = (ticket: DbItem, me: DbUser) => involvedInQa(me) || ticket.assigneeIds.includes(me.id) || ticket.createdById === me.id;
+/** Who may change a Ticket's Assignees, Priority and images: the admins and the person who created it (see the table at `canWork`). Its assigned users change the status only. */
+export const canManageTicket = (ticket: DbItem, me: DbUser) => isAdminUser(me) || ticket.createdById === me.id;
 
 /** QA (or an admin) edits a Ticket's own fields: title, description, priority and assignee. Its status is changed like any task's (see `changeStatus`). */
 export function editTicket({ params, data }: Req) {
   const me = requireUser();
   const ticket = findItem(params.id);
   if (ticket.type !== "TICKET") fail(400, "That is not a Ticket.");
-  if (!canManageTicket(ticket, me)) fail(403, "Only the Ticket's assignee or creator, QA or an admin can edit this Ticket.");
+  if (!canManageTicket(ticket, me)) fail(403, "Only the person who created the Ticket or an admin can edit this Ticket. Its assigned users can change its status.");
   if (isSprintClosed(ticket.sprintId)) fail(403, CLOSED);
   const before = { ...ticket, assigneeIds: [...ticket.assigneeIds] };
   const changed: string[] = [];

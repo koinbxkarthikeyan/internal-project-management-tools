@@ -1,13 +1,24 @@
+import { recordAudit } from "../audit";
 import { db, nextId, save, type DbItem, type DbSprint } from "../db";
 import { addDays, clean, codeOf, logActivity, nowISO, requireAdmin, requireUser, str, todayISO, type Req } from "../core";
 import { fail } from "../errors";
 import { ticketCode } from "./items";
 
-const out = (s: DbSprint) => ({ id: s.id, name: s.name, startDate: s.startDate, endDate: s.endDate, goal: s.goal ?? "", status: s.status, ...(s.closedAt ? { closedAt: s.closedAt } : {}) });
+const out = (s: DbSprint) => ({ id: s.id, name: s.name, startDate: s.startDate, endDate: s.endDate, goal: s.goal ?? "", status: s.status, ...(s.closedAt ? { closedAt: s.closedAt } : {}), ...(s.commonLeaves ? { commonLeaves: s.commonLeaves } : {}) });
 const find = (id: unknown): DbSprint => {
   const s = db().sprints.find((x) => x.id === Number(id));
   if (!s) fail(404, "That sprint doesn't exist.");
   return s as DbSprint;
+};
+/** The company holidays sent with a sprint: a full list (replacing the old one), each a date and a note; a bad or repeated date is left out. */
+const leavesFrom = (v: unknown): { date: string; description: string }[] => {
+  const seen = new Set<string>();
+  return (Array.isArray(v) ? v : []).flatMap((r) => {
+    const date = typeof r?.date === "string" ? r.date.slice(0, 10) : "";
+    if (!date || Number.isNaN(Date.parse(date)) || seen.has(date)) return [];
+    seen.add(date);
+    return [{ date, description: clean(r?.description) }];
+  });
 };
 const running = () => db().sprints.find((s) => s.status === "ACTIVE");
 
@@ -87,7 +98,7 @@ export function create({ data }: Req) {
   const live = running();
   // Only one sprint runs at a time: a new one may not overlap the running one's dates.
   if (live && startDate <= live.endDate && endDate >= live.startDate) fail(409, "A sprint is already running for these dates. Close the running sprint first.");
-  const sprint: DbSprint = { id: nextId("sprint"), name, startDate, endDate, goal: str(data.goal) ? clean(data.goal) : "", status: !live && startDate <= todayISO() ? "ACTIVE" : "PAUSED", createdAt: nowISO() };
+  const sprint: DbSprint = { id: nextId("sprint"), name, startDate, endDate, goal: str(data.goal) ? clean(data.goal) : "", status: !live && startDate <= todayISO() ? "ACTIVE" : "PAUSED", createdAt: nowISO(), ...(Array.isArray(data.commonLeaves) ? { commonLeaves: leavesFrom(data.commonLeaves) } : {}) };
   db().sprints.push(sprint);
   save();
   return out(sprint);
@@ -109,6 +120,7 @@ export function update({ params, data }: Req) {
     sprint.endDate = addDays(startDate, 13);
   }
   if (data.goal !== undefined) sprint.goal = clean(data.goal);
+  if (Array.isArray(data.commonLeaves)) sprint.commonLeaves = leavesFrom(data.commonLeaves);
   save();
   return out(sprint);
 }
@@ -137,6 +149,7 @@ export function remove({ params }: Req) {
   const sprint = find(params.id);
   if (sprint.status === "ACTIVE") fail(409, "This sprint is running. Close it before deleting it.");
   const d = db();
+  recordAudit("sprint.deleted", sprint.name, `${d.items.filter((i) => i.sprintId === sprint.id).length} tasks back to the Backlog, time logs removed`);
   // Its tasks go back to the Backlog and its time logs are removed.
   for (const item of d.items) {
     if (item.sprintId === sprint.id) {

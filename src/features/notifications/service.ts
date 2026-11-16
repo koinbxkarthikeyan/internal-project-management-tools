@@ -1,7 +1,8 @@
 import type { AppNotification } from "./types";
 
 export type Unsubscribe = () => void;
-export type NotificationFilter = "all" | "unread";
+/** "read" is worked out here from the full list (the server can only filter unread ones), so Load more reads more of the full list. */
+export type NotificationFilter = "all" | "unread" | "read";
 
 /** What a list carries besides its items: the real unread total (not just what is loaded), whether more pages exist, and what is shown. */
 export type Meta = { unread: number; hasMore: boolean; loading: boolean; error: boolean; filter: NotificationFilter };

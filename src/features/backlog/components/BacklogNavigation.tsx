@@ -6,7 +6,6 @@ import type { ComponentType, ReactNode, SVGProps } from "react";
 import {
   CheckCircleIcon,
   EyeIcon,
-  FolderIcon,
   ListIcon,
   OverviewIcon,
   SettingsIcon,
@@ -33,8 +32,6 @@ const BACKLOG_ICONS: Record<BacklogNavId, IconType> = {
 };
 
 const WORKSPACE_ICONS: Record<string, IconType> = {
-  "/dashboard": OverviewIcon,
-  "/projects": FolderIcon,
   "/users": UsersIcon,
   "/bulk-upload": UploadIcon,
   "/settings": SettingsIcon,

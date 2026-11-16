@@ -1,4 +1,5 @@
-import { db, replaceDb, type Db } from "./db";
+import { db, replaceDb, save, type Db } from "./db";
+import { recordAudit } from "./audit";
 import { requireUser } from "./core";
 import { fail } from "./errors";
 
@@ -17,6 +18,8 @@ export function exportDatabase(): { text: string; summary: BackupSummary } {
   const me = requireUser();
   if (me.role !== "SUPER_ADMIN") fail(403, "Only the Super Admin can export the data.");
   const exportedAt = new Date().toISOString();
+  recordAudit("backup.exported", "The whole database", "Downloaded as a file (it holds every password hash)");
+  save();
   // The image files are kept apart (see lib/server/store.ts) and are not in this file; their details are left out so nothing in it points at a missing image.
   const data: Db = { ...db(), attachments: [] };
   return { text: JSON.stringify({ app: APP, exportedAt, db: data }, null, 2), summary: summaryOf(db(), exportedAt) };
@@ -57,6 +60,12 @@ export function restoreDatabase(text: string): BackupSummary {
   // Images stay where they are: those whose Ticket is in the restored data keep showing. (A backup file never carries images.)
   const ids = new Set(data.items.map((i) => i.id));
   data.attachments = db().attachments.filter((a) => ids.has(a.itemId));
+  // The audit log is the record of what people did, so a restore never wipes it: the current log stays, with this restore added to it (written while the current data, and so the
+  // person doing it, is still in place).
+  const log = db();
+  recordAudit("backup.restored", "Replaced all shared data with a backup file", `${summary.users} users, ${summary.tasks} tasks, ${summary.sprints} sprints (backup made ${summary.exportedAt || "at an unknown time"})`);
+  data.audit = log.audit;
+  data.seq.audit = Math.max(data.seq.audit ?? 0, log.seq.audit);
   replaceDb(data);
   return summary;
 }

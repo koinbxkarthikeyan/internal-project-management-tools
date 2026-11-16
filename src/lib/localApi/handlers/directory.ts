@@ -1,3 +1,4 @@
+import { recordAudit } from "../audit";
 import { db, nextId, save } from "../db";
 import { clean, requireAdmin, requireUser, str, type Req } from "../core";
 import { fail } from "../errors";
@@ -48,6 +49,8 @@ export function deleteOwner({ params }: Req) {
   requireAdmin();
   const d = db();
   if (!d.owners.some((o) => o.id === Number(params.id))) fail(404, "That owner doesn't exist.");
+  const gone = d.owners.find((o) => o.id === Number(params.id));
+  recordAudit("owner.deleted", gone?.name ?? `Owner ${params.id}`);
   d.owners = d.owners.filter((o) => o.id !== Number(params.id));
   for (const item of d.items) if (item.ownerId === Number(params.id)) item.ownerId = null;
   save();

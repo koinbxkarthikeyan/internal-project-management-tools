@@ -1,5 +1,6 @@
 "use client";
 
+import { todayISO } from "@/lib/today";
 import { useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { getErrorMessage } from "@/lib/apiClient";
@@ -27,7 +28,7 @@ export default function DataBackupCard() {
       const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
       const a = document.createElement("a");
       a.href = url;
-      a.download = `koinbx-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `koinbx-backup-${todayISO()}.json`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       toast.show(`Backup saved: ${summary.tasks} tasks, ${summary.users} users, ${summary.sprints} sprints`);
