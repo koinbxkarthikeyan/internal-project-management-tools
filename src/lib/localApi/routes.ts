@@ -1,5 +1,6 @@
 import { discard } from "./db";
 import * as backup from "./backup";
+import * as audit from "./audit";
 import { LocalApiError } from "./errors";
 import type { Req, Rec } from "./core";
 import * as attachments from "./handlers/attachments";
@@ -76,6 +77,9 @@ const ROUTES: [Method, string, Handler][] = [
 
   ["GET", "/work-entries/my-sprint", work.mySprint],
   ["GET", "/work-entries/everyone", work.everyone],
+  ["GET", "/work-entries/leaves", work.leaves],
+  ["POST", "/work-entries/leaves", work.addLeave],
+  ["DELETE", "/work-entries/leaves/:id", work.removeLeave],
   ["POST", "/work-entries", work.create],
   ["PATCH", "/work-entries/:id", work.update],
   ["DELETE", "/work-entries/:id", work.remove],
@@ -89,6 +93,7 @@ const ROUTES: [Method, string, Handler][] = [
   ["POST", "/bulk/owners", bulk.owners],
   ["POST", "/bulk/users", bulk.users],
 
+  ["GET", "/audit", audit.listAudit],
   ["GET", "/backup/export", () => backup.exportDatabase()],
   ["POST", "/backup/check", ({ data }) => ({ summary: backup.readBackup(String(data.text ?? "")).summary })],
   ["POST", "/backup/restore", ({ data }) => backup.restoreDatabase(String(data.text ?? ""))],

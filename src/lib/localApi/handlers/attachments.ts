@@ -46,7 +46,7 @@ export function add({ params, data }: Req) {
   const item = commentId != null ? findItem(params.id) : ticketOf(params.id);
   if (comment) {
     if (comment.userId !== me.id) fail(403, "Only the author of a comment can add images to it.");
-  } else if (!canManageTicket(item, me)) fail(403, "Only the Ticket's assignee or creator, QA or an admin can attach images.");
+  } else if (!canManageTicket(item, me)) fail(403, "Only the person who created the Ticket or an admin can attach images.");
   if (isSprintClosed(item.sprintId)) fail(403, "That sprint is closed, so its Tickets can only be viewed.");
   const files = Array.isArray(data.files) ? (data.files as Record<string, unknown>[]) : [];
   if (files.length === 0) fail(400, "Choose at least one image.");
@@ -77,7 +77,7 @@ export async function remove({ params }: Req) {
   if (!attachment) fail(404, "That image doesn't exist.");
   const a = attachment as NonNullable<typeof attachment>;
   const ticket = findItem(a.itemId);
-  if (!canManageTicket(ticket, me)) fail(403, "Only the Ticket's assignee or creator, QA or an admin can remove images.");
+  if (!canManageTicket(ticket, me)) fail(403, "Only the person who created the Ticket or an admin can remove images.");
   if (isSprintClosed(ticket.sprintId)) fail(403, "That sprint is closed, so its Tickets can only be viewed.");
   d.attachments = d.attachments.filter((x) => x.id !== a.id);
   logActivity(ticket, `Removed image ${a.name}`, me.id);

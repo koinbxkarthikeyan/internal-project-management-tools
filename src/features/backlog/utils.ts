@@ -42,12 +42,8 @@ export function formatShortDate(iso: string) {
   return shortDateFormat.format(new Date(`${iso}T00:00:00Z`));
 }
 
-/** Today's date (YYYY-MM-DD) in the user's local time. */
-export function todayISO() {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
+/** Today's date (YYYY-MM-DD) in the people's own time zone: see `@/lib/today`. */
+export { todayISO } from "@/lib/today";
 
 export function initials(name: string) {
   return name === "Unassigned"

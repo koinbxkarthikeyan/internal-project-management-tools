@@ -208,11 +208,14 @@ export async function getTickets(code: string): Promise<BacklogItemData[]> {
 export type NewTicket = { title: string; priority: Priority; assignee?: string; description?: string; /** The status it starts in (To Do when left out). */ status?: Status; /** The people @mentioned in the description (they are told). */ mentionIds?: string[] };
 
 /** QA adds a Ticket directly under a task (by the task's code). It stays linked to that task. */
+/** The user ids for names separated by commas ("Mayil, Sasi"); a name that is not a known user is left out. */
+const idsOfNames = (names: string) => names.split(",").map((n) => n.trim()).filter(Boolean).flatMap((n) => userIdByName(n) ?? []);
+
 export async function createTicket(taskCode: string, input: NewTicket): Promise<BacklogItemData> {
   const apiId = apiIdForCode(taskCode);
   if (apiId == null) throw new Error("That task isn't loaded yet. Reload the page and try again.");
-  const assigneeId = input.assignee ? userIdByName(input.assignee) : undefined;
-  const { data } = await apiClient.post<Rec>(`/items/${apiId}/tickets`, { title: input.title, priority: priorityToApi(input.priority), ...(input.description ? { description: input.description } : {}), ...(assigneeId !== undefined ? { assigneeId } : {}), ...(input.status && input.status !== "Open" ? { status: statusToApi(input.status) } : {}), ...(input.mentionIds?.length ? { mentionIds: input.mentionIds.map(Number) } : {}) });
+  const assigneeIds = input.assignee ? idsOfNames(input.assignee) : [];
+  const { data } = await apiClient.post<Rec>(`/items/${apiId}/tickets`, { title: input.title, priority: priorityToApi(input.priority), ...(input.description ? { description: input.description } : {}), ...(assigneeIds.length ? { assigneeIds } : {}), ...(input.status && input.status !== "Open" ? { status: statusToApi(input.status) } : {}), ...(input.mentionIds?.length ? { mentionIds: input.mentionIds.map(Number) } : {}) });
   const item = itemFromApi(data);
   rememberItem(item);
   return item;
@@ -226,7 +229,7 @@ export async function getItemByApiId(apiId: number): Promise<BacklogItemData> {
 
 export type TicketPatch = { title?: string; description?: string; priority?: Priority; assignee?: string };
 
-/** QA edits a Ticket's title, description, priority or assignee ("" = unassigned). */
+/** Edits a Ticket's title, description, priority or assignees (names separated by commas; "" = unassigned). */
 export async function updateTicket(code: string, patch: TicketPatch): Promise<BacklogItemData> {
   const apiId = apiIdForCode(code);
   if (apiId == null) throw new Error("That Ticket isn't loaded yet. Reload the page and try again.");
@@ -234,7 +237,7 @@ export async function updateTicket(code: string, patch: TicketPatch): Promise<Ba
   if (patch.title !== undefined) body.title = patch.title;
   if (patch.description !== undefined) body.description = patch.description;
   if (patch.priority !== undefined) body.priority = priorityToApi(patch.priority);
-  if (patch.assignee !== undefined) body.assigneeIds = patch.assignee ? (userIdByName(patch.assignee) !== undefined ? [userIdByName(patch.assignee)] : []) : [];
+  if (patch.assignee !== undefined) body.assigneeIds = patch.assignee ? idsOfNames(patch.assignee) : [];
   await apiClient.patch(`/items/${apiId}/ticket`, body);
   return fetchItem(apiId);
 }

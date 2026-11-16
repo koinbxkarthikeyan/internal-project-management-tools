@@ -1,4 +1,5 @@
 import { FOCUS_HOURS_PER_DAY } from "@/constants/work";
+import type { WorkEntry } from "@/types/work";
 
 const DAY_MS = 86_400_000;
 const MAX_DAYS = 62; // guard against absurd ranges
@@ -20,10 +21,16 @@ export function eachDay(start: string, end: string): string[] {
 
 export const addDays = (iso: string, n: number) => toISO(new Date(toDate(iso).getTime() + n * DAY_MS));
 
-export const workingDays = (start: string, end: string) => eachDay(start, end).filter((d) => !isWeekend(d)).length;
+/** Weekdays in a stretch, less any `off` dates (holidays and leave: 0 hours; a date counts once however many lists name it). */
+/** Hours off per date (leave): the whole day is `FOCUS_HOURS_PER_DAY`, a part day is less. */
+export type OffDays = ReadonlyMap<string, number>;
+
+/** The weekdays in a stretch that still have working hours (a day fully off is not one; a part day is). */
+export const workingDays = (start: string, end: string, off?: OffDays) => eachDay(start, end).filter((d) => !isWeekend(d) && (off?.get(d) ?? 0) < FOCUS_HOURS_PER_DAY).length;
 
 /** Default hours for a stretch: every working day at the planned focus hours. */
-export const plannedHours = (start: string, end: string) => workingDays(start, end) * FOCUS_HOURS_PER_DAY;
+export const plannedHours = (start: string, end: string, off?: OffDays) =>
+  eachDay(start, end).reduce((sum, d) => (isWeekend(d) ? sum : sum + Math.max(0, FOCUS_HOURS_PER_DAY - (off?.get(d) ?? 0))), 0);
 
 const dayFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 /** A day like "6 Oct"; "–" when the entry carries no valid date (the backend may leave it out). */
@@ -61,11 +68,13 @@ export function latestEntry<T extends { id: string; createdAt: string }>(entries
 
 /**
  * Expected hours for one person over the given sprints, weekdays only (6h each): `soFar` from each sprint's start through today (never past its end,
- * and 0 before it starts) and `total` for the whole of each sprint. The one place this is worked out.
+ * and 0 before it starts) and `total` for the whole of each sprint. `offFor` gives a sprint's 0-hour dates for that person (its common leave + their own leave).
+ * The one place this is worked out.
  */
-export function sprintHours(sprints: readonly { start: string; end: string }[], today: string) {
-  const soFar = sprints.reduce((sum, s) => sum + (today < s.start ? 0 : plannedHours(s.start, today > s.end ? s.end : today)), 0);
-  const total = sprints.reduce((sum, s) => sum + plannedHours(s.start, s.end), 0);
+export function sprintHours(sprints: readonly { id?: string; start: string; end: string }[], today: string, offFor?: (sprintId: string) => OffDays) {
+  const off = (s: { id?: string }) => (s.id ? offFor?.(s.id) : undefined);
+  const soFar = sprints.reduce((sum, s) => sum + (today < s.start ? 0 : plannedHours(s.start, today > s.end ? s.end : today, off(s))), 0);
+  const total = sprints.reduce((sum, s) => sum + plannedHours(s.start, s.end, off(s)), 0);
   return { soFar, total };
 }
 
@@ -82,4 +91,34 @@ export function hoursStanding(logged: number, soFar: number, total: number): { t
   if (logged < soFar - 0.0001) return { tone: "below", label: `${formatHours(soFar - logged)} below expected` };
   if (logged > soFar + 0.0001) return { tone: "above", label: `${formatHours(logged - soFar)} above expected` };
   return { tone: "above", label: "on target" };
+}
+
+/**
+ * Hours per sprint for one task and the earlier records it was carried over from (oldest first): every work entry counts in the sprint it was logged in
+ * (its `sprintId`), each entry once, so hours logged in Sprint 6 stay in Sprint 6 when the task is later moved to Sprint 7. A Backlog record keeps its own hours
+ * (nothing is attributed to a sprint there), and an entry with no known sprint falls back to the record it was logged against.
+ */
+export function hoursBySprint(records: readonly { id: string; sprint: string; historySprintIds?: (string | null)[] }[], entries: readonly WorkEntry[], sprints: readonly { id: string; name: string }[]) {
+  const parts = records.map((r) => ({ name: r.sprint, hours: 0 }));
+  // A task carried over keeps a line for every sprint it has been in, so a sprint where nothing was logged still reads "Sprint 6: 0h".
+  records.forEach((r, i) => {
+    const before = (r.historySprintIds ?? []).map((id) => sprints.find((s) => s.id === id)?.name).filter((n): n is string => !!n && n !== r.sprint && !parts.some((p) => p.name === n));
+    const at = parts.findIndex((p, k) => k >= i && p.name === r.sprint);
+    parts.splice(at < 0 ? i : at, 0, ...[...new Set(before)].map((name) => ({ name, hours: 0 })));
+  });
+  const counted = new Set<string>();
+  for (const e of entries) {
+    if (counted.has(e.id)) continue;
+    const at = records.findIndex((r) => e.itemIds?.includes(r.id));
+    if (at < 0) continue;
+    counted.add(e.id);
+    const logged = records[at].sprint === "Unplanned" || !e.sprintId ? undefined : sprints.find((s) => s.id === e.sprintId)?.name;
+    let part = logged ? parts.find((p) => p.name === logged) : undefined;
+    if (logged && !part) {
+      part = { name: logged, hours: 0 };
+      parts.splice(Math.max(0, parts.findIndex((p) => p.name === records[at].sprint)), 0, part);
+    }
+    (part ?? parts.find((p) => p.name === records[at].sprint))!.hours += e.hours;
+  }
+  return parts;
 }

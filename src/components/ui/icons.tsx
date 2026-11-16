@@ -232,3 +232,9 @@ export const SendIcon = (p: IconProps) => (
     <path d="M22 2 11 13" />
   </Icon>
 );
+
+export const FilterIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 5h16l-6.2 7.4V19l-3.6-1.8v-4.8z" />
+  </Icon>
+);

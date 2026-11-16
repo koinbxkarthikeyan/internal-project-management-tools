@@ -1,7 +1,9 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import AssigneeStack from "@/components/ui/AssigneeStack";
 import { PriorityBadge } from "@/components/ui/Badge";
+import { useUsers } from "@/features/users/hooks/useUsers";
 import type { BacklogItemData } from "@/types/backlog";
 import TaskCardMore, { RowArrow } from "./TaskCardMore";
 import CreateTicketButton from "./CreateTicketButton";
@@ -19,7 +21,10 @@ const COLUMNS: { key: SortKey; label: string }[] = [
 ];
 
 /** The QA tasks as a table: id, task, status, priority, assignee, team and Ticket count; click a heading to sort by it, click a row to open the task's full page. */
-export default function QaTaskList({ tasks, sort, onSort, selectedId, onOpen, assignee, team, reopen, unreadFor }: { /** How many unread notices there are about a task: its row flashes while there are some. */ unreadFor?: (task: BacklogItemData) => number; tasks: readonly BacklogItemData[]; sort: Sort; onSort: (key: SortKey) => void; selectedId?: string; onOpen: (task: BacklogItemData) => void; assignee: (task: BacklogItemData) => string; team: (task: BacklogItemData) => string; /** Renders the Reopen button for a Done task the person may reopen. */ reopen: (task: BacklogItemData) => React.ReactNode }) {
+export default function QaTaskList({ tasks, sort, onSort, selectedId, onOpen, team, reopen, unreadFor }: { /** How many unread notices there are about a task: its row flashes while there are some. */ unreadFor?: (task: BacklogItemData) => number; tasks: readonly BacklogItemData[]; sort: Sort; onSort: (key: SortKey) => void; selectedId?: string; onOpen: (task: BacklogItemData) => void; assignee: (task: BacklogItemData) => string; team: (task: BacklogItemData) => string; /** Renders the Reopen button for a Done task the person may reopen. */ reopen: (task: BacklogItemData) => React.ReactNode }) {
+  const users = useUsers();
+  const people = (t: BacklogItemData) =>
+    (t.assignees ?? "").split(",").map((n) => n.trim()).filter(Boolean).map((name) => ({ name, team: users.find((u) => u.name.toLowerCase() === name.toLowerCase())?.team || undefined }));
   // The tasks whose Tickets and comments are open under their row.
   const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
   const toggle = (id: string) => setOpened((o) => { const n = new Set(o); if (!n.delete(id)) n.add(id); return n; });
@@ -51,7 +56,7 @@ export default function QaTaskList({ tasks, sort, onSort, selectedId, onOpen, as
                 </td>
                 <td className="px-3 py-2.5"><span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${col?.tone ?? ""}`}>{col?.title ?? t.status}</span></td>
                 <td className="px-3 py-2.5"><PriorityBadge priority={t.priority} /></td>
-                <td className="px-3 py-2.5 text-xs">{assignee(t) || "Unassigned"}</td>
+                <td className="px-3 py-2.5 text-xs"><AssigneeStack people={people(t)} size={24} /></td>
                 <td className="px-3 py-2.5 text-xs text-muted">{team(t) || "–"}</td>
                 <td className="px-3 py-2.5 text-xs">{t.ticketStats ? (t.ticketStats.total > 0 ? `${t.ticketStats.done}/${t.ticketStats.total} done` : "0") : "–"}</td>
                 <td className="whitespace-nowrap px-3 py-2.5"><span className="flex items-center justify-end gap-2"><CreateTicketButton task={t} />{reopen(t)}<RowArrow open={opened.has(t.id)} onToggle={() => toggle(t.id)} /></span></td>

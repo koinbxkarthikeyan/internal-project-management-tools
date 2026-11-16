@@ -53,7 +53,7 @@ export default function ReopenDialog({ item, onClose, onReopened }: { item: Back
       aria-label={`Reopen ${item.title}`}
       onClose={(e) => e.target === e.currentTarget && onClose()}
       onClick={(e) => e.target === ref.current && ref.current?.close()}
-      className="fixed m-auto w-[min(28rem,calc(100vw-2rem))] rounded-2xl border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-black/60"
+      className="fixed inset-x-0 bottom-[10dvh] top-0 m-auto h-fit max-h-[calc(90dvh-2rem)] w-[min(28rem,calc(100vw-2rem))] rounded-2xl border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-black/60"
     >
       <div className="flex flex-col gap-4 p-5">
         <header>

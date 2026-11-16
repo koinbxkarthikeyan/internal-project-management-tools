@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useQueryState } from "@/hooks/useQueryState";
+import { useTabKeys } from "@/hooks/useTabKeys";
 import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
@@ -15,6 +16,7 @@ import type { WorkEntry } from "@/types/work";
 import { useChosenSprints } from "../hooks/useChosenSprints";
 import { useWorkData } from "../hooks/useWorkData";
 import { todayISO } from "@/features/backlog/utils";
+import { useOffFor } from "../hooks/useOffDays";
 import { myHoursBySprint, recentSprints, sprintHours } from "../utils";
 import { useBacklog } from "@/features/backlog/context/BacklogContext";
 import HoursSummaryLine from "./HoursSummaryLine";
@@ -34,6 +36,7 @@ export default function WorkLoggedPage() {
   const toast = useToast();
   const router = useRouter();
   const { user } = useAuth();
+  const offFor = useOffFor(user?.id);
   const work = useWorkData();
   const { datedSprints, chosen, setPicked } = useChosenSprints();
   // The hours line looks at every sprint (not only the ones the picker offers to this role): the running sprint and the two before it. Planned sprints have no history yet.
@@ -44,6 +47,7 @@ export default function WorkLoggedPage() {
   const person = user?.name ?? "";
   // Everyone, whatever their role, has their own PODs and tasks here on a second tab (the whole team is on Team Work Details).
   const [view, setView] = useQueryState<"entries" | "pods">("view", ["entries", "pods"], "entries");
+  useTabKeys([{ id: "entries" }, { id: "pods" }], (id) => setView(id as "entries" | "pods"));
 
   if (work.status === "loading") return <PageSkeleton />;
   if (work.status === "error") {
@@ -77,7 +81,7 @@ export default function WorkLoggedPage() {
     .sort((a, b) => a.from.localeCompare(b.from) || a.createdAt.localeCompare(b.createdAt));
 
   // The same line as on Log Sprint Work: this person's entries in the chosen sprint against that sprint's weekday hours.
-  const { soFar, total } = sprintHours(chosen, todayISO());
+  const { soFar, total } = sprintHours(chosen, todayISO(), offFor);
   const loggedHours = mine.reduce((sum, e) => sum + e.hours, 0);
 
   async function remove(entry: WorkEntry) {

@@ -124,7 +124,8 @@ body {
   --ease-standard: ease-in-out;
   --ease-out: ease-out;
 
-  --button-hover-duration: 180ms;
+  --button-hover-duration: var(--motion-standard); /* 150ms: button and link hover and focus */
+  --tab-transition-duration: 180ms; /* tabs and selection changes */
   --input-transition-duration: var(--motion-standard);
   --menu-transition-duration: 180ms; /* dropdowns and menus open / close; also a modal's backdrop */
   --modal-transition-duration: var(--motion-medium);
@@ -165,11 +166,12 @@ body {
 @keyframes fade-out {
   to { opacity: 0; }
 }
+/* Toasts sit at the bottom of the screen and rise into place. */
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(-8px); }
+  from { opacity: 0; transform: translateY(8px); }
 }
 @keyframes toast-out {
-  to { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 0; transform: translateY(8px); }
 }
 @keyframes grow-x {
   from { transform: scaleX(0); }
@@ -206,8 +208,15 @@ body {
 .drawer::backdrop { animation: fade-in var(--menu-transition-duration) var(--ease-standard) backwards; }
 .drawer[data-closing] { animation: drawer-out var(--modal-transition-duration) var(--ease-standard) forwards; }
 .drawer[data-closing]::backdrop { animation: fade-out var(--menu-transition-duration) var(--ease-standard) forwards; }
-/* Behind every centred form and small dialog the page is blurred as well as dimmed. */
-dialog:not(.drawer)::backdrop { backdrop-filter: blur(4px); }
+/* A form that opens without a field in focus rests its focus on the dialog itself: no ring around the whole form. */
+dialog:focus { outline: none; }
+/* Behind every form, dialog and side panel the page is blurred as well as dimmed. */
+dialog::backdrop { backdrop-filter: blur(4px); }
+/* The selection panel of a Team Member / Owner field opened beside its form: it slides in from the side; the form stays visible and sharp behind it. */
+dialog.nested-panel::backdrop { backdrop-filter: none; }
+dialog.nested-panel.nested-center[open] { animation: modal-in var(--modal-transition-duration) var(--ease-standard) backwards; }
+
+dialog.nested-panel[data-closing] { animation: fade-out var(--menu-transition-duration) var(--ease-standard) forwards; }
 /* A small form (centred card): it fades out like the other small dialogs instead of sliding. */
 .compact-modal[data-closing] { animation: fade-out var(--menu-transition-duration) var(--ease-standard) forwards; }
 .compact-modal[data-closing]::backdrop { animation: fade-out var(--menu-transition-duration) var(--ease-standard) forwards; }
@@ -318,6 +327,32 @@ textarea[data-missing] {
   box-shadow: 0 8px 20px -10px var(--brand-from);
 }
 .auth-card .btn-brand:hover:not(:disabled) { box-shadow: 0 8px 20px -10px var(--brand-from); filter: brightness(1.08); }
+
+/* The shared button set. `btn` is the shape (height, padding, type, focus ring, disabled, transitions); one variant sets the colours: `btn-brand` (primary, above), `btn-secondary`,
+   `btn-outline`, `btn-text`, `btn-success`, `btn-warning`, `btn-danger`; `btn-sm` is the compact size. `aria-busy="true"` shows a small spinner before the label while a request runs. */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  height: 2.5rem; padding-inline: 1rem; border: 1px solid transparent; border-radius: 0.5rem;
+  font-size: 0.875rem; font-weight: 600; line-height: 1; white-space: nowrap;
+  transition: background-color var(--default-transition-duration) var(--default-transition-timing-function), border-color var(--default-transition-duration) var(--default-transition-timing-function), color var(--default-transition-duration) var(--default-transition-timing-function), opacity var(--default-transition-duration) var(--default-transition-timing-function);
+}
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-sm { height: 2rem; padding-inline: 0.75rem; font-size: 0.75rem; }
+.btn-secondary { background: var(--surface); border-color: var(--border); color: var(--foreground); }
+.btn-secondary:hover:not(:disabled) { background: var(--hover); }
+.btn-outline { background: transparent; border-color: var(--accent); color: var(--accent); }
+.btn-outline:hover:not(:disabled) { background: var(--accent-soft); }
+.btn-text { background: transparent; color: var(--accent); }
+.btn-text:hover:not(:disabled) { background: var(--hover); }
+.btn-success { background: var(--success); color: #fff; }
+.btn-warning { background: #d97706; color: #fff; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-success:hover:not(:disabled), .btn-warning:hover:not(:disabled), .btn-danger:hover:not(:disabled) { filter: brightness(0.94); }
+.btn-success:active:not(:disabled), .btn-warning:active:not(:disabled), .btn-danger:active:not(:disabled) { filter: brightness(0.88); }
+.btn[aria-busy="true"] { cursor: progress; }
+.btn[aria-busy="true"]::before { content: ""; width: 0.875rem; height: 0.875rem; border-radius: 9999px; border: 2px solid currentColor; border-right-color: transparent; animation: spin 800ms linear infinite; }
+@media (prefers-reduced-motion: reduce) { .btn[aria-busy="true"]::before { animation: none; } }
 
 /* Sign-in loading state: the button's gradient flows slowly sideways (1.4s) and the label's three dots rise one after another (1.2s). The label fades in over 160ms. */
 @keyframes btn-flow { from { background-position: 0% 0; } to { background-position: 200% 0; } }
@@ -493,6 +528,8 @@ label:has([data-missing]) > .field-required-msg { display: flex; }
 /* Tables and lists: show about 10 rows, then scroll inside the container (never the page), with the header kept in view. The container is as tall as its rows
    when there are fewer; each table sets --row-h to its own row height (and --head-h if its header differs) so "10 rows" stays right. */
 .table-scroll {
+  /* Positioned, so the rows' hidden screen-reader text (position: absolute) is contained and clipped here instead of stretching the page below the table. */
+  position: relative;
   overflow: auto;
   max-height: calc(var(--row-h, 3rem) * 10 + var(--head-h, 2.6rem));
 }
@@ -529,9 +566,9 @@ button[class*="hover:bg-hover"]:not(:disabled):active {
   background-color: rgba(128, 128, 128, 0.3);
 }
 
-/* Tabs and selected states change in 200ms; toggles, checkboxes and radios in 150ms (ease-in-out). */
+/* Tabs and selected states change in 180ms; toggles, checkboxes and radios in 150ms (ease-in-out). */
 [role="tab"] {
-  transition-duration: var(--motion-medium);
+  transition-duration: var(--tab-transition-duration);
   transition-timing-function: var(--ease-standard);
 }
 [role="switch"],
@@ -627,4 +664,72 @@ input[type="radio"] {
 .row-flash > td { animation: row-flash 1.8s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
   .row-flash > td { animation: none; background-color: color-mix(in oklab, var(--flash, var(--accent)) 7%, transparent); }
+}
+/* Unread-notification strip: the track holds the list twice and slides left by half its width, so it loops without a jump. Hover or focus pauses it. */
+.ticker-track { animation: ticker-slide linear infinite; }
+.ticker-mask:hover .ticker-track,
+.ticker-mask:focus-within .ticker-track { animation-play-state: paused; }
+@keyframes ticker-slide { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+  .ticker-mask { overflow-x: auto; }
+  .ticker-track { animation: none !important; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Short windows: a modal adjusts to the height it is given, so its    */
+/* fields and buttons are all in view without scrolling where that     */
+/* can be done. Three steps, by window height; the last resort is the  */
+/* form's own scroll (header and buttons stay fixed).                  */
+/* ------------------------------------------------------------------ */
+@media (max-height: 760px) {
+  dialog.compact-modal form > header, dialog.drawer form > header { padding-block: 0.5rem; }
+  dialog.compact-modal form > footer, dialog.drawer form > footer { padding-block: 0.5rem; }
+  dialog.compact-modal [data-drawer-body], dialog.drawer [data-drawer-body] { padding-block: 0.75rem; gap: 0.625rem; }
+  dialog.compact-modal input.field, dialog.compact-modal select.field,
+  dialog.drawer input.field, dialog.drawer select.field { height: 2.25rem; }
+  /* Long text boxes stay a few lines; they can still be pulled taller. */
+  dialog.compact-modal textarea.field, dialog.drawer textarea.field { height: 4.25rem; min-height: 0; }
+  /* The groups of a large form: tighter, and without their one-line help. */
+  dialog.compact-modal section[aria-label], dialog.drawer section[aria-label] { padding: 0.625rem 0.75rem; gap: 0.5rem; }
+  dialog.compact-modal section[aria-label] > header p, dialog.drawer section[aria-label] > header p { display: none; }
+}
+@media (max-height: 560px) {
+  dialog.compact-modal form > header, dialog.drawer form > header { padding-block: 0.375rem; }
+  dialog.compact-modal form > footer, dialog.drawer form > footer { padding-block: 0.375rem; }
+  dialog.compact-modal [data-drawer-body], dialog.drawer [data-drawer-body] { padding-block: 0.5rem; gap: 0.375rem; }
+  dialog.compact-modal input.field, dialog.compact-modal select.field,
+  dialog.drawer input.field, dialog.drawer select.field { height: 2rem; }
+  dialog.compact-modal textarea.field, dialog.drawer textarea.field { height: 3.25rem; }
+}
+/* A wide but short window (a laptop with the dev tools open, a phone on its side): a form marked `columnsWhenShort` gets wider and puts its fields in two columns,
+   the long text box beside the short fields. */
+@media (min-width: 760px) and (max-height: 640px) {
+  dialog.compact-modal.short-form { width: min(56rem, calc(100vw - 2rem)); }
+  dialog.compact-modal.short-form [data-drawer-body] {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: "summary desc" "title desc" "meta desc" "note note";
+    align-content: start;
+    gap: 0.5rem 1rem;
+  }
+  dialog.compact-modal.short-form .tf-summary { grid-area: summary; }
+  dialog.compact-modal.short-form .tf-title { grid-area: title; }
+  dialog.compact-modal.short-form .tf-desc { grid-area: desc; }
+  dialog.compact-modal.short-form .tf-meta { grid-area: meta; }
+  dialog.compact-modal.short-form .tf-note { grid-area: note; }
+}
+
+/* Short desktop windows (a laptop, or a window with the dev tools open): the sidebar tightens so more of its menus are in view without scrolling. Its menu groups lose their helper line (the Backlog tracker summary stays, on one
+   line), and the menu rows and cards get less padding. Below 640px wide the sidebar is a slide-over with its own scroll. */
+@media (min-width: 1024px) and (max-height: 820px) {
+  html:not([data-sidebar="collapsed"]) .sb-rail .sb-pad.overflow-y-auto { gap: 0.75rem; padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  html:not([data-sidebar="collapsed"]) .sb-rail .sb-item { padding-block: 0.375rem; }
+  html:not([data-sidebar="collapsed"]) .sb-rail .sb-card { padding: 0.5rem 0.75rem; }
+  /* The helper line of a menu group goes; the Backlog tracker summary stays, on one line. */
+  html:not([data-sidebar="collapsed"]) .sb-rail p.leading-relaxed { display: none; }
+  html:not([data-sidebar="collapsed"]) .sb-rail .sb-card p.leading-relaxed { display: block; margin-top: 0.125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+@media (min-width: 1024px) and (max-height: 640px) {
+  html:not([data-sidebar="collapsed"]) .sb-rail .sb-item { padding-block: 0.25rem; }
+  html:not([data-sidebar="collapsed"]) .sb-rail .sb-head { padding-top: 0.5rem; padding-bottom: 0.25rem; }
 }

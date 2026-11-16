@@ -23,6 +23,9 @@ export async function POST(req: Request) {
         const id = Number(f.id);
         if (known.has(id) && typeof f.base64 === "string") writeBlob(id, Buffer.from(f.base64, "base64"));
       }
+      // The audit log starts with this one line: who did it is not known (nobody was signed in).
+      data.audit = [{ id: 1, at: new Date().toISOString(), actorId: null, actorName: "System", action: "data.imported", target: "Data moved in from a browser", detail: `${data.users.length} users, ${data.items.length} tasks` }];
+      data.seq = { ...data.seq, audit: 1 };
       replaceDb(data);
       endAllSessions();
       return Response.json({ data: { users: data.users.length, tasks: data.items.length, images: known.size } }, { headers: { "cache-control": "no-store" } });

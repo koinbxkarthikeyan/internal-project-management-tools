@@ -45,3 +45,10 @@ next-env.d.ts
 # project documentation
 /docs/
 .data
+
+# browser tests
+/.next-e2e
+/.e2e-data
+/test-results
+/playwright-report
+/.data-backups

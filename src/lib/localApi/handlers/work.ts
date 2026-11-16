@@ -1,4 +1,4 @@
-import { db, nextId, save, type DbEntry, type DbUser } from "../db";
+import { db, nextId, save, type DbEntry, type DbLeave, type DbUser } from "../db";
 import { clean, isAdminUser, isSprintClosed, nowISO, requireUser, userRef, type Req, type Rec } from "../core";
 import { fail } from "../errors";
 
@@ -105,3 +105,44 @@ export function remove({ params }: Req) {
   return null;
 }
 
+
+// ---------- the signed-in person's own leave days ----------
+
+const leaveOut = (l: DbLeave): Rec => ({ id: l.id, sprintId: l.sprintId, userId: l.userId, date: l.date, ...(l.hours ? { hours: l.hours } : {}) });
+
+/** GET /work-entries/leaves?sprintId=: the signed-in person's leave days in a sprint (the running one when none is named). */
+export function leaves({ query }: Req) {
+  const me = requireUser();
+  const sprintId = query.sprintId !== undefined ? Number(query.sprintId) : db().sprints.find((s) => s.status === "ACTIVE")?.id;
+  return db().leaves.filter((l) => l.userId === me.id && l.sprintId === sprintId).map(leaveOut);
+}
+
+/** POST /work-entries/leaves: one working day inside an open sprint; `hours` (less than a full day) leaves out the whole day. */
+export function addLeave({ data }: Req) {
+  const me = requireUser();
+  const sprint = sprintOrFail(data.sprintId);
+  if (isSprintClosed(sprint.id)) fail(403, `${sprint.name} is closed, so its leave can't be changed.`);
+  const date = day(data.date, "leave");
+  if (date < sprint.startDate || date > sprint.endDate) fail(400, "The leave day must be inside the sprint.");
+  const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
+  if (weekday === 0 || weekday === 6) fail(400, "Weekends are already days off.");
+  if ((sprint.commonLeaves ?? []).some((c) => c.date === date)) fail(409, "That day is already a common leave day.");
+  if (db().leaves.some((l) => l.userId === me.id && l.sprintId === sprint.id && l.date === date)) fail(409, "You already have leave on that day.");
+  const hours = data.hours === undefined || data.hours === null || data.hours === "" ? undefined : Number(data.hours);
+  if (hours !== undefined && (!Number.isFinite(hours) || hours <= 0 || hours > 24)) fail(400, "Enter the hours off (more than 0).");
+  const leave: DbLeave = { id: nextId("leave"), sprintId: sprint.id, userId: me.id, date, ...(hours ? { hours } : {}) };
+  db().leaves.push(leave);
+  save();
+  return leaveOut(leave);
+}
+
+/** DELETE /work-entries/leaves/:id: only your own leave day, and not in a closed sprint. */
+export function removeLeave({ params }: Req) {
+  const me = requireUser();
+  const leave = db().leaves.find((l) => l.id === Number(params.id) && l.userId === me.id);
+  if (!leave) fail(404, "That leave day doesn't exist.");
+  if (isSprintClosed(leave!.sprintId)) fail(403, "That sprint is closed, so its leave can't be changed.");
+  db().leaves = db().leaves.filter((l) => l !== leave);
+  save();
+  return {};
+}

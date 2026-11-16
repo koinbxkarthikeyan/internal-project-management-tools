@@ -13,6 +13,7 @@ import ActivityTimeline from "./ActivityTimeline";
 import AssigneeField, { cleanAssignees } from "./AssigneeField";
 import BacklogDrawer from "./BacklogDrawer";
 import LeadSelect from "./LeadSelect";
+import FormSection from "./FormSection";
 import OwnerSelect from "./OwnerSelect";
 import TaskFamily from "@/features/work/components/TaskFamily";
 import ParentField from "./ParentField";
@@ -31,7 +32,7 @@ const TRACKED: [keyof BacklogItemData, string][] = [
   ["sprint", "sprint"],
   ["podId", "POD"],
   ["priority", "priority"],
-  ["deadline", "deadline"],
+  ["deadline", "Expected ETA"],
   ["owner", "owner"],
   ["lead", "lead"],
   ["leadDeadline", "developer ETA (Estimated Time of Arrival)"],
@@ -114,6 +115,8 @@ export default function EditBacklogDrawer({ item, onSave, onClose }: EditBacklog
   return (
     <BacklogDrawer
       side
+      mode="Edit"
+      subtitle="Update this task's details, status and people."
       heading={
         <span className="flex items-center gap-2 text-xs font-medium text-muted">
           {base.title}
@@ -127,38 +130,53 @@ export default function EditBacklogDrawer({ item, onSave, onClose }: EditBacklog
       onClose={onClose}
     >
       {detailError && <FieldError>Couldn&apos;t load the latest details ({detailError}). What you see may be out of date.</FieldError>}
-      {/* Full width on its own row, like in Create backlog (not squeezed into the three-column grid below). */}
-      <OwnerSelect value={draft.owner} onChange={(v) => set("owner", v)} placeholder="Search or select an owner, or add a new owner." />
-      <TextField label="Title" required value={draft.title} onChange={(v) => set("title", v)} />
-      <TextAreaField label="Description" rows={5} value={draft.description ?? ""} onChange={(v) => set("description", v)} />
-
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+      <div className="@container">
+        <div className="grid items-start gap-4 @3xl:grid-cols-2">
+          <div className="contents @3xl:flex @3xl:flex-col @3xl:gap-4">
+            <FormSection className="order-1" title="Basics" hint="What the work is and who it belongs to.">
+        <OwnerSelect value={draft.owner} onChange={(v) => set("owner", v)} />
+        <TextField label="Title" required value={draft.title} onChange={(v) => set("title", v)} />
+        <div className="@sm:col-span-2">
+          <TextAreaField label="Description" rows={5} value={draft.description ?? ""} onChange={(v) => set("description", v)} />
+        </div>
+      </FormSection>
+            <FormSection className="order-4" title="People">
+        <LeadSelect value={draft.lead ?? ""} onChange={(v) => setDraft((d) => ({ ...d, lead: v, ...(v !== (d.lead ?? "") ? { leadDeadline: "" } : {}) }))} />
+        <AssigneeField value={draft.assignees ?? ""} onChange={(v) => set("assignees", v)} />
+      </FormSection>
+            <FormSection className="order-5" title="Notes">
+        <div className="@sm:col-span-2">
+          <TextAreaField label="Notes" value={draft.notes ?? ""} onChange={(v) => set("notes", v)} placeholder="Anything else the team should know." />
+        </div>
+      </FormSection>
+          </div>
+          <div className="contents @3xl:flex @3xl:flex-col @3xl:gap-4">
+            <FormSection className="order-2" title="Status and classification">
         <SelectField label="Status" value={draft.status} onChange={(v) => set("status", v as Status)} options={statusOptions} />
         <SelectField label="Type" value={draft.type ?? ""} onChange={(v) => setDraft((d) => ({ ...d, type: v as ItemType, parent: "" }))} options={ITEM_TYPES} placeholder="Choose type" />
         <ParentField type={draft.type} value={draft.parent ?? ""} onChange={(v) => set("parent", v)} selfId={base.id} />
-        <TaskPlacementFields value={placement} onChange={setPlacement} current={{ sprint: base.sprint, podId: base.podId }} />
         <SelectField label="Priority" value={draft.priority} onChange={(v) => set("priority", v as Priority)} options={PRIORITIES} />
+        {commenting && (
+          <div className="@sm:col-span-2">
+            <TextAreaField
+              label={needsReason ? "Why is it blocked or on hold?" : "Comment"}
+              required={needsReason}
+              invalid={needsReason && !reason.trim()}
+              value={reason}
+              onChange={(v) => set("blockedReason", v)}
+              placeholder={needsReason ? "What's it waiting on, and who can unblock it?" : "What did you do? Add a note about this status change"}
+            />
+          </div>
+        )}
+      </FormSection>
+            <FormSection className="order-3" title="Planning" hint="When it should be done and in which sprint.">
+        <TaskPlacementFields value={placement} onChange={setPlacement} current={{ sprint: base.sprint, podId: base.podId }} />
         <TextField label={EXPECTED_ETA} type="date" value={draft.deadline} onChange={(v) => set("deadline", v)} />
-        <LeadSelect value={draft.lead ?? ""} onChange={(v) => setDraft((d) => ({ ...d, lead: v, ...(v !== (d.lead ?? "") ? { leadDeadline: "" } : {}) }))} />
-      </div>
-
-      {commenting && (
-        <TextAreaField
-          label={needsReason ? "Why is it blocked or on hold?" : "Comment"}
-          required={needsReason}
-          invalid={needsReason && !reason.trim()}
-          value={reason}
-          onChange={(v) => set("blockedReason", v)}
-          placeholder={needsReason ? "What's it waiting on, and who can unblock it?" : "What did you do? Add a note about this status change"}
-        />
-      )}
-
-      <AssigneeField value={draft.assignees ?? ""} onChange={(v) => set("assignees", v)} />
-      <TextAreaField label="Notes" value={draft.notes ?? ""} onChange={(v) => set("notes", v)} />
-
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
         <TextField label="Created" type="date" value={draft.created ?? ""} onChange={(v) => set("created", v)} />
-        <TextField label="Completed" type="date" value={draft.completed ?? ""} onChange={(v) => set("completed", v)} />
+        <TextField label="Done on" type="date" value={draft.completed ?? ""} onChange={(v) => set("completed", v)} />
+      </FormSection>
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-col gap-4 border-t border-border pt-3">

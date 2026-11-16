@@ -39,7 +39,7 @@ const readSeen = (key: string): number | null => {
  * in this browser with the rest of the data; anyone who can open the task can write. Authors edit or delete their own (admins may delete). A notification link
  * (`?comment=<id>`) scrolls to that message.
  */
-export default function TaskComments({ taskId, reloadToken = 0, statusChange, fill = false, onNewTicket }: { taskId: string; /** Typing + into the empty message box opens this (the new Ticket form) at once; it is never sent as a message. */ onNewTicket?: () => void; /** Let the conversation use the height of the page (the task pages) instead of a short box. */ fill?: boolean; /** Changes when the list should be read again. */ reloadToken?: number; statusChange?: StatusChangeComposer }) {
+export default function TaskComments({ taskId, reloadToken = 0, statusChange, fill = false, small = false, onNewTicket }: { taskId: string; /** A smaller conversation, for inside a card or a row (a board card is narrow): the whole section, with its message box, stays within about 20rem. */ small?: boolean; /** Typing + into the empty message box opens this (the new Ticket form) at once; it is never sent as a message. */ onNewTicket?: () => void; /** Let the conversation use the height of the page (the task pages) instead of a short box. */ fill?: boolean; /** Changes when the list should be read again. */ reloadToken?: number; statusChange?: StatusChangeComposer }) {
   const toast = useToast();
   const { user, isQa, isAdmin } = useAuth();
   const router = useRouter();
@@ -154,12 +154,12 @@ export default function TaskComments({ taskId, reloadToken = 0, statusChange, fi
   const newCount = firstNew && comments ? comments.filter((c) => Number(c.id) >= Number(firstNew) && c.userId !== user?.id).length : 0;
 
   return (
-    <div className={`flex min-w-0 flex-col gap-2 ${fill ? "min-h-[min(36rem,calc(100dvh-12rem))]" : ""}`}>
-      <p className="text-xs font-medium text-muted">
+    <div className={`flex min-w-0 flex-col gap-2 ${fill ? "min-h-[min(36rem,calc(100dvh-12rem))]" : small ? "max-h-[min(20rem,calc(100dvh-14rem))]" : "max-h-[min(34rem,calc(100dvh-10rem))]"}`}>
+      <p className="shrink-0 text-xs font-medium text-muted">
         Comments{comments && comments.length > 0 ? ` (${comments.length})` : ""}
         {newCount > 0 && <span className="ml-2 rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold text-white">{newCount} new</span>}
       </p>
-      <div ref={list} role="log" aria-label="Conversation" className={`flex min-h-20 flex-col gap-3 overflow-y-auto rounded-2xl border border-border bg-background/60 p-3 ${fill ? "max-h-[calc(100dvh-14rem)] flex-1" : "max-h-96"}`}>
+      <div ref={list} role="log" aria-label="Conversation" className={`flex min-h-20 flex-col gap-3 overflow-y-auto rounded-2xl border border-border bg-background/60 p-3 ${fill ? "max-h-[calc(100dvh-14rem)] flex-1" : ""}`}>
         {comments === null ? (
           <p className="text-sm text-muted" role="status">Loading…</p>
         ) : comments.length === 0 ? (
@@ -226,15 +226,15 @@ export default function TaskComments({ taskId, reloadToken = 0, statusChange, fi
           </div>
         </div>
       ) : (
-        <>
+        <div className="flex shrink-0 flex-col gap-2">
           {error && <p role="alert" className="text-xs text-red-700 dark:text-red-300">{error}</p>}
-          <CommentBox label="Add a comment" draft={draft} onChange={(d) => {
+          <CommentBox label="Add a comment" rows={small ? 1 : 2} draft={draft} onChange={(d) => {
             // Typing + into an empty box opens the new Ticket form at once (no Enter needed).
             if (onNewTicket && d.text === "+" && draft.text === "") return onNewTicket();
             setDraft(d);
             setError("");
           }} onSend={() => void add()} canSend={canSend} sending={busy} placeholder={onNewTicket ? "Write a message. Type @ to mention someone, or type + for a new Ticket." : "Write a message. Type @ to mention someone."} />
-        </>
+        </div>
       )}
     </div>
   );

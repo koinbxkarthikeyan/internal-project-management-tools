@@ -1,5 +1,6 @@
 "use client";
 
+import { disclosureKeys } from "@/lib/disclosureKeys";
 import { useState } from "react";
 import { ChevronRightIcon } from "@/components/ui/icons";
 import { PriorityBadge } from "@/components/ui/Badge";
@@ -26,11 +27,13 @@ export default function TaskCard({ title, code, priority, tickets, unread, onBel
     >
       <span className="flex items-start justify-between gap-2">
         <span className="flex min-w-0 items-start gap-1">
-          <span className="line-clamp-2 min-h-10 min-w-0 break-words text-sm font-medium" title={title}>{title}</span>
+          <span className="min-w-0 truncate text-sm font-medium" title={title}>{title}</span>
           {more && (
             <button
               type="button"
               onClick={(e) => (e.stopPropagation(), setOpen((o) => !o))}
+              onKeyDown={disclosureKeys(open, () => setOpen((o) => !o))}
+              data-disclosure
               aria-expanded={open}
               aria-label={open ? "Hide Tickets and comments" : "Show Tickets and comments"}
               title={open ? "Hide Tickets and comments" : "Tickets and comments"}

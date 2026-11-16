@@ -6,7 +6,10 @@ import { SelectField, TextAreaField, TextField } from "@/components/ui/FormContr
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import AssigneeField, { cleanAssignees } from "@/features/backlog/components/AssigneeField";
-import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
+import AssigneeStack from "@/components/ui/AssigneeStack";
+import PersonLabel from "@/components/ui/PersonLabel";
+import { useUsers } from "@/features/users/hooks/useUsers";
+import { PriorityBadge, StatusBadge, TypeLabel } from "@/components/ui/Badge";
 import CommentsCard from "@/features/comments/CommentsCard";
 import TaskFamily from "./TaskFamily";
 import TaskLoggedHours from "./TaskLoggedHours";
@@ -33,6 +36,7 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
   // A task of a closed sprint is history: details only, no status / assignee / deadline changes.
   const sprintClosed = sprints.some((s) => s.name === item.sprint && s.status === "Closed");
   const { user, isAdmin, isQa } = useAuth();
+  const users = useUsers();
   const toast = useToast();
   // The task's detail (activity, and whether I may change it) comes from the backend when the panel opens.
   const [detail, setDetail] = useState<BacklogItemData | null>(null);
@@ -61,6 +65,8 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
   const qaActs = (isQa || isAdmin) && (inQa || item.type === "Ticket");
   const canChangeStatus = !isLead && !forceViewOnly && !sprintClosed && !(detail?.readOnly ?? item.readOnly) && ((mine && !devLocked) || qaActs);
   const canComplete = isAdmin || (isQa && (inQa || item.type === "Ticket"));
+  // The Developer ETA is entered once by the Lead / an assigned user; after that only a Super Admin or an enabled Admin may change it.
+  const etaLocked = !isAdmin && !!item.leadDeadline;
   const [assigned, setAssigned] = useState(item.assignees ?? "");
   const [leadDeadline, setLeadDeadline] = useState(item.leadDeadline ?? "");
   const [status, setStatus] = useState<Status>(item.status);
@@ -96,7 +102,8 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
 
   async function save() {
     if (needsReason && !reason.trim()) return setError("Say why it is blocked or on hold."), false;
-    const saved = await leadUpdateItem(item.id, { assignees: cleanAssignees(assigned), leadDeadline, status, comment: reason });
+    if (item.deadline && leadDeadline && leadDeadline < item.deadline) return setError(`Developer ETA can't be before the Expected ETA (${formatDeadline(item.deadline)}).`), false;
+    const saved = await leadUpdateItem(item.id, { ...(isLead ? { assignees: cleanAssignees(assigned) } : {}), leadDeadline, status, comment: reason });
     if (!saved) return false;
     toast.show(`${item.title} updated`);
     onSaved?.();
@@ -106,15 +113,15 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
   const assignees = (item.assignees ?? "").split(",").map((n) => n.trim()).filter(Boolean);
 
   const rows: Row[] = [
-    { label: "Owner", value: item.owner },
-    { label: "Lead", value: item.lead },
-    { label: "Type", value: item.type },
+    { label: "Owner", value: item.owner ? <PersonLabel kind="owner" name={item.owner} size={20} /> : undefined },
+    { label: "Lead", value: item.lead ? <PersonLabel kind="user" name={item.lead} size={20} /> : undefined },
+    { label: "Type", value: item.type ? <TypeLabel type={item.type} /> : undefined },
     { label: "Priority", value: <PriorityBadge priority={item.priority} /> },
     { label: "Status", value: isLead || canChangeStatus ? undefined : <StatusBadge status={item.status} /> },
     { label: "Sprint", value: item.sprint },
     { label: "Carried over from", value: carryOverSource(item, sprints) ?? (item.carriedFrom ? sprintLabel([...items, ...hiddenItems].find((t) => t.id === item.carriedFrom)?.sprint ?? "an earlier sprint") : undefined) },
     { label: "POD", value: pod },
-    { label: "Assignees", value: isLead ? undefined : assignees.join(", ") },
+    { label: "Assignees", value: isLead || assignees.length === 0 ? undefined : <AssigneeStack people={assignees.map((n) => ({ name: n, team: users.find((u) => u.name.toLowerCase() === n.toLowerCase())?.team || undefined }))} /> },
     { label: EXPECTED_ETA, value: item.deadline ? formatDeadline(item.deadline) : undefined },
     { label: DEVELOPER_ETA, value: isLead || (canChangeStatus && mine) || item.status === "Ready for QA" || item.status === "Testing" ? undefined : item.leadDeadline ? formatDeadline(item.leadDeadline) : undefined },
     { label: "Ready for QA Date", value: item.readyForQaDate ? formatDeadline(item.readyForQaDate) : undefined },
@@ -126,7 +133,7 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
   const full = inline && item.type !== "Ticket";
 
   return (
-    <BacklogDrawer inline={inline} heading={item.type === "Ticket" ? "Ticket details" : "Task details"} submitLabel="Save changes" onSubmit={isLead ? save : canChangeStatus ? saveStatus : () => {}} canSubmit={canChangeStatus ? status !== item.status || leadDeadline !== (item.leadDeadline ?? "") : taskChanged} onClose={onClose} viewOnly={!isLead && !canChangeStatus}>
+    <BacklogDrawer inline={inline} heading={item.type === "Ticket" ? "Ticket details" : "Task details"} subtitle="Everything about this task in one place." submitLabel="Save changes" onSubmit={isLead ? save : canChangeStatus ? saveStatus : () => {}} canSubmit={canChangeStatus ? status !== item.status || leadDeadline !== (item.leadDeadline ?? "") : taskChanged} onClose={onClose} viewOnly={!isLead && !canChangeStatus}>
       {detailError && (
         <FieldError>
           Couldn&apos;t load the latest details ({detailError}). What you see may be out of date.
@@ -176,7 +183,7 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
             />
           )}
           <AssigneeField value={assigned} onChange={setAssigned} />
-          {!etaHidden && <TextField label={DEVELOPER_ETA} type="date" value={leadDeadline} onChange={setLeadDeadline} />}
+          {!etaHidden && <TextField label={DEVELOPER_ETA} type="date" value={leadDeadline} onChange={setLeadDeadline} min={item.deadline || undefined} disabled={etaLocked} disabledReason="Already set. Only a Super Admin or an Admin can change it." />}
           {error && (
             <FieldError>
               {error}
@@ -199,7 +206,7 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
               placeholder={needsReason ? "What's it waiting on, and who can unblock it?" : "What did you do? Add a note about this status change"}
             />
           )}
-          {mine && !etaHidden && item.type !== "Ticket" && <TextField label={DEVELOPER_ETA} type="date" value={leadDeadline} onChange={setLeadDeadline} />}
+          {mine && !etaHidden && item.type !== "Ticket" && <TextField label={DEVELOPER_ETA} type="date" value={leadDeadline} onChange={setLeadDeadline} min={item.deadline || undefined} disabled={etaLocked} disabledReason="Already set. Only a Super Admin or an Admin can change it." />}
           {error && <FieldError>{error}</FieldError>}
         </div>
       )}

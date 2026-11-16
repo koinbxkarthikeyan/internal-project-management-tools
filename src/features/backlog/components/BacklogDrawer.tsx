@@ -1,8 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { visibleControl } from "@/lib/formValidation";
+import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { DisabledTip } from "@/components/ui/DisabledTip";
+import { AlertCircleIcon, EditIcon, EyeIcon, ListIcon, PlusIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/Toast";
+import ExpandToggle from "@/components/ui/ExpandToggle";
+import { NESTED_WIDTH, NearTriggerContext, openedByKey, placeNear, useContentCentre, useNearButton, useNestedDock } from "../nestedDock";
 import { checkRequiredFields, clearFilled } from "@/lib/formValidation";
 
 type BacklogDrawerProps = {
@@ -15,8 +19,14 @@ type BacklogDrawerProps = {
   compact?: boolean;
   /** Styles the submit button as a destructive action (used by delete confirmations). */
   danger?: boolean;
+  /** One line under the title saying what the form is for. */
+  subtitle?: string;
+  /** Creating, editing, … : shown beside the title (worked out from the title when left out). */
+  mode?: "Create" | "Edit" | "View" | "Confirm";
   /** Details only: the footer has just a Close button (no submit). */
   viewOnly?: boolean;
+  /** A small form in the exact middle of the screen, not the middle of the right half (the keyboard shortcuts list). */
+  screenCentre?: boolean;
   /** Edit forms pass `false` until something differs from the saved data, which keeps the submit button disabled. */
   canSubmit?: boolean;
   onClose: () => void;
@@ -25,20 +35,44 @@ type BacklogDrawerProps = {
   aside?: ReactNode;
   /** Shown as a card in the page (a full-page view) instead of a slide-over panel: no Expand / Close, a Back button in the footer, and the page stays after a save. */
   inline?: boolean;
+  /** On a short but wide window (a laptop with the dev tools open, a phone on its side) the form gets wider and lays its fields out in columns, so it fits without scrolling: see `short-form` in globals.css. */
+  columnsWhenShort?: boolean;
+  /** A plain confirmation or short message (no fields): the compact width, 28rem, instead of the medium 36rem every small form has. */
+  narrow?: boolean;
   /** A large form that slides in as a full-height panel from the right instead of the centred card (Create backlog, Edit backlog). */
   side?: boolean;
 };
 
 /**
  * Centred form (native <dialog>) shared by the Create and Edit forms, over a blurred page. The sizes are standard: a large form (many fields, a details view) is a tall, wide
- * card (and can be expanded to nearly the whole window); a small one (`compact`: a name, a few fields, a confirmation) is a card of the height its content needs, 28rem wide, that
+ * card (and can be expanded to nearly the whole window); a small one (`compact`: a name, a few fields, a confirmation) is a card of the height its content needs, 23rem wide, centred across and a little above the middle of the screen (never against the top edge), that
  * grows as validation messages or more content appear and scrolls only when it would pass the screen.
  */
-export default function BacklogDrawer({ heading, submitLabel, onSubmit, onClose, compact = false, danger = false, viewOnly = false, canSubmit = true, children, aside, inline = false, side = false }: BacklogDrawerProps) {
+export default function BacklogDrawer({ heading, subtitle, mode: modeProp, submitLabel, onSubmit, onClose, compact = false, narrow = false, columnsWhenShort = false, danger = false, viewOnly = false, screenCentre: centred = false, canSubmit = true, children, aside, inline = false, side = false }: BacklogDrawerProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [closing, setClosing] = useState(false);
   const [saving, setSaving] = useState(false);
+  // A small form opened over another form (Add Owner / Add Team Member inside a backlog form) sits in the middle of that form; only that form is blurred behind it.
+  const dock = useNestedDock(compact && !inline);
+  // Small forms open in the middle of the window, a little above the true centre (never beside the button that opened it). The large backlog forms (Create / Edit backlog) are a panel on the
+  // right, as they were first; a selection panel opened from inside another form (`dock`) sits beside that form.
+  const [byKey] = useState(openedByKey);
+  const keyCentred = byKey && compact;
+  const screenCentre = centred || keyCentred;
+  const nearWanted = useContext(NearTriggerContext) && !keyCentred;
+  const near = useNearButton(false && compact && !inline && !dock && nearWanted);
+  const centre = useContentCentre(false && compact && !inline && !dock && !near && !screenCentre);
+  // Next to the field it opened from: below it when the whole form fits, else above it (worked out once the form's height is known).
+  const [nearTop, setNearTop] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (near && ref.current) setNearTop(placeNear(near, ref.current.offsetHeight));
+  }, [near]);
+  // Dragging a small form by its header: where it has been moved to (nothing until it is dragged; a form opens in its default place each time).
+  const [pos, setPos] = useState<{ left: number; top: number; width: number } | null>(null);
+  const drag = useRef<{ dx: number; dy: number; w: number; h: number } | null>(null);
+  // Creating, editing, viewing or confirming: said beside the title (worked out from the title when it is plain text).
+  const mode = modeProp ?? (viewOnly ? "View" : danger ? "Confirm" : typeof heading === "string" ? (/^(create|add|plan|new)\b/i.test(heading) ? "Create" : /^(edit|rename)\b/i.test(heading) ? "Edit" : undefined) : undefined);
   const toast = useToast();
 
   // Plays the slide-out, then closes the native dialog (which triggers onClose / unmount).
@@ -50,8 +84,23 @@ export default function BacklogDrawer({ heading, submitLabel, onSubmit, onClose,
   useEffect(() => {
     const dialog = ref.current;
     if (!inline && dialog && !dialog.open) dialog.showModal();
-    // A form opens ready to type in: the first field takes the focus (the browser would otherwise put it on the header's Expand / Close).
-    if (!inline && !viewOnly) dialog?.querySelector<HTMLElement>("[data-drawer-body] :is(input, textarea):not([type=hidden], [readonly], [disabled], [tabindex='-1'])")?.focus();
+    // A Create form opens ready to type in: the first mandatory field (any kind) takes the focus, else the first field; the browser would otherwise put it on the header's Expand /
+    // Close. An Edit form only opens, the focus resting on the form itself, so nothing is changed until a field is clicked.
+    if (!inline && mode === "Edit") dialog?.focus({ preventScroll: true });
+    else if (!inline && viewOnly) {
+      // A view-only form with a search box (data-autofocus) puts the cursor there, after what was already typed.
+      const box = dialog?.querySelector<HTMLInputElement>("[data-autofocus]");
+      box?.focus();
+      box?.setSelectionRange(box.value.length, box.value.length);
+    } else if (!inline) {
+      const body = dialog?.querySelector("[data-drawer-body]");
+      const usable = ":not([type=hidden], [readonly], [disabled], [tabindex='-1'])";
+      const required = body?.querySelector<HTMLInputElement>(`:is(input, textarea, select)[required]:not([type=hidden], [disabled])`);
+      const field = (required && visibleControl(required)) ?? body?.querySelector<HTMLElement>(`:is(input, textarea, select)${usable}`);
+      field?.focus({ preventScroll: true });
+    }
+    // The form opens once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inline, viewOnly]);
 
   async function handleSubmit(e: FormEvent) {
@@ -68,6 +117,29 @@ export default function BacklogDrawer({ heading, submitLabel, onSubmit, onClose,
     if (!inline) requestClose();
   }
 
+  // A small form (not the large expanded ones, not a page) is moved by dragging its header, with a mouse or a finger; the buttons and fields in the header are not handles.
+  const movable = compact && !inline;
+  function startDrag(e: React.PointerEvent<HTMLElement>) {
+    if (e.button !== 0 || (e.target as HTMLElement).closest("button, a, input, select, textarea, [role=button]")) return;
+    const box = ref.current?.getBoundingClientRect();
+    if (!box) return;
+    drag.current = { dx: e.clientX - box.left, dy: e.clientY - box.top, w: box.width, h: box.height };
+    setPos({ left: box.left, top: box.top, width: box.width });
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function moveDrag(e: React.PointerEvent<HTMLElement>) {
+    const d = drag.current;
+    if (!d) return;
+    const edge = 8;
+    // Kept inside the visible screen, so the header can always be reached again.
+    setPos({ width: d.w, left: Math.min(Math.max(edge, e.clientX - d.dx), Math.max(edge, window.innerWidth - d.w - edge)), top: Math.min(Math.max(edge, e.clientY - d.dy), Math.max(edge, window.innerHeight - d.h - edge)) });
+  }
+  function endDrag(e: React.PointerEvent<HTMLElement>) {
+    if (!drag.current) return;
+    drag.current = null;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  }
+
   const form = (
     <form
       noValidate
@@ -78,20 +150,28 @@ export default function BacklogDrawer({ heading, submitLabel, onSubmit, onClose,
         const form = e.currentTarget;
         requestAnimationFrame(() => clearFilled(form));
       }}
-      className={inline ? "flex flex-col" : compact ? "flex max-h-[calc(100dvh-2rem)] flex-col" : "flex h-full flex-col"}
+      className={inline ? "flex flex-col" : compact ? "flex max-h-[inherit] flex-col" : "flex h-full flex-col"}
     >
-      <header className={`flex items-center justify-between gap-3 border-b border-border ${compact ? "px-5 py-3" : "px-6 py-4"}`}>
-        <div className="min-w-0 text-sm font-semibold">{heading}</div>
+      <header
+        className={`flex items-start gap-3 border-b border-border ${compact ? "px-5 py-3.5" : "px-6 py-4"} ${movable ? "cursor-grab touch-none select-none active:cursor-grabbing" : ""}`}
+        onPointerDown={movable ? startDrag : undefined}
+        onPointerMove={movable ? moveDrag : undefined}
+        onPointerUp={movable ? endDrag : undefined}
+        onPointerCancel={movable ? endDrag : undefined}
+      >
+        <span aria-hidden="true" className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl ${danger ? "bg-red-500/10 text-red-600 dark:text-red-300" : "bg-accent-soft text-accent"}`}>
+          {mode === "Create" ? <PlusIcon width={16} height={16} /> : mode === "Edit" ? <EditIcon width={16} height={16} /> : mode === "View" ? <EyeIcon width={16} height={16} /> : danger ? <AlertCircleIcon width={16} height={16} /> : <ListIcon width={16} height={16} />}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <div className="min-w-0 text-base font-semibold leading-snug">{heading}</div>
+            {mode && <span className="shrink-0 rounded-full bg-hover px-2 py-0.5 text-[11px] font-medium text-muted">{mode}</span>}
+          </div>
+          {subtitle && <p className="mt-0.5 text-xs text-muted">{subtitle}</p>}
+        </div>
         {!inline && (
           <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              aria-pressed={expanded}
-              className={`hidden rounded-lg px-2 py-1 text-sm text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent ${compact ? "" : "sm:block"}`}
-            >
-              {expanded ? "Shrink" : "Expand"}
-            </button>
+            <ExpandToggle expanded={expanded} onToggle={() => setExpanded((v) => !v)} className={compact ? "hidden" : "hidden sm:flex"} />
             <button
               type="button"
               onClick={requestClose}
@@ -119,7 +199,7 @@ export default function BacklogDrawer({ heading, submitLabel, onSubmit, onClose,
         <button
           type="button"
           onClick={inline ? onClose : requestClose}
-          className="h-10 rounded-lg border border-border px-4 text-sm transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
+          className="btn btn-secondary"
         >
           {inline ? "Back" : viewOnly ? "Close" : "Cancel"}
         </button>
@@ -128,7 +208,8 @@ export default function BacklogDrawer({ heading, submitLabel, onSubmit, onClose,
             <button
               type="submit"
               disabled={saving || !canSubmit}
-              className={`h-10 rounded-lg px-4 text-sm font-medium transition-opacity ${danger ? "bg-red-600 text-white" : "btn-brand font-semibold"} focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed `}
+              className={`btn ${danger ? "btn-danger" : "btn-brand"}`}
+              aria-busy={saving}
             >
               {saving ? "Saving…" : submitLabel}
             </button>
@@ -143,6 +224,7 @@ export default function BacklogDrawer({ heading, submitLabel, onSubmit, onClose,
   return (
     <dialog
       ref={ref}
+      tabIndex={-1}
       // React passes a dialog's "close" and "cancel" events up to the panel it is nested in (Add Owner inside a backlog
       // form), so each panel only reacts to its own.
       onClose={(e) => {
@@ -151,12 +233,23 @@ export default function BacklogDrawer({ heading, submitLabel, onSubmit, onClose,
       onCancel={(e) => {
         // Escape: animate out instead of closing instantly.
         e.preventDefault();
-        if (e.target === e.currentTarget) requestClose();
+        if (e.target !== e.currentTarget) return;
+        // An expanded form first returns to its normal size; Esc again closes it.
+        if (expanded) setExpanded(false);
+        else requestClose();
       }}
       data-closing={closing || undefined}
       onClick={(e) => e.target === ref.current && requestClose()}
+      // Ctrl+F (⌘F) expands every form that has an Expand button (instead of the browser's find bar); once expanded, only Esc shrinks it.
+      onKeyDown={(e) => {
+        if (inline || compact || expanded || !(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "f") return;
+        e.preventDefault();
+        e.stopPropagation();
+        setExpanded(true);
+      }}
       aria-label="Backlog item"
-      className={`fixed border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-black/50 ${side && !compact ? `drawer inset-y-0 right-0 m-0 ml-auto h-dvh max-h-dvh w-full rounded-none border-y-0 border-r-0 ${expanded ? "max-w-none" : aside ? "max-w-5xl" : "max-w-3xl"}` : `compact-modal inset-0 m-auto overflow-hidden rounded-2xl ${compact ? "h-fit max-h-[calc(100dvh-2rem)] w-[min(28rem,calc(100vw-2rem))]" : `h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] ${expanded ? "max-w-none" : aside ? "max-w-5xl" : "max-w-3xl"}`}`}`}
+      style={screenCentre && !pos ? { left: "50%", top: "50%", right: "auto", bottom: "auto", margin: 0, translate: "-50% -50%" } : pos ? { left: pos.left, top: pos.top, width: pos.width, right: "auto", bottom: "auto", margin: 0, translate: "none", height: "fit-content" } : dock ? { left: dock.left, top: dock.top, right: "auto", bottom: "auto", margin: 0, translate: "0 -50%", width: NESTED_WIDTH, maxHeight: dock.height } : near ? { left: near.left, top: nearTop ?? near.buttonBottom + 8, right: "auto", bottom: "auto", margin: 0, translate: "none", height: "fit-content", maxHeight: `calc(100dvh - ${nearTop ?? near.buttonBottom + 8}px - 1rem)` } : centre ? { left: centre, right: "auto", top: "10dvh", bottom: "auto", margin: 0, translate: "-50% 0" } : undefined}
+      className={dock ? `nested-panel nested-center fixed h-fit overflow-hidden rounded-2xl border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-transparent` : `fixed border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-black/50 ${!compact && expanded ? "compact-modal inset-0 m-0 h-dvh max-h-dvh w-screen max-w-none overflow-hidden rounded-none border-0" : side && !compact ? `drawer inset-y-0 right-0 m-0 ml-auto h-dvh max-h-dvh w-full rounded-none border-y-0 border-r-0 max-w-6xl` : `compact-modal${columnsWhenShort ? " short-form" : ""} inset-0 m-auto overflow-hidden rounded-2xl ${compact ? `inset-y-auto bottom-[4dvh] top-0 h-fit max-h-[calc(96dvh-2rem)] ${narrow ? "w-[min(28rem,calc(100vw-2rem))]" : "w-[min(36rem,calc(100vw-2rem))]"}` : `h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] ${aside ? "max-w-5xl" : "max-w-3xl"}`}`}`}
     >
       {form}
     </dialog>

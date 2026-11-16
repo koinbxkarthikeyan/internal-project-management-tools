@@ -1,5 +1,6 @@
 "use client";
 
+import { disclosureKeys } from "@/lib/disclosureKeys";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { StatusBadge } from "@/components/ui/Badge";
@@ -30,7 +31,7 @@ export default function TaskCardMore({ task }: { task: BacklogItemData }) {
         <button type="button" role="tab" aria-selected={tab === "comments"} onClick={() => setTab("comments")} className={tabClass(tab === "comments")}>Comments</button>
       </div>
       {tab === "comments" ? (
-        <TaskComments taskId={task.id} />
+        <TaskComments taskId={task.id} small />
       ) : error ? (
         <p role="alert" className="text-xs text-red-700 dark:text-red-300">{error}</p>
       ) : tickets === null ? (
@@ -59,6 +60,8 @@ export function RowArrow({ open, onToggle }: { open: boolean; onToggle: () => vo
     <button
       type="button"
       onClick={(e) => (e.stopPropagation(), onToggle())}
+      onKeyDown={disclosureKeys(open, onToggle)}
+      data-disclosure
       aria-expanded={open}
       aria-label={open ? "Hide Tickets and comments" : "Show Tickets and comments"}
       title={open ? "Hide Tickets and comments" : "Tickets and comments"}

@@ -1,10 +1,16 @@
+import { requestContext } from "@/lib/server/store";
+import { recordFailure, waitMinutes } from "../rateLimit";
 import { DEFAULT_INITIAL_PASSWORD } from "@/constants/auth";
 import { db, nextId, save, type DbUser } from "../db";
 import { clean, currentUser, nowISO, requireAdmin, requireUser, sessionToken, str, type Req, type Rec } from "../core";
 import { fail } from "../errors";
-import { hashPassword, verifyPassword } from "../password";
+import { recordAudit } from "../audit";
+import { hashPassword, passwordNeedsUpgrade, verifyPassword } from "../password";
 
 const ROLES = ["ADMIN", "USER"] as const;
+const ROLE_WORDS: Record<DbUser["role"], string> = { SUPER_ADMIN: "Super Admin", ADMIN: "Admin", USER: "User" };
+/** A person in words, for the audit log: name and email (never the password). */
+const who = (u: DbUser) => `${u.name} (${u.email})`;
 const LOCK_AFTER = 5;
 const LOCK_MINUTES = 5;
 
@@ -58,11 +64,15 @@ export function signIn({ data }: Req) {
 }
 
 export async function signInWithPassword({ data }: Req) {
+  const ip = requestContext.getStore()?.ip ?? "direct";
+  const wait = waitMinutes(ip);
+  if (wait > 0) fail(429, `Too many wrong sign-in attempts from this computer. Try again in ${wait} minute${wait === 1 ? "" : "s"}.`);
   const user = findByEmail(emailKey(data.email));
   if (!user) fail(403, "This email is not registered. Ask an admin to add you.");
   const u = user as DbUser;
   if (u.lockedUntil && u.lockedUntil > Date.now()) fail(429, `Too many wrong attempts. Try again in ${Math.ceil((u.lockedUntil - Date.now()) / 60_000)} minutes.`);
   if (!(await verifyPassword(String(data.password ?? ""), u.password))) {
+    recordFailure(ip);
     u.failedSignIns = (u.failedSignIns ?? 0) + 1;
     if (u.failedSignIns >= LOCK_AFTER) {
       u.failedSignIns = 0;
@@ -75,6 +85,8 @@ export async function signInWithPassword({ data }: Req) {
   }
   u.failedSignIns = 0;
   delete u.lockedUntil;
+  // An older, weaker hash is rebuilt now that the right password is in hand.
+  if (passwordNeedsUpgrade(u.password)) u.password = await hashPassword(String(data.password));
   u.lastSignInAt = nowISO();
   save();
   return { accessToken: sessionToken(u.id), user: userOut(u) };
@@ -89,6 +101,7 @@ export async function changePassword({ data }: Req) {
   if (next === data.currentPassword) fail(400, "Choose a password different from the current one.");
   user.password = await hashPassword(next);
   delete user.mustChangePassword;
+  recordAudit("user.password_changed", who(user), "Changed their own password");
   save();
   return { ok: true };
 }
@@ -142,6 +155,7 @@ function target(id: unknown): DbUser {
 export async function update({ params, data }: Req) {
   const actor = requireAdmin();
   const user = target(params.id);
+  const was = { role: user.role, access: user.accessStatus, email: user.email, team: user.team ?? null };
   if (user.role === "SUPER_ADMIN" && actor.role !== "SUPER_ADMIN") fail(403, "Only the Super Admin can change the Super Admin.");
   if (data.name !== undefined) {
     const name = clean(data.name);
@@ -162,7 +176,12 @@ export async function update({ params, data }: Req) {
     user.password = await hashPassword(password);
     if (password === DEFAULT_INITIAL_PASSWORD) user.mustChangePassword = true;
     else delete user.mustChangePassword;
+    recordAudit("user.password_reset", who(user), "A new password was set"); // the password itself is never logged
   }
+  if (user.role !== was.role) recordAudit("user.role_changed", who(user), `${ROLE_WORDS[was.role]} → ${ROLE_WORDS[user.role]}`);
+  if (user.accessStatus !== was.access) recordAudit("user.access_changed", who(user), `${was.access === "ENABLED" ? "Enabled" : "Disabled"} → ${user.accessStatus === "ENABLED" ? "Enabled" : "Disabled"}`);
+  if (user.email !== was.email) recordAudit("user.email_changed", who(user), `${was.email} → ${user.email}`);
+  if ((user.team ?? null) !== was.team) recordAudit("user.team_changed", who(user), `${was.team ?? "No team"} → ${user.team ?? "No team"}`);
   save();
   return userOut(user);
 }
@@ -177,7 +196,9 @@ function setAccess(actor: DbUser, user: DbUser, status: string) {
 export function access({ params, data }: Req) {
   const actor = requireAdmin();
   const user = target(params.id);
+  const before = user.accessStatus;
   setAccess(actor, user, String(data.accessStatus ?? ""));
+  if (user.accessStatus !== before) recordAudit("user.access_changed", who(user), `${before === "ENABLED" ? "Enabled" : "Disabled"} → ${user.accessStatus === "ENABLED" ? "Enabled" : "Disabled"}`);
   save();
   return userOut(user);
 }
@@ -188,6 +209,7 @@ export function remove({ params }: Req) {
   if (user.role === "SUPER_ADMIN") fail(403, "The Super Admin can't be deleted.");
   if (user.id === actor.id) fail(403, "You can't delete your own account.");
   const d = db();
+  recordAudit("user.deleted", who(user), `Role: ${ROLE_WORDS[user.role]}`);
   d.users = d.users.filter((u) => u.id !== user.id);
   for (const item of d.items) {
     if (item.leadId === user.id) item.leadId = null;

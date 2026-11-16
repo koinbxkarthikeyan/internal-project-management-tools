@@ -83,7 +83,7 @@ export const ownerChoices = (c: Ctx): PickOptionData[] =>
   c.ownerRecords.filter((o) => o.name !== "Unassigned").map((o) => ({ value: o.id, label: o.name, hint: [o.role, o.team].filter(Boolean).join(" · ") || undefined }));
 export const memberChoices = (c: Ctx): PickOptionData[] => {
   const seen = new Set<string>();
-  return c.users.filter((u) => !seen.has(u.id) && seen.add(u.id)).map((u) => ({ value: u.id, label: u.name, hint: u.email }));
+  return c.users.filter((u) => !seen.has(u.id) && seen.add(u.id)).map((u) => ({ value: u.id, label: u.name }));
 };
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 /** The option a stored value points at: by id, or (for a draft saved before ids were kept) by name. */
@@ -162,7 +162,7 @@ const backlog: BulkSpec = {
 // ---------- Owner ----------
 const owner: BulkSpec = {
   label: "Owner",
-  hint: "Each row creates one owner (an owner is a record of its own, not a user). Team is optional.",
+  hint: "Each row creates one owner. Team is optional.",
   columns: [
     { key: "name", label: "Name", control: "text", required: true, width: 240, placeholder: "e.g. Jordan Blake" },
     { key: "team", label: "Team", control: "text", width: 220, suggestions: (c) => c.ownerTeams },

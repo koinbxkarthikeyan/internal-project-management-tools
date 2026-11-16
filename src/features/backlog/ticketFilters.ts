@@ -7,8 +7,11 @@ export const NO_TICKET_FILTERS: TicketFilters = { search: "", createdBy: "", ass
 
 export const isFiltering = (f: TicketFilters) => Object.values(f).some((v) => v !== "");
 
-/** The Ticket's assignee (a Ticket has one) and the creator's team and the assignee's team as ids; a missing team is "". */
-export const ticketAssigneeId = (t: BacklogItemData) => t.assigneeIds?.[0] ?? "";
+/** The Ticket's assignees as [id, name] pairs (a Ticket may have several). */
+export const ticketAssignees = (t: BacklogItemData): (readonly [string, string])[] => {
+  const names = (t.assignees ?? "").split(",").map((n) => n.trim());
+  return (t.assigneeIds ?? []).map((id, i) => [id, names[i] ?? "Someone"] as const);
+};
 
 /** Every filter given must match (they combine), and the search matches the Ticket id or any part of its title. */
 export function filterTickets(tickets: readonly BacklogItemData[], f: TicketFilters): BacklogItemData[] {
@@ -17,7 +20,7 @@ export function filterTickets(tickets: readonly BacklogItemData[], f: TicketFilt
     (t) =>
       (!q || t.id.toLowerCase().includes(q) || t.title.toLowerCase().includes(q)) &&
       (!f.createdBy || t.createdById === f.createdBy) &&
-      (!f.assignedTo || ticketAssigneeId(t) === f.assignedTo) &&
+      (!f.assignedTo || (t.assigneeIds ?? []).includes(f.assignedTo)) &&
       (!f.status || t.status === f.status) &&
       (!f.priority || t.priority === f.priority),
   );

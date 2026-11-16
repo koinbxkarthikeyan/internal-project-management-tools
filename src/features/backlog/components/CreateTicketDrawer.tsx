@@ -8,7 +8,7 @@ import { TicketFormFields, useTicketForm } from "./TicketForm";
 export default function CreateTicketDrawer({ task, onClose, onCreated }: { task: BacklogItemData; onClose: () => void; onCreated: (ticket: BacklogItemData) => void }) {
   const form = useTicketForm(task, onCreated);
   return (
-    <BacklogDrawer heading="Create Ticket" submitLabel="Create Ticket" compact onSubmit={form.submit} canSubmit={form.canSubmit} onClose={onClose}>
+    <BacklogDrawer heading="Create Ticket" submitLabel="Create Ticket" compact columnsWhenShort onSubmit={form.submit} canSubmit={form.canSubmit} onClose={onClose}>
       <TicketFormFields task={task} form={form} />
     </BacklogDrawer>
   );
