@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
-import PageHeader from "@/components/layout/PageHeader";
+import GreetingBanner from "@/components/layout/GreetingBanner";
 import EmptyState from "@/components/ui/EmptyState";
 import PersonLabel from "@/components/ui/PersonLabel";
 import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
@@ -10,12 +10,13 @@ import { PRIORITIES, STATUSES, statusLabel } from "@/constants/backlog-options";
 import { useBacklog } from "../context/BacklogContext";
 import { formatDeadline } from "../utils";
 import BacklogSummary from "./BacklogSummary";
+import PageFinder from "@/features/overview/components/PageFinder";
 import GettingStarted from "./GettingStarted";
 
 function Breakdown({ title, rows }: { title: string; rows: { label: string; value: number }[] }) {
   const max = Math.max(1, ...rows.map((r) => r.value));
   return (
-    <section className="anim-fade-up rounded-2xl border border-border bg-surface p-5">
+    <section className="anim-fade-up card p-5">
       <h2 className="text-sm font-semibold">{title}</h2>
       {rows.every((r) => r.value === 0) ? (
         <EmptyState compact title="No data yet" description="Add backlog items to see this breakdown." />
@@ -48,7 +49,8 @@ export default function OverviewPage({ tabs }: { /** Shown in the page header (a
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Overview" description="A snapshot of backlog health across all sprints." actions={tabs} />
+      <GreetingBanner description="A snapshot of backlog health across all sprints.">{tabs}</GreetingBanner>
+      <PageFinder />
       <GettingStarted />
       <BacklogSummary items={items} />
 
@@ -63,7 +65,7 @@ export default function OverviewPage({ tabs }: { /** Shown in the page header (a
         />
       </div>
 
-      <section style={{ "--i": 3 } as CSSProperties} className="anim-fade-up overflow-hidden rounded-2xl border border-border bg-surface">
+      <section style={{ "--i": 3 } as CSSProperties} className="anim-fade-up overflow-hidden card">
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
           <h2 className="text-sm font-semibold">Upcoming Expected ETAs</h2>
           <Link href="/all-items" className="text-sm text-accent hover:underline">

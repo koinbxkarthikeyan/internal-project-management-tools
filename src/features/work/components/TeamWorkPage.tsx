@@ -12,7 +12,7 @@ import { useWorkData } from "../hooks/useWorkData";
 import SprintPicker from "./SprintPicker";
 import TeamWorkView from "./TeamWorkView";
 
-const card = "rounded-2xl border border-border bg-surface p-5";
+const card = "card p-5";
 
 /** Team Work Details: every person's PODs, tasks and logged hours in the chosen sprints. Only for a Super Admin and an enabled Admin. */
 export default function TeamWorkPage() {

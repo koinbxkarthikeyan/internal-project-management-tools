@@ -63,7 +63,7 @@ export default function SprintFormDrawer({ heading, submitLabel, initial, editin
   return (
     <BacklogDrawer heading={heading} subtitle="Set the sprint's name, dates and goal." submitLabel={submitLabel} onSubmit={submit} canSubmit={!unchanged && !problem} onClose={onClose} compact>
       <TextField label="Name" required value={name} onChange={(v) => (setName(v), setError(""))} />
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2">
         <TextField label="Start" type="date" required value={start} onChange={(v) => (setStart(v), setError(""))} />
         <TextField label="End (2 weeks)" type="date" disabled disabledReason="Set automatically: two weeks after the start." value={end} onChange={() => {}} />
       </div>

@@ -14,7 +14,7 @@ export default function BacklogDataGate({ children }: { children: ReactNode }) {
     return (
       <section
         role="alert"
-        className="flex min-h-64 flex-col items-center justify-center rounded-2xl border border-border bg-surface p-8 text-center"
+        className="flex min-h-64 flex-col items-center justify-center card p-8 text-center"
       >
         <h2 className="text-base font-semibold">Couldn&apos;t load your backlog</h2>
         <p className="mt-1 max-w-sm text-sm text-muted">{error}</p>

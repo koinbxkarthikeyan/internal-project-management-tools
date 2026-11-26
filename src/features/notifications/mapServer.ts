@@ -25,6 +25,7 @@ const KINDS: Record<string, NotificationEventType> = {
 };
 
 function typeOf(raw: unknown): NotificationEventType {
+  if (str(raw) === "chat.message") return "chat.message";
   const s = (str(raw) ?? "").toLowerCase().replace(/[\s.-]+/g, "_").replace(/^task_/, "");
   return (NOTIFICATION_EVENT_TYPES as readonly string[]).includes(`task.${s}`) ? (`task.${s}` as NotificationEventType) : (KINDS[s] ?? "task.updated");
 }

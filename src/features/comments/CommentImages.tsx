@@ -38,7 +38,7 @@ export default function CommentImages({ images }: { images: readonly CommentImag
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={a.url} alt={a.name} className="size-24 object-cover transition-transform duration-150 hover:scale-105" />
               ) : (
-                <span className="flex size-24 items-center justify-center text-[11px] text-muted">Not available</span>
+                <span className="flex size-24 items-center justify-center text-xs text-muted">Not available</span>
               )}
             </button>
           </li>

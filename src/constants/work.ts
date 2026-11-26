@@ -23,6 +23,9 @@ export const WORK_HREF = "/my-sprint";
 export const WORK_LOGGED_HREF = "/my-sprint/logged";
 export const WORK_TEAM_HREF = "/my-sprint/team";
 export const MY_TASK_HREF = "/my-task";
+export const MESSAGES_HREF = "/messages";
+/** What the chat section is called (its sidebar link, its page title and its tab title). */
+export const MESSAGES_LABEL = "Work Chat";
 
 /**
  * Stands in for a POD when time is logged against Unplanned Tasks (tasks that aren't in any POD).

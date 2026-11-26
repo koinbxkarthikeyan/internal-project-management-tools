@@ -1,5 +1,6 @@
 "use client";
 
+import TabSwap from "@/components/ui/TabSwap";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import OverviewPage from "@/features/backlog/components/OverviewPage";
 import { useQueryState } from "@/hooks/useQueryState";
@@ -37,5 +38,5 @@ export default function OverviewEntry() {
     </div>
   );
   // The tabs sit in the page header, beside the "Overview" title.
-  return view === "mine" ? <PersonalOverviewPage tabs={tabs} /> : <OverviewPage tabs={tabs} />;
+  return <TabSwap id={view}>{view === "mine" ? <PersonalOverviewPage tabs={tabs} /> : <OverviewPage tabs={tabs} />}</TabSwap>;
 }

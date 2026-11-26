@@ -22,7 +22,12 @@ type State = {
   lock: Promise<unknown>;
   sessions: Map<string, Session> | null;
   sessionsWritten: number;
+  /** Sign-ins waiting for the person already signed in to Allow or Deny them (memory only: they last minutes). Keyed by the hash of the secret the waiting computer holds. */
+  approvals?: Map<string, SignInApproval>;
 };
+
+/** A correct-password sign-in on a new computer, held until the account's owner answers. `id` is public (the owner's pop-up uses it); the secret never leaves the waiting computer. */
+type SignInApproval = { id: string; userId: number; status: "pending" | "allowed" | "denied"; expires: number; at: string; ip: string; agent: string; answer: unknown };
 
 const g = globalThis as { __koinbxState?: State };
 export const state = (): State => (g.__koinbxState ??= { cache: null, rev: 0, boot: crypto.randomBytes(4).toString("hex"), lock: Promise.resolve(), sessions: null, sessionsWritten: 0 });
@@ -130,6 +135,61 @@ export function sessionUser(token: string | undefined): number | undefined {
 
 export function endSession(token: string | undefined) {
   if (token && sessions().delete(hash(token))) persistSessions(true);
+}
+
+/** A session counts as in use while its last request was within this long: a closed browser stops counting, an open page (it asks the server every few seconds) keeps counting. */
+const IN_USE_MS = 30 * 60_000;
+
+/** Whether this person is already signed in and in use on a computer: any live session but the one named (the requester's own). */
+export function hasActiveSession(userId: number, exceptToken?: string): boolean {
+  const keep = exceptToken ? hash(exceptToken) : "";
+  const cutoff = Date.now() + SESSION_DAYS * 86_400_000 - IN_USE_MS;
+  for (const [key, value] of sessions()) if (value.userId === userId && key !== keep && value.expires > cutoff) return true;
+  return false;
+}
+
+const APPROVAL_MS = 5 * 60_000;
+const MAX_WAITING = 3;
+const approvals = () => (state().approvals ??= new Map());
+const waiting = (userId: number) => [...approvals().values()].filter((a) => a.userId === userId && a.status === "pending" && a.expires > Date.now()).sort((x, y) => x.expires - y.expires);
+
+/** Holds a correct-password sign-in until the account's owner answers. Returns the secret the waiting computer polls with. At most three wait at once: the oldest is turned down. */
+export function requestSignInApproval(userId: number, answer: unknown, ip: string, agent: string): string {
+  const open = waiting(userId);
+  for (const old of open.slice(0, Math.max(0, open.length - (MAX_WAITING - 1)))) old.status = "denied";
+  const secret = crypto.randomBytes(24).toString("hex");
+  approvals().set(hash(secret), { id: crypto.randomBytes(8).toString("hex"), userId, status: "pending", expires: Date.now() + APPROVAL_MS, at: new Date().toISOString(), ip, agent: agent.slice(0, 200), answer });
+  return secret;
+}
+
+/** The sign-ins waiting for this person's answer, oldest first. */
+export function pendingSignIns(userId: number) {
+  return waiting(userId).map(({ id, at, ip, agent }) => ({ id, at, ip, agent }));
+}
+
+/** The owner's answer. False when the request is gone, expired, already answered or not theirs. */
+export function decideSignInApproval(id: string, userId: number, allow: boolean): boolean {
+  const a = waiting(userId).find((x) => x.id === id);
+  if (!a) return false;
+  a.status = allow ? "allowed" : "denied";
+  return true;
+}
+
+/** The waiting computer gave up (Cancel on its waiting screen): its request goes away, so the owner is no longer asked about it. */
+export function withdrawSignInApproval(secret: string): void {
+  const a = approvals().get(hash(secret));
+  if (a?.status === "pending") approvals().delete(hash(secret));
+}
+
+/** What the waiting computer asks: still waiting, or the answer (given once, then forgotten). `allowed` carries the sign-in answer and who it was for. */
+export function takeSignInApproval(secret: string): { status: "pending" | "denied" | "expired" } | { status: "allowed"; userId: number; answer: unknown } {
+  const key = hash(secret);
+  for (const [k, a] of approvals()) if (a.expires < Date.now() - 60_000) approvals().delete(k);
+  const a = approvals().get(key);
+  if (!a || a.expires < Date.now()) return { status: "expired" };
+  if (a.status === "pending") return { status: "pending" };
+  approvals().delete(key);
+  return a.status === "allowed" ? { status: "allowed", userId: a.userId, answer: a.answer } : { status: "denied" };
 }
 
 /** Ends every session of a person (a changed password signs out their other computers), except the one named. */

@@ -26,7 +26,10 @@ const running = () => db().sprints.find((s) => s.status === "ACTIVE");
  * Closes a sprint: it becomes read-only, the sprint after it waits as Paused, and every task that is not Done is copied into that next sprint (into the
  * Backlog when there is none). The original stays in the closed sprint as history, and the copy points back to it. Closing a closed sprint changes nothing.
  */
-export function closeSprint(sprint: DbSprint) {
+/** What happens to an unfinished task when its sprint closes: carried to the next sprint (the default), moved to the Backlog, or marked Done. A Ticket follows its task. */
+export type CloseChoice = "carry" | "backlog" | "done";
+
+export function closeSprint(sprint: DbSprint, choices: Record<string, CloseChoice> = {}) {
   const carried: { from: string; to: string }[] = [];
   if (sprint.status === "CLOSED") return carried;
   const d = db();
@@ -35,17 +38,28 @@ export function closeSprint(sprint: DbSprint) {
   const next = d.sprints.filter((s) => s.status !== "CLOSED" && s.id !== sprint.id && s.startDate >= sprint.startDate).sort((a, b) => a.startDate.localeCompare(b.startDate) || a.id - b.id)[0];
   if (next) next.status = "PAUSED";
   const unfinished = d.items.filter((i) => i.sprintId === sprint.id && i.status !== "COMPLETED");
+  const choiceOf = (i: DbItem): CloseChoice => choices[String(i.parentId ?? i.id)] ?? "carry";
   const copies = new Map<number, DbItem>();
   for (const original of unfinished) {
+    const choice = choiceOf(original);
+    if (choice === "done") {
+      // Finished by the person closing the sprint: the task stays in this sprint as Done, with nothing carried.
+      original.completedFrom = original.status;
+      original.status = "COMPLETED";
+      original.completedAt = todayISO();
+      logActivity(original, `Marked Done when ${sprint.name} closed`);
+      continue;
+    }
     const copy: DbItem = {
       ...original,
       id: nextId("item"),
       // a carried Ticket gets its own next TKT code; any other task is BLG-<id> again
       code: original.type === "TICKET" ? ticketCode() : undefined,
-      sprintId: next?.id ?? null,
-      podId: next ? original.podId : null,
+      // "backlog" goes to the Backlog even when a next sprint exists
+      sprintId: choice === "backlog" ? null : (next?.id ?? null),
+      podId: choice !== "backlog" && next ? original.podId : null,
       carriedFromId: original.id,
-      historySprintIds: next ? [next.id] : [],
+      historySprintIds: choice !== "backlog" && next ? [next.id] : [],
       hidden: false,
       activity: [],
       createdAt: nowISO(),
@@ -125,10 +139,14 @@ export function update({ params, data }: Req) {
   return out(sprint);
 }
 
-export function close({ params }: Req) {
+export function close({ params, data }: Req) {
   requireAdmin();
   const sprint = find(params.id);
-  const carriedOver = closeSprint(sprint);
+  // `choices`: the task id → "carry" | "backlog" | "done" picked on the review screen; anything not listed is carried over.
+  const raw = data.choices && typeof data.choices === "object" ? (data.choices as Record<string, unknown>) : {};
+  const choices: Record<string, CloseChoice> = {};
+  for (const [id, v] of Object.entries(raw)) if (v === "carry" || v === "backlog" || v === "done") choices[id] = v;
+  const carriedOver = closeSprint(sprint, choices);
   save();
   return { closed: out(sprint), carriedOver };
 }

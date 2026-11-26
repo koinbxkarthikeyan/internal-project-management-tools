@@ -22,7 +22,7 @@ export default function SprintPicker({ sprints, selectedIds, onChange }: SprintP
   const labelOf = (s: DatedSprint) => `${s.name} · ${formatDay(s.start)} – ${formatDay(s.end)}${s.status === "Closed" ? " · Closed" : s.status === "Active" ? " · Active" : ""}`;
 
   return (
-    <section aria-label="Sprint" className="rounded-2xl border border-border bg-surface p-5">
+    <section aria-label="Sprint" className="card p-5">
       <SelectField
         label="Sprint"
         value={selectedIds[0] ?? ""}

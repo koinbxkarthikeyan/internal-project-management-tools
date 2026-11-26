@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import FitList from "@/components/ui/FitList";
+import SettingsCard from "./SettingsCard";
 import { apiClient, getErrorMessage } from "@/lib/apiClient";
 
 type Line = { id: number; at: string; actorName: string; action: string; target: string; detail?: string };
 
-const card = "flex flex-col gap-3 rounded-2xl border border-border bg-surface p-5 sm:p-6";
 
 const WORDS: Record<string, string> = {
   "user.role_changed": "Changed a role",
@@ -41,11 +42,7 @@ export default function AuditLogCard() {
     );
   }, []);
   return (
-    <section aria-label="Audit log" className={card}>
-      <header>
-        <h2 className="text-base font-semibold">Audit log</h2>
-        <p className="mt-0.5 text-sm text-muted">What was changed, by whom and when. Only the Super Admin can read it. It never holds a password.</p>
-      </header>
+    <SettingsCard title="Audit log" description="What was changed, by whom and when. Only the Super Admin can read it. It never holds a password.">
       {error ? (
         <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>
       ) : lines === null ? (
@@ -53,7 +50,7 @@ export default function AuditLogCard() {
       ) : lines.length === 0 ? (
         <p className="text-sm text-muted">Nothing has been recorded yet.</p>
       ) : (
-        <ul className="max-h-80 divide-y divide-border overflow-y-auto rounded-xl border border-border">
+        <FitList bottom={48} min={240} className="divide-y divide-border rounded-xl border border-border">
           {lines.map((l) => (
             <li key={l.id} className="flex flex-col gap-0.5 px-3 py-2 text-sm">
               <span className="flex flex-wrap items-baseline gap-x-2">
@@ -66,8 +63,8 @@ export default function AuditLogCard() {
               </span>
             </li>
           ))}
-        </ul>
+        </FitList>
       )}
-    </section>
+    </SettingsCard>
   );
 }

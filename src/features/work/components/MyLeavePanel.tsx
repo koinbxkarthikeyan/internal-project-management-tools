@@ -1,5 +1,6 @@
 "use client";
 
+import Collapse from "@/components/ui/Collapse";
 import { disclosureKeys } from "@/lib/disclosureKeys";
 import { useState } from "react";
 import LeaveEditor, { LeaveTag } from "@/components/ui/LeaveEditor";
@@ -30,7 +31,7 @@ export default function MyLeavePanel({ sprints }: { sprints: readonly Dated[] })
   const WRONG = sprints.length === 1 ? "Pick a day inside this sprint." : "Pick a day inside a chosen sprint.";
 
   return (
-    <section aria-label="Leave dates" className="rounded-2xl border border-border bg-surface px-5 py-3 sm:px-6">
+    <section aria-label="Leave dates" className="card px-5 py-3 sm:px-6">
       <button type="button" onClick={() => setOpen((o) => !o)} onKeyDown={disclosureKeys(open, () => setOpen((o) => !o))} aria-expanded={open} className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 rounded-md py-1 text-left text-sm focus-visible:outline-2 focus-visible:outline-accent">
         <span className="font-semibold">Leave dates</span>
         <LeaveTag kind="common" />
@@ -39,7 +40,7 @@ export default function MyLeavePanel({ sprints }: { sprints: readonly Dated[] })
         <span className="text-xs text-muted">{mine.length}</span>
         <span className="ml-auto text-xs font-medium text-accent">{open ? "Hide" : "Add My Leave / manage"}</span>
       </button>
-      {open && (
+      <Collapse open={open}>
         <div className="grid gap-4 pb-2 pt-2 md:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <h3 className="text-xs font-medium text-muted">Common leave (0 hours for everyone)</h3>
@@ -70,7 +71,7 @@ export default function MyLeavePanel({ sprints }: { sprints: readonly Dated[] })
             />
           </div>
         </div>
-      )}
+      </Collapse>
     </section>
   );
 }

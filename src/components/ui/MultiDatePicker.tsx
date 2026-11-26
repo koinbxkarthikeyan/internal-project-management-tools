@@ -48,7 +48,7 @@ export default function MultiDatePicker({ value, onChange, min, max, taken, comp
           <span className="text-xs font-medium">{MONTH.format(first)}</span>
           <button type="button" onClick={() => move(1)} disabled={!canNext} aria-label="Next month" className="rounded-md px-2 py-0.5 text-muted hover:bg-hover disabled:opacity-30">›</button>
         </div>
-        <div className="grid grid-cols-7 gap-0.5 text-center text-[11px]">
+        <div className="grid grid-cols-7 gap-0.5 text-center text-xs">
           {WEEK.map((w) => (
             <span key={w} className="py-0.5 text-muted">{w}</span>
           ))}

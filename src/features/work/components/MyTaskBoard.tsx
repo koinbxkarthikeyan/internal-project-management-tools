@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useStatusFold } from "@/hooks/useStatusFold";
 import { StatusBadge } from "@/components/ui/Badge";
 import ColumnEmpty from "@/components/ui/ColumnEmpty";
 import { sprintLabel } from "@/constants/backlog-options";
@@ -20,6 +21,9 @@ const COLUMNS: { title: string; statuses: readonly Status[]; drop: Status }[] = 
   { title: "Done", statuses: ["Done"], drop: "Done" },
 ];
 
+/** Which statuses open first when the board has room for only some: the work in hand, then the others in this order. */
+const OPEN_FIRST = ["In Progress", "To Do", "Ready for QA", "Testing", "Done"];
+
 /**
  * My Task as a board: a column per status with its count and a card per task, in the same card every board uses (id, title, priority, the Ticket count and the unread
  * notifications at the top right; type and sprint, the ETAs and the Ready for QA date as details). A task assigned to the signed-in person has an accent edge, one with
@@ -27,11 +31,30 @@ const COLUMNS: { title: string; statuses: readonly Status[]; drop: Status }[] = 
  */
 export default function MyTaskBoard({ tasks, isMine, openTicketsFor, unreadFor, onBell, onOpen, canDrag, onMove, canDrop }: { /** A card of a task this person may change the status of can be dragged; `onMove` is told the task and the status of the column it was dropped on (it checks the move and asks for the comment). */ canDrag?: (task: BacklogItemData) => boolean; onMove?: (task: BacklogItemData, to: Status) => void; /** Whether the dragged task may be dropped on a column with this status; a column that says no does not light up and refuses the drop. */ canDrop?: (task: BacklogItemData, to: Status) => boolean; tasks: readonly BacklogItemData[]; isMine: (task: BacklogItemData) => boolean; /** How many open Tickets assigned to me a task has (it gets the amber edge). */ openTicketsFor: (task: BacklogItemData) => number; /** How many unread notices there are about a task (or my Tickets under it). */ unreadFor: (task: BacklogItemData) => number; /** Opens the latest unread notice about a task (marking it read). */ onBell: (task: BacklogItemData) => void; onOpen: (task: BacklogItemData) => void }) {
   const [dragging, setDragging] = useState<string | null>(null);
+  // Only one card is open at a time: opening another closes the open one.
+  const [openId, setOpenId] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
-  return (
-    <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
-      {COLUMNS.map((col) => {
+  // The statuses fold into slim vertical bars: how many are open follows the width of the board (In Progress first, statuses with cards before empty ones), see useStatusFold.
+  const wrap = useRef<HTMLDivElement>(null);
+  const fold = useStatusFold(wrap, COLUMNS.map((c) => c.title), OPEN_FIRST, (title) => tasks.some((t) => COLUMNS.find((c) => c.title === title)?.statuses.includes(t.status)));
+  // One status column.
+  const renderCol = (col: (typeof COLUMNS)[number]) => {
         const cards = tasks.filter((t) => col.statuses.includes(t.status));
+          if (fold.isFolded(col.title))
+            return (
+              <button
+                key={col.title}
+                type="button"
+                onClick={() => fold.toggle(col.title)}
+                aria-expanded="false"
+                aria-label={`Show ${col.title}, ${cards.length}`}
+                title={`Show ${col.title}`}
+                className="anim-fade-up flex h-36 w-11 shrink-0 flex-col items-center gap-2 card px-1 py-3 text-sm font-semibold text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent self-stretch"
+              >
+                <span className="rounded-full bg-hover px-2 py-0.5 text-xs font-medium">{cards.length}</span>
+                <span className="[writing-mode:vertical-rl]">{col.title}</span>
+              </button>
+            );
         return (
           <section
             key={col.title}
@@ -58,10 +81,11 @@ export default function MyTaskBoard({ tasks, isMine, openTicketsFor, unreadFor, 
                   }
                 : undefined
             }
-            className={`flex min-w-0 flex-col gap-2 self-start rounded-2xl border p-2.5 transition-colors min-h-[15.5rem] ${over === col.title ? "border-accent bg-accent-soft/30" : "border-border bg-surface"}`}
+            className={`flex min-w-0 flex-col gap-2 self-start rounded-2xl border p-2.5 transition-[flex-grow,border-color,background-color] duration-200 min-h-[15.5rem] flex-1 has-[[data-disclosure][aria-expanded=true]]:flex-[2.4] ${over === col.title ? "border-accent bg-accent-soft/30" : "border-border bg-surface"}`}
           >
             <h2 className="flex items-baseline gap-2 px-1 text-sm font-semibold">
               {col.title} <span className="rounded-full bg-hover px-2 py-0.5 text-xs font-medium" title="Tasks">{cards.length}</span>
+              <button type="button" onClick={() => fold.toggle(col.title)} aria-expanded="true" aria-label={`Hide ${col.title}`} title={`Hide ${col.title}`} className="ml-auto rounded-md px-1.5 text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent">‹</button>
             </h2>
             {cards.length === 0 ? (
               <ColumnEmpty>No tasks</ColumnEmpty>
@@ -83,7 +107,7 @@ export default function MyTaskBoard({ tasks, isMine, openTicketsFor, unreadFor, 
                       unread={unreadFor(t)}
                       onBell={() => onBell(t)}
                       tall
-                      more={<TaskCardMore task={t} />}
+                      more={<TaskCardMore task={t} />} open={openId === t.id} onOpenChange={(o) => setOpenId(o ? t.id : null)}
                       className={onMove && canDrag?.(t) ? "cursor-grab" : ""}
                       onOpen={() => onOpen(t)}
                       ariaLabel={`View ${t.title}${isMine(t) ? " (assigned to you)" : ""}`}
@@ -104,7 +128,14 @@ export default function MyTaskBoard({ tasks, isMine, openTicketsFor, unreadFor, 
             )}
           </section>
         );
-      })}
+  };
+  return (
+    <div ref={wrap} className="-mx-1 px-1 pb-1">
+      {/* The open statuses side by side and, in ONE line at the right, the folded ones as slim vertical bars (count on top, name written vertically). */}
+      <div className="flex items-stretch gap-3">
+        <div className="flex min-w-0 flex-1 items-start gap-3 self-start">{COLUMNS.map((c) => (fold.isFolded(c.title) ? null : renderCol(c)))}</div>
+        <div className="flex shrink-0 items-stretch gap-2 empty:hidden">{COLUMNS.map((c) => (fold.isFolded(c.title) ? renderCol(c) : null))}</div>
+      </div>
     </div>
   );
 }

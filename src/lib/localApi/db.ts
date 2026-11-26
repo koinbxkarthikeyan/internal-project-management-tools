@@ -73,7 +73,13 @@ export type DbEntry = { id: number; sprintId: number; userId: number; itemIds: n
 /** An image attached to a Ticket: its details only. The file itself is in the image store (blobStore.ts) under the same id. */
 export type DbAttachment = { id: number; itemId: number; taskId: number; name: string; type: string; size: number; originalSize?: number; createdAt: string; userId: number; /** Set when the image belongs to a comment (shown in it), not to the Ticket's own attachments. */ commentId?: number };
 /** `team` is the author's team when they wrote it; `updatedAt` is set when the author edited it. */
-export type DbComment = { id: number; itemId: number; userId: number; text: string; createdAt: string; team?: string | null; updatedAt?: string; /** The people @mentioned in it (by user id). */ mentionIds?: number[]; /** Set on the note "created Ticket …" that a new Ticket leaves on its task: the Ticket it points to. */ ticketId?: number };
+export type DbComment = { id: number; itemId: number; userId: number; text: string; createdAt: string; team?: string | null; updatedAt?: string; /** The people @mentioned in it (by user id). */ mentionIds?: number[]; /** Set on the note "created Ticket …" that a new Ticket leaves on its task: the Ticket it points to. */ ticketId?: number; /** What kind of message: text (the default), image, video, audio (a voice message), code or file. */ kind?: "text" | "image" | "video" | "audio" | "code" | "file"; /** The language of a code message. */ lang?: string; /** The message this one replies to. */ replyTo?: number; /** Reactions: emoji → the people who gave it. */ reactions?: Record<string, number[]>; /** Set when the author changed the words. */ editedAt?: string; /** Deleted: the message stays in the conversation as "This message was deleted" and its words and images are gone. */ deleted?: boolean };
+/**
+ * A chat message. A direct message to one person (`toId`). A POD's chat has no messages of its own: it is the task's comments.
+ */
+export type DbMessage = { id: number; fromId: number; text: string; createdAt: string; toId: number; /** What kind of message: text (the default), image, video, audio (a voice message), code or file. */ kind?: "text" | "image" | "video" | "audio" | "code" | "file"; /** The language of a code message. */ lang?: string; /** The message this one replies to. */ replyTo?: number; /** Reactions: emoji → the people who gave it. */ reactions?: Record<string, number[]>; /** Set when the author changed the words. */ editedAt?: string; /** Deleted for everyone: the message stays in the chat as "This message was deleted" and its words are gone. */ deleted?: boolean };
+/** A file sent in a chat message (its bytes are in the file store under the same id; only the details are here). `ref` says where it belongs once the message exists. */
+export type DbChatFile = { id: number; userId: number; name: string; type: string; size: number; kind: "image" | "video" | "audio" | "file"; /** Seconds, for a voice message or a video, as the sender's browser measured it. */ duration?: number; createdAt: string; /** A direct chat: the two people. */ members?: number[]; /** A group chat: the task whose chat it is. */ itemId?: number; /** The message it was sent with ("dm": a direct message, "comment": a group message), once sent. */ ref?: { type: "dm" | "comment"; id: number } };
 export type DbNotification = {
   id: number;
   eventId: string;
@@ -93,7 +99,7 @@ export type DbNotification = {
 
 export type Db = {
   version: 1;
-  seq: Record<"user" | "owner" | "pod" | "sprint" | "item" | "entry" | "comment" | "notification" | "activity" | "ticket" | "attachment" | "leave" | "audit", number>;
+  seq: Record<"user" | "owner" | "pod" | "sprint" | "item" | "entry" | "comment" | "notification" | "activity" | "ticket" | "attachment" | "leave" | "audit" | "message", number>;
   users: DbUser[];
   owners: DbOwner[];
   pods: DbPod[];
@@ -106,11 +112,17 @@ export type Db = {
   comments: DbComment[];
   notifications: DbNotification[];
   attachments: DbAttachment[];
+  messages: DbMessage[];
+  /** The newest message each person has read, by person id then by conversation ("task:<task id>" or "dm:<other id>"). */
+  chatReads: Record<string, Record<string, number>>;
+  /** The messages each person deleted for themselves only, by person id then by conversation. */
+  chatHidden: Record<string, Record<string, number[]>>;
+  chatFiles: DbChatFile[];
 };
 
 const empty = (): Db => ({
   version: 1,
-  seq: { user: 0, owner: 0, pod: 0, sprint: 0, item: 0, entry: 0, comment: 0, notification: 0, activity: 0, ticket: 0, attachment: 0, leave: 0, audit: 0 },
+  seq: { user: 0, owner: 0, pod: 0, sprint: 0, item: 0, entry: 0, comment: 0, notification: 0, activity: 0, ticket: 0, attachment: 0, leave: 0, audit: 0, message: 0 },
   users: [],
   owners: [],
   pods: [],
@@ -122,6 +134,10 @@ const empty = (): Db => ({
   comments: [],
   notifications: [],
   attachments: [],
+  messages: [],
+  chatReads: {},
+  chatHidden: {},
+  chatFiles: [],
 });
 
 /** The database, kept in memory after it is read from the file. Callers change it in place and then call `save()`. */
@@ -151,6 +167,10 @@ export function save(): void {
 export function replaceDb(next: Db): void {
   // A file made before the audit log existed has none; the log is never missing.
   next.audit ??= [];
+  next.messages ??= [];
+  next.chatReads ??= {};
+  next.chatHidden ??= {};
+  next.chatFiles ??= [];
   next.seq = { ...empty().seq, ...next.seq };
   state().cache = next;
   save();

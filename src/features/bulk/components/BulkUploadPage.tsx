@@ -387,7 +387,7 @@ export default function BulkUploadPage() {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader title="Bulk Upload" />
-        <section className="rounded-2xl border border-border bg-surface">
+        <section className="card">
           <EmptyState title="Admins only" description="Admins only." />
         </section>
       </div>
@@ -460,7 +460,7 @@ export default function BulkUploadPage() {
       </div>
       <p className="-mt-3 text-xs text-muted">{spec.hint}</p>
 
-      <section id="bulk-panel" role="tabpanel" aria-labelledby={`bulk-tab-${type}`} className="flex flex-col gap-4" aria-label={`${spec.label} upload`}>
+      <section key={type} id="bulk-panel" role="tabpanel" aria-labelledby={`bulk-tab-${type}`} className="anim-tab-in flex flex-col gap-4" aria-label={`${spec.label} upload`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted">
             <span className="font-semibold text-foreground tabular-nums">{filled.length}</span> {filled.length === 1 ? one : many} entered
@@ -550,7 +550,7 @@ export default function BulkUploadPage() {
           </div>
         )}
 
-        <div data-bulk-table style={{ "--row-h": "3.4rem" } as CSSProperties} className="table-scroll rounded-2xl border border-border bg-surface">
+        <div data-bulk-table style={{ "--row-h": "3.4rem" } as CSSProperties} className="table-scroll card">
           <table className="w-max min-w-full text-sm">
             <caption className="sr-only">{spec.label} records to upload</caption>
             <thead className="sticky top-0 z-10 border-b border-border bg-surface">
@@ -575,7 +575,7 @@ export default function BulkUploadPage() {
                     return (
                       <td key={c.key} className="px-1.5 py-1.5" style={{ minWidth: c.width }}>
                         <Cell column={c} row={row} index={index} ctx={ctx} invalid={!!message} disabled={uploading} onChange={(v) => edit(row, c, v)} onLeave={(v) => c.complete && v !== c.complete(v) && edit(row, c, c.complete(v))} onCreate={c.create ? () => setCreating({ kind: c.create!, rowId: row.id, key: c.key, multi: c.control === "multi" }) : undefined} />
-                        {message && <p className="mt-1 text-[11px] leading-snug text-danger">{message}</p>}
+                        {message && <p className="mt-1 text-xs leading-snug text-danger">{message}</p>}
                       </td>
                     );
                   })}

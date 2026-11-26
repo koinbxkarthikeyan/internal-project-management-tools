@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import EmptyState from "@/components/ui/EmptyState";
+import FitList from "@/components/ui/FitList";
 import { statusLabel } from "@/constants/backlog-options";
 import { formatDeadline } from "@/features/backlog/utils";
 import { formatHours, formatDay } from "@/features/work/utils";
@@ -7,7 +8,7 @@ import type { BacklogItemData, Status } from "@/types/backlog";
 import type { WorkEntry } from "@/types/work";
 import type { Activity } from "../stats";
 
-const card = "rounded-2xl border border-border bg-surface p-5";
+const card = "card p-5";
 /** The same colours the status badges use. */
 export const STATUS_COLOR: Record<Status, string> = { Open: "#3b82f6", "In progress": "#6366f1", "Ready for QA": "#14b8a6", Testing: "#8b5cf6", Blocked: "#ef4444", "On hold": "#f59e0b", Done: "#10b981" };
 
@@ -25,7 +26,7 @@ export function Panel({ title, note, children }: { title: string; note?: string;
 
 export function StatCard({ label, value, hint, tone = "text-foreground" }: { label: string; value: ReactNode; hint?: string; tone?: string }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-border bg-surface p-4">
+    <div className="min-w-0 card p-4">
       <dt className="text-xs font-medium text-muted">{label}</dt>
       <dd className={`mt-1 truncate text-2xl font-semibold tabular-nums ${tone}`}>{value}</dd>
       {hint && <p className="mt-0.5 truncate text-xs text-muted">{hint}</p>}
@@ -121,8 +122,9 @@ export function RecentCompleted({ tasks }: { tasks: readonly BacklogItemData[] }
 
 export function ActivityList({ activity }: { activity: readonly Activity[] }) {
   if (activity.length === 0) return <EmptyState compact title="No recent activity" description="Assignments, status changes and logged work show here." />;
+  // A short list, newest first: a long history scrolls inside it, so the card is never tall.
   return (
-    <ul className="max-h-96 divide-y divide-border overflow-y-auto pr-2 text-sm">
+    <FitList bottom={48} min={200} className="divide-y divide-border pr-2 text-sm">
       {activity.map((a, i) => (
         <li key={`${a.at}-${i}`} className="flex items-baseline justify-between gap-3 py-2 first:pt-0 last:pb-0">
           <span className="min-w-0">
@@ -133,6 +135,6 @@ export function ActivityList({ activity }: { activity: readonly Activity[] }) {
           <span className="shrink-0 text-xs text-muted">{a.at ? formatDeadline(a.at.slice(0, 10)) : ""}</span>
         </li>
       ))}
-    </ul>
+    </FitList>
   );
 }

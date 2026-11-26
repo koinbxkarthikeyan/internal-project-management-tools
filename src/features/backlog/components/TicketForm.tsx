@@ -60,12 +60,12 @@ export function TicketFormFields({ task, form, compact = false }: { task: Backlo
       {!compact && (
         <dl className="tf-summary grid grid-cols-2 gap-x-4 rounded-xl border border-border bg-background px-4 py-2.5 text-sm">
           <div className="min-w-0">
-            <dt className="text-[11px] text-muted">Task</dt>
+            <dt className="text-xs text-muted">Task</dt>
             <dd className="mt-0.5 break-words font-semibold">{task.id} · {task.title}</dd>
           </div>
           {/* Taken from the signed-in profile when the Ticket is saved: nobody types their own name or team. */}
           <div className="min-w-0">
-            <dt className="text-[11px] text-muted">Created by</dt>
+            <dt className="text-xs text-muted">Created by</dt>
             <dd className="mt-0.5 break-words">{user?.name ?? "–"} · {user?.team || "No team"}</dd>
           </div>
         </dl>

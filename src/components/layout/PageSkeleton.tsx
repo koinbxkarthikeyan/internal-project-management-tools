@@ -27,7 +27,7 @@ function Stats({ count = 5, className = "grid grid-cols-2 gap-3 sm:grid-cols-3 x
   return (
     <div className={className}>
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="rounded-2xl border border-border bg-surface p-4">
+        <div key={i} className="card p-4">
           <div className={`${bar} h-3 w-16`} />
           <div className={`${bar} mt-3 h-7 w-10`} />
         </div>
@@ -49,7 +49,7 @@ function Tabs({ count = 2 }: { count?: number }) {
 /** A bordered card of rows: `cols` cells per row (the first one wide), like the list and table rows. */
 function Rows({ rows = 6, cols = 3, head = false }: { rows?: number; cols?: number; head?: boolean }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+    <div className="overflow-hidden card">
       {head && <div className="h-10 border-b border-border bg-background/60" />}
       <div className="divide-y divide-border">
         {Array.from({ length: rows }, (_, r) => (
@@ -66,9 +66,9 @@ function Rows({ rows = 6, cols = 3, head = false }: { rows?: number; cols?: numb
 }
 
 function Filters({ fields = 0 }: { fields?: number }) {
-  if (fields === 0) return <div className="h-16 rounded-2xl border border-border bg-surface" />;
+  if (fields === 0) return <div className="h-16 card" />;
   return (
-    <div className="grid gap-3 rounded-2xl border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] lg:items-end">
+    <div className="grid gap-3 card p-4 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] lg:items-end">
       {Array.from({ length: fields }, (_, i) => (
         <div key={i} className="flex flex-col gap-1">
           <div className={`${bar} h-3 w-12`} />
@@ -82,7 +82,7 @@ function Filters({ fields = 0 }: { fields?: number }) {
 
 function Card({ lines = 4, className = "" }: { lines?: number; className?: string }) {
   return (
-    <div className={`rounded-2xl border border-border bg-surface p-5 ${className}`}>
+    <div className={`card p-5 ${className}`}>
       <div className={`${bar} h-4 w-28`} />
       <div className="mt-4 flex flex-col gap-3">
         {Array.from({ length: lines }, (_, i) => (
@@ -98,7 +98,7 @@ function Card({ lines = 4, className = "" }: { lines?: number; className?: strin
 
 function SprintSection() {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+    <div className="overflow-hidden card">
       <div className="flex items-center justify-between border-b border-border px-5 py-3">
         <div className={`${bar} h-4 w-56`} />
         <div className="h-5 w-16 rounded-full bg-hover" />
@@ -119,7 +119,7 @@ function SprintSection() {
 /** A sprint picker bar: a bordered card with a label and a few chips. */
 function Picker() {
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface p-4">
+    <div className="flex flex-wrap items-center gap-3 card p-4">
       <div className={`${bar} h-4 w-20`} />
       <div className="h-8 w-24 rounded-full bg-hover" />
       <div className="h-8 w-24 rounded-full bg-hover" />
@@ -236,7 +236,7 @@ const layouts: Record<string, ReactNode> = {
   "/settings": (
     <>
       <Header />
-      <div className="flex items-center gap-4 rounded-2xl border border-border bg-surface p-5 sm:p-6">
+      <div className="flex items-center gap-4 card p-5 sm:p-6">
         <div className="h-14 w-14 shrink-0 rounded-full bg-hover" />
         <div className="flex-1">
           <div className={`${bar} h-5 w-40`} />

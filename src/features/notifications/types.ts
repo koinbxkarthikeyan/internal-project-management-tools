@@ -1,7 +1,7 @@
 /**
  * The notification data model the bell uses. The server's notifications are converted to these shapes in mapServer.ts, so the screens never depend on the server's own field names.
  */
-export const NOTIFICATION_EVENT_TYPES = ["task.assigned", "task.reassigned", "task.status_changed", "task.commented", "task.updated", "task.sprint_changed"] as const;
+export const NOTIFICATION_EVENT_TYPES = ["task.assigned", "task.reassigned", "task.status_changed", "task.commented", "task.updated", "task.sprint_changed", "chat.message"] as const;
 export type NotificationEventType = (typeof NOTIFICATION_EVENT_TYPES)[number];
 
 export type NotificationActor = { id: string; name: string };

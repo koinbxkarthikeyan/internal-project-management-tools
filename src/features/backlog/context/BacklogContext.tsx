@@ -92,7 +92,7 @@ type BacklogContextValue = {
   /** Adds an existing POD to a sprint's PODs. Only the POD list changes (never the sprint's dates). */
   addPodToSprint: (sprintName: string, podId: string) => Promise<boolean>;
   /** Closes the running sprint (even early); the next one is left Paused. */
-  closeSprint: (name: string) => Promise<boolean>;
+  closeSprint: (name: string, choices?: sprintService.CloseChoices) => Promise<boolean>;
   /** Starts a Paused sprint (only possible while no other sprint is running). */
   startSprint: (name: string) => Promise<boolean>;
   /** Deletes a sprint; its items move to "Unplanned". Resolves to the number of items moved, or null on failure. */
@@ -425,11 +425,11 @@ export function BacklogProvider({ children }: { children: ReactNode }) {
       // Kept for the screens that still call it: the backend links a POD to a sprint only through the tasks in it,
       // so there is nothing to save here (the POD shows under the sprint once a task is created in it).
       addPodToSprint: async (sprintName) => sprints.some((s) => s.name === sprintName),
-      closeSprint: async (name) => {
+      closeSprint: async (name, choices) => {
         const current = sprints.find((s) => s.name === name);
         if (!current) return false;
         try {
-          const saved = await sprintService.updateSprint(current.id, { status: "Closed" });
+          const saved = await sprintService.updateSprint(current.id, { status: "Closed" }, choices);
           setSprints((prev) => prev.map((s) => (s.id === saved.id ? saved : s)));
           // Closing leaves the next sprint Paused and copies the unfinished tasks into it: re-read just those two lists.
           await refreshParts(["sprints", "items"], ctx);

@@ -32,10 +32,21 @@ describe("statusOptionsFor", () => {
     expect(values(statusOptionsFor(task("Open", "Unplanned"), false, false))).toEqual(["Open"]);
   });
 
-  it("never offers a Ticket Ready for QA, and Done only to those who may finish it", () => {
-    expect(values(statusOptionsFor(task("Open", "Sprint 1", "Ticket"), false, false))).not.toContain("Ready for QA");
-    expect(values(statusOptionsFor(task("Open", "Sprint 1", "Ticket"), false, false))).not.toContain("Done");
-    expect(values(statusOptionsFor(task("Open", "Sprint 1", "Ticket"), false, false, true))).toContain("Done");
-    expect(values(statusOptionsFor(task("Open", "Sprint 1", "Ticket"), true, true))).toContain("Done");
+  it("offers a Ticket's creator, QA and admins every status; everyone else hands it to QA and then cannot move it on", () => {
+    const ticket = (status: string) => task(status, "Sprint 1", "Ticket");
+    // the creator, and QA / admins (canComplete)
+    expect(values(statusOptionsFor(ticket("Open"), false, false, true))).toContain("Done");
+    expect(values(statusOptionsFor(ticket("Open"), true, true))).toEqual(expect.arrayContaining(["Ready for QA", "Testing", "Done"]));
+    // someone else on the Ticket: Ready for QA yes, Testing and Done no
+    expect(values(statusOptionsFor(ticket("In progress"), false, false))).toEqual(expect.arrayContaining(["Open", "In progress", "Ready for QA", "Blocked", "On hold"]));
+    expect(values(statusOptionsFor(ticket("In progress"), false, false))).not.toContain("Testing");
+    expect(values(statusOptionsFor(ticket("In progress"), false, false))).not.toContain("Done");
+    // a Ticket that QA created: also no Blocked or On hold for the people it is assigned to
+    const byQa = (status: string) => ({ ...ticket(status), createdByTeam: "QA" }) as Parameters<typeof statusOptionsFor>[0];
+    expect(values(statusOptionsFor(byQa("Open"), false, false))).toEqual(["Open", "In progress", "Ready for QA"]);
+    expect(values(statusOptionsFor(byQa("Open"), false, false, true))).toEqual([...STATUSES]);
+    // once with QA they can only see where it is
+    expect(values(statusOptionsFor(ticket("Ready for QA"), false, false))).toEqual(["Ready for QA"]);
+    expect(values(statusOptionsFor(ticket("Testing"), false, false))).toEqual(["Testing"]);
   });
 });

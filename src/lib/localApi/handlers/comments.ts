@@ -8,7 +8,11 @@ const MAX = 2000;
 /** A message can be edited or deleted by its author for this long after it was sent. */
 const WINDOW_MS = 30 * 60_000;
 const inWindow = (c: DbComment) => Date.now() - Date.parse(c.createdAt) <= WINDOW_MS;
-const LATE = "A message can only be edited or deleted within 30 minutes of sending it.";
+const LATE = "A message can only be edited within 30 minutes of sending it.";
+/** The author can delete their own message for this long after sending it (30 hours). */
+export const DELETE_WINDOW_MS = 30 * 60 * 60_000;
+export const withinDeleteWindow = (createdAt: string) => Date.now() - Date.parse(createdAt) <= DELETE_WINDOW_MS;
+const LATE_DELETE = "A message can only be deleted within 30 hours of sending it.";
 
 /** The people @mentioned, as sent: real, distinct users only. */
 const mentionsOf = (raw: unknown): number[] => [...new Set((Array.isArray(raw) ? raw : []).map(Number))].filter((id) => db().users.some((u) => u.id === id)).slice(0, 20);
@@ -16,16 +20,17 @@ const mentionsOf = (raw: unknown): number[] => [...new Set((Array.isArray(raw) ?
 /** The author's team is the one they had when they wrote it; comments from before that was kept show their current team. */
 const out = (c: DbComment, me: DbUser) => ({
   id: c.id,
-  text: c.text,
+  text: c.deleted ? "" : c.text || (c.kind && c.kind !== "text" ? ({ image: "Shared a photo", video: "Shared a video", audio: "Sent a voice message", file: "Shared a file", code: "Shared a code snippet" } as Record<string, string>)[c.kind] ?? "" : ""),
   createdAt: c.createdAt,
+  ...(c.deleted ? { deleted: true } : {}),
   ...(c.updatedAt ? { updatedAt: c.updatedAt } : {}),
   ...(userRef(c.userId) ? { user: userRef(c.userId) } : {}),
   mentions: (c.mentionIds ?? []).flatMap((id) => userRef(id) ?? []),
   images: db().attachments.filter((a) => a.commentId === c.id).sort((a, b) => a.id - b.id).map((a) => ({ id: a.id, name: a.name, type: a.type, size: a.size })),
   ...(c.ticketId && db().items.some((i) => i.id === c.ticketId) ? { ticket: { id: c.ticketId, code: codeOf(db().items.find((i) => i.id === c.ticketId)!) } } : {}),
   team: c.team !== undefined ? c.team : (db().users.find((u) => u.id === c.userId)?.team ?? null),
-  canEdit: c.userId === me.id && inWindow(c),
-  canDelete: (c.userId === me.id && inWindow(c)) || isAdminUser(me),
+  canEdit: !c.deleted && c.userId === me.id && inWindow(c),
+  canDelete: !c.deleted && ((c.userId === me.id && withinDeleteWindow(c.createdAt)) || isAdminUser(me)),
   editableUntil: new Date(Date.parse(c.createdAt) + WINDOW_MS).toISOString(),
 });
 
@@ -47,7 +52,10 @@ export function create({ params, data }: Req) {
   const comment: DbComment = { id: nextId("comment"), itemId: item.id, userId: me.id, text, createdAt: nowISO(), team: me.team ?? null, ...(mentionIds.length ? { mentionIds } : {}) };
   db().comments.push(comment);
   // The people mentioned are told they were; the others who follow the task get the ordinary comment notice.
-  notify(item, "task.commented", me, followers(item).filter((id) => !mentionIds.includes(id as number)), undefined, text.slice(0, 480), { commentId: comment.id });
+  // A message on a Ticket is also read in its task's chat, so the people on the task are told too (not only the people on the Ticket).
+  const parent = item.parentId == null ? undefined : db().items.find((i) => i.id === item.parentId);
+  const told = [...followers(item), ...(parent ? followers(parent) : [])];
+  notify(item, "task.commented", me, told.filter((id) => !mentionIds.includes(id as number)), undefined, text.slice(0, 480), { commentId: comment.id });
   notify(item, "task.commented", me, mentionIds, undefined, `mentioned you: ${text.slice(0, 460)}`, { commentId: comment.id });
   save();
   return out(comment, me);
@@ -59,6 +67,7 @@ export function edit({ params, data }: Req) {
   const comment = db().comments.find((c) => c.id === Number(params.id));
   if (!comment) fail(404, "That comment doesn't exist.");
   const c = comment as DbComment;
+  if (c.deleted) fail(400, "That message was deleted.");
   if (c.userId !== me.id) fail(403, "You can only edit your own comments.");
   if (!inWindow(c)) fail(403, LATE);
   const text = String(data.text ?? "").trim();
@@ -83,11 +92,18 @@ export function remove({ params }: Req) {
   const comment = db().comments.find((c) => c.id === Number(params.id));
   if (!comment) fail(404, "That comment doesn't exist.");
   if (comment && comment.userId !== me.id && !isAdminUser(me)) fail(403, "You can only delete your own comments.");
-  // The author deletes within the 30 minutes; an admin may remove a message at any time.
-  if (comment && comment.userId === me.id && !isAdminUser(me) && !inWindow(comment)) fail(403, LATE);
-  db().comments = db().comments.filter((c) => c.id !== Number(params.id));
-  // Its images go with it (the details here, the files in the image store).
+  // The author deletes within the 30 hours; an admin may remove a message at any time.
+  if (comment && comment.userId === me.id && !isAdminUser(me) && !withinDeleteWindow(comment.createdAt)) fail(403, LATE_DELETE);
+  // The message stays in the conversation as "This message was deleted": its words, mentions and images are gone.
+  const c2 = comment as DbComment;
+  c2.deleted = true;
+  c2.text = "";
+  delete c2.mentionIds;
+  delete c2.ticketId;
+  // Its images and files go with it (the details here, the files in the file store).
   for (const a of db().attachments.filter((x) => x.commentId === Number(params.id))) void deleteFile(a.id).catch(() => undefined);
+  for (const f of db().chatFiles.filter((x) => x.ref?.type === "comment" && x.ref.id === Number(params.id))) void deleteFile(f.id).catch(() => undefined);
+  db().chatFiles = db().chatFiles.filter((x) => !(x.ref?.type === "comment" && x.ref.id === Number(params.id)));
   db().attachments = db().attachments.filter((x) => x.commentId !== Number(params.id));
   save();
   return null;

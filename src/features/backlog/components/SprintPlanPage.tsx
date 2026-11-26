@@ -1,5 +1,7 @@
 "use client";
 
+import SprintDownloadMenu from "./SprintDownloadMenu";
+import Collapse from "@/components/ui/Collapse";
 import { disclosureKeys } from "@/lib/disclosureKeys";
 import { markKeyOpened } from "../nestedDock";
 import { DisabledTip } from "@/components/ui/DisabledTip";
@@ -16,6 +18,8 @@ import EditSprintDrawer from "./EditSprintDrawer";
 import { useBacklog } from "../context/BacklogContext";
 import type { BacklogItemData, Sprint } from "@/types/backlog";
 import { sprintLabel } from "@/constants/backlog-options";
+import { getErrorMessage } from "@/lib/apiClient";
+import { downloadSprintExcel } from "../exportSprintExcel";
 import { carryOverSource } from "../carryOver";
 import EditBacklogDrawer from "./EditBacklogDrawer";
 import TaskSearchModal from "./TaskSearchModal";
@@ -171,10 +175,23 @@ export default function SprintPlanPage() {
           dragging && moves.canDrop(dragging, sprint) ? (over === sprint ? "border-accent ring-2 ring-accent" : "border-accent/60 ring-1 ring-accent/40") : "border-border"
         }`}
       >
-        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+        <div className="flex items-center justify-between gap-x-3 gap-y-2 border-b border-border px-4 py-3 sm:flex-wrap sm:px-5">
           {sprintHeader(sp)}
-          <span className="rounded-full bg-hover px-2 py-0.5 text-xs tabular-nums text-muted">
-            {items.length} {items.length === 1 ? "item" : "items"}
+          <span className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void downloadSprintExcel({ scope: { sprint }, items: allItems, sprints }).then(() => toast.show("Excel file downloaded"), (err) => toast.show(getErrorMessage(err), "danger"))}
+              disabled={items.length === 0}
+              aria-label={`Download ${sprintLabel(sprint)} as Excel`}
+              title={items.length === 0 ? "Nothing to download yet." : `Download ${sprintLabel(sprint)} as Excel`}
+              className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-surface px-3 text-xs font-semibold transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14" /></svg>
+              <span className="max-sm:sr-only">Download Excel</span>
+            </button>
+            <span className="whitespace-nowrap rounded-full bg-hover px-2 py-0.5 text-xs tabular-nums text-muted">
+              {items.length}<span className="max-sm:hidden"> {items.length === 1 ? "item" : "items"}</span>
+            </span>
           </span>
         </div>
         {/* PODs are hidden here (nothing is removed): tasks are listed straight from the sprint they were created in. */}
@@ -221,7 +238,8 @@ export default function SprintPlanPage() {
 
   // Close Sprint is available only while there is a running sprint with tasks still open (the work to review before closing). Until the data has loaded
   // it is not available either: missing data is never read as "nothing to close". It is worked out from the current sprint and task data on every render.
-  const closeAvailable = status === "ready";
+  // It is also empty (nothing to show) until a task of the running sprint is done or a sprint has been closed, and an empty tab is not allowed.
+  const closeAvailable = status === "ready" && (closed.length > 0 || (!!cur && finished.length > 0));
   const requested = tab === "unplanned-closed" ? "closed" : tab;
   const activeTab = requested === "closed" && !closeAvailable ? "active" : requested; // a saved link to a disabled tab opens Active Sprint
 
@@ -240,6 +258,8 @@ export default function SprintPlanPage() {
             : "Items planned for each sprint, in one place."
         }
         actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <SprintDownloadMenu />
 <button
             type="button"
             onClick={() => setCreatingSprint(true)}
@@ -250,9 +270,10 @@ export default function SprintPlanPage() {
             <PlusIcon />
             Plan New Sprint <kbd className="ml-1 hidden rounded border border-current/30 px-1.5 text-[10px] font-medium opacity-80 lg:inline">S</kbd>
           </button>
+          </div>
         }
       />
-      <div role="tablist" aria-label="Sprints" className="flex w-fit max-w-full flex-wrap gap-1 rounded-xl border border-border bg-surface p-1">
+      <div role="tablist" aria-label="Sprints" className="flex w-full max-w-full gap-1 overflow-x-auto rounded-xl border border-border bg-surface p-1 [scrollbar-width:none] sm:w-fit [&::-webkit-scrollbar]:hidden">
         {(
           [
             { id: "active", label: "Active Sprint", count: current.length },
@@ -263,7 +284,7 @@ export default function SprintPlanPage() {
           const disabled = t.id === "closed" && !closeAvailable;
           const on = activeTab === t.id;
           return (
-            <DisabledTip key={t.id} reason={disabled && "Loading sprint data…"} className="inline-block">
+            <DisabledTip key={t.id} reason={disabled && (status === "ready" ? "Nothing to close yet" : "Loading sprint data…")} className="inline-block flex-1 sm:flex-none">
             <button
               type="button"
               role="tab"
@@ -275,13 +296,14 @@ export default function SprintPlanPage() {
               onDragOver={(e) => dragging && (t.id === "active" || t.id === "plan") && e.preventDefault()}
               onDragLeave={disarmTab}
               onDrop={disarmTab}
-              className={`flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-accent ${
+              className={`flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg px-2.5 py-1.5 sm:w-auto text-xs transition-colors sm:flex-none sm:px-4 sm:text-sm focus-visible:outline-2 focus-visible:outline-accent ${
                 dragging && (t.id === "active" || t.id === "plan") && !on ? "outline-dashed outline-2 outline-accent/60 " : ""
               }${
                 on ? "bg-accent-soft font-medium text-accent" : disabled ? "cursor-not-allowed text-muted opacity-50" : "text-muted hover:bg-hover hover:text-foreground"
               }`}
             >
-              {t.label}
+              {/* A phone has room for the short names only: "Active", "Plan", "Close". */}
+              <span>{t.label.replace(" Sprint", "")}<span className="max-sm:hidden"> Sprint</span></span>
               <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${on ? "bg-accent font-semibold text-accent-foreground" : "bg-hover text-muted"}`}>{t.count}</span>
             </button>
             </DisabledTip>
@@ -291,7 +313,7 @@ export default function SprintPlanPage() {
 
       {/* The Active Sprint and Plan Sprint tabs stay mounted when the other is open, parked off-screen (not removed, not display:none, and inert only while nothing is being dragged), because a browser
           ends a drag when its source is removed or hidden: a task dragged from one tab can then be dropped in the other. */}
-      <div className={activeTab === "plan" ? undefined : PARKED} inert={activeTab !== "plan" && !dragging} aria-hidden={activeTab !== "plan"}>
+      <div className={activeTab === "plan" ? "anim-tab-in" : PARKED} inert={activeTab !== "plan" && !dragging} aria-hidden={activeTab !== "plan"}>
         <section aria-label="Plan Sprint" className="flex flex-col gap-5">
           <p className="text-sm text-muted">
             Plan the next sprint here while the current one runs. Planning only creates it; it starts when you press Start sprint and the running sprint closes when you press Close sprint, as separate actions. Dates can&apos;t overlap another sprint.
@@ -345,7 +367,7 @@ export default function SprintPlanPage() {
           </div>
         </section>
       </div>
-      <div className={activeTab === "active" ? undefined : PARKED} inert={activeTab !== "active" && !dragging} aria-hidden={activeTab !== "active"}>
+      <div className={activeTab === "active" ? "anim-tab-in" : PARKED} inert={activeTab !== "active" && !dragging} aria-hidden={activeTab !== "active"}>
         <section aria-label="Active sprint" className="flex flex-col gap-4">
           <p className="-mt-1 text-xs text-muted">
             Reorder tasks inside a list by dragging a row by its grip (or Alt + Up / Down on a row); the order is kept in this browser only. Dragging a task onto another sprint or the Backlog moves it straight away.
@@ -370,14 +392,14 @@ export default function SprintPlanPage() {
         </section>
       </div>
       {activeTab === "closed" && (
-        <section aria-label="Close Sprint" className="flex flex-col gap-6">
+        <section aria-label="Close Sprint" className="anim-tab-in flex flex-col gap-6">
           {/* The sprint to close: its details and a count of its tasks (the task lists are not repeated here). Closing itself is the sprint's Close sprint action. */}
           {/* The running sprint is shown here only once at least one of its tasks is completed. */}
           {cur && finished.length > 0 && (
           <div className="flex flex-col gap-2">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Current Sprint</h2>
             {(
-              <section className="anim-fade-up overflow-hidden rounded-2xl border border-border bg-surface">
+              <section className="anim-fade-up overflow-hidden card">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
                   {sprintHeader(cur)}
                   <span className="rounded-full bg-hover px-2 py-0.5 text-xs tabular-nums text-muted">
@@ -468,15 +490,15 @@ export default function SprintPlanPage() {
                         </span>
                       </span>
                     </button>
-                    {open && (
-                      <div className="anim-expand border-t border-border">
+                    <Collapse open={open}>
+                      <div className="border-t border-border">
                         {items.length === 0 ? (
                           <p className="px-4 py-2 text-xs text-muted">No tasks in this sprint.</p>
                         ) : (
                           <SprintItemsTable items={items} onOpen={setViewing} onView={setViewing} readOnly carryNote={(t) => (t.sprint !== sp.name ? `Carried forward · now in ${sprintLabel(t.sprint)}` : carryNote(t))} />
                         )}
                       </div>
-                    )}
+                    </Collapse>
                   </li>
                 );
               })}
@@ -493,9 +515,10 @@ export default function SprintPlanPage() {
           sprint={closingSprint}
           onClose={() => setClosingSprint(null)}
           planned={planned}
-          onConfirm={async (startNext) => {
-            if (!(await closeSprint(closingSprint.name))) return false;
-            toast.show(`${closingSprint.name} closed. Unfinished tasks moved on.`);
+          unfinished={allItems.filter((i) => i.sprint === closingSprint.name && i.status !== "Done")}
+          onConfirm={async (startNext, choices) => {
+            if (!(await closeSprint(closingSprint.name, choices))) return false;
+            toast.show(`${closingSprint.name} closed.`);
             if (!startNext) return;
             // The close has happened; the next sprint then starts today.
             if (await startToday(startNext)) toast.show(`${startNext.name} started`);

@@ -1,5 +1,6 @@
 "use client";
 
+import ModalClose from "@/components/ui/ModalClose";
 import { useEffect, useRef, useState } from "react";
 import type { BacklogItemData } from "@/types/backlog";
 import { TicketFormFields, useTicketForm } from "./TicketForm";
@@ -38,7 +39,7 @@ export default function TicketPanel({ task, onClose, onCreated }: { task: Backlo
       >
         <header className="flex items-center justify-between gap-3 border-b border-border bg-accent-soft/50 px-4 py-2.5">
           <p className="text-sm font-semibold">Create Ticket <span className="font-normal text-muted">· under {task.id}</span></p>
-          <button type="button" onClick={onClose} aria-label="Close" className="grid size-7 place-items-center rounded-lg text-lg leading-none text-muted hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent">×</button>
+          <ModalClose onClick={onClose} />
         </header>
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
           <TicketFormFields task={task} form={form} compact />

@@ -27,7 +27,7 @@ import WorkEntriesList from "./WorkEntriesList";
 import TeamWorkView from "./TeamWorkView";
 import WorkEntryDetailsDrawer from "./WorkEntryDetailsDrawer";
 
-const card = "rounded-2xl border border-border bg-surface p-5";
+const card = "card p-5";
 const backLink =
   "inline-flex h-10 items-center rounded-xl border border-border bg-surface px-4 text-sm font-medium transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent";
 

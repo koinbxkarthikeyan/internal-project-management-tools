@@ -1,5 +1,6 @@
 "use client";
 
+import ModalClose from "@/components/ui/ModalClose";
 import { visibleControl } from "@/lib/formValidation";
 import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { DisabledTip } from "@/components/ui/DisabledTip";
@@ -172,13 +173,7 @@ export default function BacklogDrawer({ heading, subtitle, mode: modeProp, submi
         {!inline && (
           <div className="flex items-center gap-1">
             <ExpandToggle expanded={expanded} onToggle={() => setExpanded((v) => !v)} className={compact ? "hidden" : "hidden sm:flex"} />
-            <button
-              type="button"
-              onClick={requestClose}
-              className="rounded-lg px-2 py-1 text-sm text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent"
-            >
-              Close
-            </button>
+            <ModalClose onClick={requestClose} />
           </div>
         )}
       </header>
@@ -219,7 +214,7 @@ export default function BacklogDrawer({ heading, subtitle, mode: modeProp, submi
     </form>
   );
 
-  if (inline) return <div className="rounded-2xl border border-border bg-surface text-foreground">{form}</div>;
+  if (inline) return <div className="card text-foreground">{form}</div>;
 
   return (
     <dialog
@@ -249,7 +244,7 @@ export default function BacklogDrawer({ heading, subtitle, mode: modeProp, submi
       }}
       aria-label="Backlog item"
       style={screenCentre && !pos ? { left: "50%", top: "50%", right: "auto", bottom: "auto", margin: 0, translate: "-50% -50%" } : pos ? { left: pos.left, top: pos.top, width: pos.width, right: "auto", bottom: "auto", margin: 0, translate: "none", height: "fit-content" } : dock ? { left: dock.left, top: dock.top, right: "auto", bottom: "auto", margin: 0, translate: "0 -50%", width: NESTED_WIDTH, maxHeight: dock.height } : near ? { left: near.left, top: nearTop ?? near.buttonBottom + 8, right: "auto", bottom: "auto", margin: 0, translate: "none", height: "fit-content", maxHeight: `calc(100dvh - ${nearTop ?? near.buttonBottom + 8}px - 1rem)` } : centre ? { left: centre, right: "auto", top: "10dvh", bottom: "auto", margin: 0, translate: "-50% 0" } : undefined}
-      className={dock ? `nested-panel nested-center fixed h-fit overflow-hidden rounded-2xl border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-transparent` : `fixed border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-black/50 ${!compact && expanded ? "compact-modal inset-0 m-0 h-dvh max-h-dvh w-screen max-w-none overflow-hidden rounded-none border-0" : side && !compact ? `drawer inset-y-0 right-0 m-0 ml-auto h-dvh max-h-dvh w-full rounded-none border-y-0 border-r-0 max-w-6xl` : `compact-modal${columnsWhenShort ? " short-form" : ""} inset-0 m-auto overflow-hidden rounded-2xl ${compact ? `inset-y-auto bottom-[4dvh] top-0 h-fit max-h-[calc(96dvh-2rem)] ${narrow ? "w-[min(28rem,calc(100vw-2rem))]" : "w-[min(36rem,calc(100vw-2rem))]"}` : `h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] ${aside ? "max-w-5xl" : "max-w-3xl"}`}`}`}
+      className={dock ? `nested-panel nested-center fixed h-fit overflow-hidden card p-0 text-foreground shadow-modal backdrop:bg-transparent` : `fixed border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-black/50 ${!compact && expanded ? "compact-modal inset-0 m-0 h-dvh max-h-dvh w-screen max-w-none overflow-hidden rounded-none border-0" : side && !compact ? `drawer inset-y-0 right-0 m-0 ml-auto h-dvh max-h-dvh w-full rounded-none border-y-0 border-r-0 max-w-6xl` : `compact-modal${columnsWhenShort ? " short-form" : ""} inset-0 m-auto overflow-hidden rounded-2xl ${compact ? `inset-y-auto bottom-[4dvh] top-0 h-fit max-h-[calc(96dvh-2rem)] ${narrow ? "w-[min(28rem,calc(100vw-2rem))]" : "w-[min(36rem,calc(100vw-2rem))]"}` : `h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] ${aside ? "max-w-5xl" : "max-w-3xl"}`}`}`}
     >
       {form}
     </dialog>

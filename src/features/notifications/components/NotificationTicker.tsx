@@ -1,26 +1,20 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { BellIcon } from "@/components/ui/icons";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { MY_TASK_HREF } from "@/constants/work";
-import { describe, timeAgo } from "../describe";
+import { describe, isDirect, isPod, timeAgo } from "../describe";
+import { useOpenNotification } from "../open";
 import { selectUnread, useNotificationStore } from "../store";
-import type { AppNotification } from "../types";
 
 /** A slim strip above every page that scrolls the unread notifications along; it is not there when nothing is unread. */
 export default function NotificationTicker() {
   const { settingsOnly } = useAuth();
-  const router = useRouter();
+  const open = useOpenNotification();
   const items = useNotificationStore((s) => s.items);
   const unread = useNotificationStore(selectUnread);
   const list = items.filter((n) => !n.read);
   if (settingsOnly || unread === 0 || list.length === 0) return null;
 
-  const open = (n: AppNotification) => {
-    useNotificationStore.getState().markRead(n.id);
-    router.push(`${MY_TASK_HREF}?task=${encodeURIComponent(n.taskCode)}`);
-  };
   // The list is shown twice in a row so the loop has no gap; the second copy is hidden from assistive tech.
   const row = (copy: number) =>
     list.map((n) => (
@@ -33,8 +27,8 @@ export default function NotificationTicker() {
         className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 text-sm hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
       >
         <span className="font-medium">{n.actor.name}</span>
-        <span className="text-muted">{describe(n)}</span>
-        <span className="font-medium text-accent">{n.taskCode}</span>
+        <span className="text-muted">{n.message ? `${isDirect(n) ? "sent you a direct message" : isPod(n) ? "wrote in the POD chat" : describe(n)}` : describe(n)}</span>
+        {n.taskCode && <span className="font-medium text-accent">{n.taskCode}</span>}
         <span className="text-xs text-muted">· {timeAgo(n.occurredAt)}</span>
       </button>
     ));

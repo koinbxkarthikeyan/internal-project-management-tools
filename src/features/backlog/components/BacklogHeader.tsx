@@ -4,7 +4,7 @@ import CreateBacklogButton from "./CreateBacklogButton";
 export default function BacklogHeader() {
   return (
     <PageHeader
-      title="All items"
+      title="Backlog items"
       description="Track and filter backlog items."
       actions={
         <div className="w-full sm:w-auto">

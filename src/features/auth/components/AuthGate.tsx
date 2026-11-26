@@ -3,14 +3,14 @@
 import { useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ACCOUNT_DISABLED_PATH, LOGIN_PATH } from "@/constants/auth";
-import { MY_TASK_HREF, OVERVIEW_HREF, READY_FOR_QA_HREF, WORK_HREF } from "@/constants/work";
+import { MESSAGES_HREF, MY_TASK_HREF, OVERVIEW_HREF, READY_FOR_QA_HREF, WORK_HREF } from "@/constants/work";
 import { sessionStore } from "@/lib/auth/sessionStore";
 import { resetSharedData, signOut } from "@/lib/auth/authService";
 import { refreshUsers } from "@/lib/auth/userStore";
 import { getMe } from "@/services/authApi";
 import { useAuth } from "../hooks/useAuth";
 
-const isWorkPath = (pathname: string, qa: boolean) => [OVERVIEW_HREF, WORK_HREF, MY_TASK_HREF, "/settings", ...(qa ? [READY_FOR_QA_HREF] : [])].some((href) => pathname === href || pathname.startsWith(`${href}/`));
+const isWorkPath = (pathname: string, qa: boolean) => [OVERVIEW_HREF, WORK_HREF, MY_TASK_HREF, MESSAGES_HREF, "/settings", ...(qa ? [READY_FOR_QA_HREF] : [])].some((href) => pathname === href || pathname.startsWith(`${href}/`));
 
 /**
  * Keeps the whole app behind the login:
@@ -76,7 +76,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   if (status !== "signedIn" || blocked || disabledAdmin) {
     return (
-      <div className="flex min-h-screen items-center justify-center" role="status" aria-label="Checking sign-in">
+      <div className="flex min-h-dvh items-center justify-center" role="status" aria-label="Checking sign-in">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-border border-t-accent" />
       </div>
     );

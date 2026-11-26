@@ -1,5 +1,6 @@
 "use client";
 
+import { useMenuPresence } from "@/hooks/usePresence";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FilterIcon } from "./icons";
 
@@ -55,6 +56,7 @@ type FilterBarProps = {
 export default function FilterBar({ search, activeCount, onClear, children, advanced, advancedCount = 0, count, note, label = "Search and filters" }: FilterBarProps) {
   const [panel, setPanel] = useState(false);
   const [more, setMore] = useState(false);
+  const moreMenu = useMenuPresence(more);
   const moreBox = useRef<HTMLDivElement>(null);
   useDismiss(more, () => setMore(false), moreBox);
   const active = activeCount > 0;
@@ -94,8 +96,8 @@ export default function FilterBar({ search, activeCount, onClear, children, adva
                 {advancedCount > 0 && <span className="grid min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-semibold leading-4 text-white">{advancedCount}</span>}
                 {chevron(more)}
               </button>
-              {more && (
-                <div role="dialog" aria-label="More filters" className="anim-menu-in absolute left-0 top-full z-30 mt-1.5 flex w-max max-w-[calc(100vw-2rem)] flex-col gap-2 rounded-xl border border-border bg-surface p-3 shadow-menu">
+              {moreMenu.mounted && (
+                <div role="dialog" aria-label="More filters" className={`${moreMenu.motion} absolute left-0 top-full z-30 mt-1.5 flex w-max max-w-[calc(100vw-2rem)] flex-col gap-2 rounded-xl border border-border bg-surface p-3 shadow-menu`}>
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">More filters</p>
                   <div className="flex flex-wrap items-center gap-2">{advanced}</div>
                 </div>
@@ -131,6 +133,7 @@ type PillOption = string | { value: string; label: string };
  */
 export function FilterPill({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: readonly PillOption[] }) {
   const [open, setOpen] = useState(false);
+  const pill = useMenuPresence(open);
   const [query, setQuery] = useState("");
   const box = useRef<HTMLDivElement>(null);
   const menu = useRef<HTMLDivElement>(null);
@@ -190,8 +193,8 @@ export function FilterPill({ label, value, onChange, options }: { label: string;
           </button>
         )}
       </span>
-      {open && (
-        <div ref={menu} onKeyDown={move} className="anim-menu-in absolute left-0 top-full z-30 mt-1.5 flex w-56 max-w-[calc(100vw-2rem)] flex-col rounded-xl border border-border bg-surface p-1 shadow-menu">
+      {pill.mounted && (
+        <div ref={menu} onKeyDown={move} className={`${pill.motion} absolute left-0 top-full z-30 mt-1.5 flex w-56 max-w-[calc(100vw-2rem)] flex-col rounded-xl border border-border bg-surface p-1 shadow-menu`}>
           {searchable && (
             <input
               value={query}

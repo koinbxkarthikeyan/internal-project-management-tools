@@ -34,7 +34,7 @@ import StartEditFromUrl from "./StartEditFromUrl";
 import WorkEntriesList from "./WorkEntriesList";
 import WorkForm from "./WorkForm";
 
-const card = "rounded-2xl border border-border bg-surface p-5";
+const card = "card p-5";
 
 /** The "What are you working on?" section: independent of the Backlog pages (it only reads sprints, PODs, tasks and owners). */
 export default function WorkPage() {
@@ -226,6 +226,24 @@ export default function WorkPage() {
     });
   }
 
+  // The tasks this person logged time on most recently (newest entry first, each task once): one click ticks one, so they are picked instead of searched for.
+  const recent = (() => {
+    if (selection || otherWork || editing) return [];
+    const mine = work.entries.filter((e) => e.person === person && !e.otherWork && e.itemIds?.length).sort((a, b) => (b.to || "").localeCompare(a.to || "") || (b.createdAt || "").localeCompare(a.createdAt || ""));
+    const seen = new Set<string>();
+    const out: BacklogItemData[] = [];
+    for (const e of mine) {
+      for (const id of e.itemIds ?? []) {
+        const t = myTasks.find((x) => x.id === id);
+        if (t && !seen.has(id) && formSprint.status !== "Closed" && (t.sprint === formSprint.name || t.sprint === "Unplanned")) {
+          seen.add(id);
+          out.push(t);
+        }
+      }
+    }
+    return out.slice(0, 5);
+  })();
+
   async function submit(input: WorkEntryInput) {
     const ok = editing ? await work.updateEntry(editing.id, input) : await work.addEntry(input);
     if (ok) {
@@ -337,6 +355,16 @@ export default function WorkPage() {
           </section>
 
           <section className={card}>
+            {recent.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Tasks you logged time on recently">
+                <span className="text-xs font-medium text-muted">Recently worked on</span>
+                {recent.map((t) => (
+                  <button key={t.id} type="button" onClick={() => toggleTask({ id: formSprint.id }, pods.find((p) => p.id === t.podId) ?? (UNPLANNED_POD as Pod), t)} title={`${t.id} · ${t.title}`} className="max-w-56 truncate rounded-full border border-border px-3 py-1 text-xs transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent">
+                    <span className="font-mono text-muted">{t.id}</span> {t.title}
+                  </button>
+                ))}
+              </div>
+            )}
             <SprintPodTasks disabled={otherWork} sprints={chosen} pods={pods} items={myTasks} selection={selection} loggedBySprint={loggedBySprint}
               person={person}
               entries={work.entries.filter((e) => e.person === person)}

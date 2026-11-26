@@ -38,7 +38,7 @@ export default function QaStatusDialog({ task, status, title, confirm, placehold
       onClose={(e) => e.target === e.currentTarget && onClose()}
       onClick={(e) => e.target === ref.current && ref.current?.close()}
       aria-label={title}
-      className="fixed inset-x-0 bottom-[10dvh] top-0 m-auto h-fit max-h-[calc(90dvh-2rem)] w-[min(28rem,calc(100vw-2rem))] rounded-2xl border border-border bg-surface p-5 text-foreground shadow-modal backdrop:bg-black/60"
+      className="modal-confirm p-5"
     >
       <h2 className="text-base font-semibold">{title}</h2>
       <p className="mt-1 text-sm text-muted"><span className="font-mono">{task.id}</span> {task.title}</p>

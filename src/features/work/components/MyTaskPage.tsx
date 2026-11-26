@@ -1,5 +1,8 @@
 "use client";
 
+import ViewToggle from "@/components/ui/ViewToggle";
+import { useIsPhone } from "@/hooks/useIsPhone";
+import TabSwap from "@/components/ui/TabSwap";
 import { Fragment, useEffect, useState, type KeyboardEvent } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
@@ -11,6 +14,7 @@ import { DisabledTip } from "@/components/ui/DisabledTip";
 import { unreadForTask, unreadNoticesForTask } from "@/features/notifications/forTask";
 import { useOpenNotification } from "@/features/notifications/open";
 import { useNotificationStore } from "@/features/notifications/store";
+import { CollapseRow } from "@/components/ui/Collapse";
 import TaskCardMore, { RowArrow } from "@/features/backlog/components/TaskCardMore";
 import CreateTicketButton from "@/features/backlog/components/CreateTicketButton";
 import { PRIORITY_ROW } from "@/features/backlog/priorityCard";
@@ -56,7 +60,9 @@ export default function MyTaskPage() {
   const taskParam = search.get("task");
   const commentParam = search.get("comment");
   const [tab, setTab] = useQueryState<Tab>("tab", ["mine", "lead", "unassigned"], "mine");
-  const [view, setView] = useQueryState<"list" | "board">("view", ["list", "board"], "board", "myTaskView");
+  const [chosenView, setView] = useQueryState<"list" | "board">("view", ["list", "board"], "board", "myTaskView");
+  // A phone has no Board view: it always shows the list.
+  const view = useIsPhone() ? "list" : chosenView;
 
   // The three lists come from `GET /items/mine` (lead, assigned, unassigned). Each task is shown as its newest copy from the shared
   // list, so a saved change shows at once; a task in several lists appears once in each.
@@ -94,7 +100,8 @@ export default function MyTaskPage() {
   const openTicketsFor = (task: BacklogItemData) => myTickets.filter((t) => t.parent === task.id && t.status !== "Done").length;
   // The tasks whose Tickets and comments are open under their row.
   const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
-  const toggleRow = (id: string) => setOpened((o) => { const n = new Set(o); if (!n.delete(id)) n.add(id); return n; });
+  // One row open at a time: opening another closes the open one.
+  const toggleRow = (id: string) => setOpened((o) => (o.has(id) ? new Set() : new Set([id])));
   const notices = useNotificationStore((s) => s.items);
   const unreadFor = (task: BacklogItemData) => unreadForTask(notices, task);
   const openNotification = useOpenNotification();
@@ -142,7 +149,7 @@ export default function MyTaskPage() {
 
   if (mineFailed) {
     return (
-      <section role="alert" className="flex min-h-64 flex-col items-center justify-center rounded-2xl border border-border bg-surface p-8 text-center">
+      <section role="alert" className="flex min-h-64 flex-col items-center justify-center card p-8 text-center">
         <h2 className="text-base font-semibold">Couldn&apos;t load your tasks</h2>
         <p className="mt-1 max-w-sm text-sm text-muted">{mineStore.error}</p>
         <button
@@ -163,28 +170,22 @@ export default function MyTaskPage() {
         title="My Task"
         description={`${shown.length} ${shown.length === 1 ? "task" : "tasks"} ${copy.noun}. Click one to see its details.`}
         actions={
-          <div role="group" aria-label="View" className="flex overflow-hidden rounded-lg border border-border text-xs font-medium">
-            {(["list", "board"] as const).map((v) => (
-              <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} className={`h-8 px-3 capitalize focus-visible:outline-2 focus-visible:outline-accent ${view === v ? "bg-accent-soft text-accent" : "text-muted hover:bg-hover"}`}>
-                {v}
-              </button>
-            ))}
-          </div>
+          <ViewToggle value={view} onChange={setView} />
         }
       />
-      <div role="tablist" aria-label="Task lists" className="flex w-fit max-w-full flex-wrap gap-1 rounded-xl border border-border bg-surface p-1">
+      <div role="tablist" aria-label="Task lists" className="flex w-full max-w-full gap-1 overflow-x-auto rounded-xl border border-border bg-surface p-1 [scrollbar-width:none] sm:w-fit [&::-webkit-scrollbar]:hidden">
         {TABS.map((t) => {
           const active = activeTab === t.id;
           const disabled = emptyTab(t.id);
           return (
-            <DisabledTip key={t.id} reason={disabled && (t.id === "mine" ? "No task is assigned to you." : t.id === "lead" ? "You don't lead any task yet." : "There are no unassigned tasks.")} className="inline-block">
+            <DisabledTip key={t.id} reason={disabled && (t.id === "mine" ? "No task is assigned to you." : t.id === "lead" ? "You don't lead any task yet." : "There are no unassigned tasks.")} className="inline-block shrink-0">
             <button
               type="button"
               role="tab"
               aria-selected={active}
               disabled={disabled}
               onClick={() => setTab(t.id)}
-              className={`flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-accent ${
+              className={`flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-2.5 py-2 text-xs transition-colors sm:px-4 sm:text-sm focus-visible:outline-2 focus-visible:outline-accent ${
                 active ? "bg-accent-soft font-medium text-accent" : disabled ? "cursor-not-allowed text-muted opacity-50" : "text-muted hover:bg-hover hover:text-foreground"
               }`}
             >
@@ -195,10 +196,11 @@ export default function MyTaskPage() {
           );
         })}
       </div>
+      <TabSwap id={`${activeTab}-${view}`}>
       {view === "board" && shown.length > 0 ? (
         <MyTaskBoard canDrag={canChangeStatus} onMove={moveTask} canDrop={canDrop} tasks={shown} isMine={mine} openTicketsFor={openTicketsFor} unreadFor={unreadFor} onBell={openLatestNotice} onOpen={(t) => (useNotificationStore.getState().markTaskRead(t), setOpen(t))} />
       ) : (
-      <section className="overflow-hidden rounded-2xl border border-border bg-surface">
+      <section className="overflow-hidden card">
         {shown.length === 0 ? (
           <EmptyState title={copy.title} description={copy.description} />
         ) : (
@@ -230,7 +232,7 @@ export default function MyTaskPage() {
                     title={openTicketsFor(item) ? `${openTicketsFor(item)} Ticket${openTicketsFor(item) === 1 ? "" : "s"} assigned to you` : mine(item) ? "Assigned to you" : undefined}
                     className={`cursor-pointer transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-accent ${unreadFor(item) > 0 ? "row-flash " : ""}${PRIORITY_ROW[item.priority]}`}
                   >
-                    <td data-label="ID" className="whitespace-nowrap px-4 py-2 font-mono text-xs text-muted">{item.id}</td>
+                    <td data-label="ID" className="whitespace-nowrap px-4 py-2 font-mono text-xs text-muted"><span className="inline-flex items-center gap-2"><RowArrow open={opened.has(item.id)} onToggle={() => toggleRow(item.id)} />{item.id}</span></td>
                     <td data-primary className="max-w-xs truncate px-4 py-2 font-medium">{item.title}{openTicketsFor(item) > 0 && <span className="ml-2 rounded-full bg-amber-500/25 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-200">{openTicketsFor(item)} {openTicketsFor(item) === 1 ? "Ticket" : "Tickets"} for you</span>}</td>
                     <td data-label="Type" className="whitespace-nowrap px-4 py-2 text-muted"><TypeLabel type={item.type} /></td>
                     <td data-label="Priority" className="px-4 py-2">
@@ -249,11 +251,9 @@ export default function MyTaskPage() {
                     <td data-label="Ready for QA Date" className="whitespace-nowrap px-4 py-2 text-muted">
                       {item.readyForQaDate ? <time dateTime={item.readyForQaDate}>{formatDeadline(item.readyForQaDate)}</time> : "–"}
                     </td>
-                    <td data-label="Actions" className="whitespace-nowrap px-4 py-2 text-right"><span className="inline-flex items-center gap-1.5"><CreateTicketButton task={item} /><RowArrow open={opened.has(item.id)} onToggle={() => toggleRow(item.id)} /></span></td>
+                    <td data-label="Actions" className="whitespace-nowrap px-4 py-2 text-right"><span className="inline-flex items-center gap-1.5"><CreateTicketButton task={item} /></span></td>
                   </tr>
-                  {opened.has(item.id) && (
-                    <tr className={PRIORITY_ROW[item.priority]}><td colSpan={10} className="px-4 pb-3"><TaskCardMore task={item} /></td></tr>
-                  )}
+                  <CollapseRow open={opened.has(item.id)} colSpan={10} className={PRIORITY_ROW[item.priority]}><TaskCardMore task={item} /></CollapseRow>
                   </Fragment>
                 ))}
               </tbody>
@@ -263,6 +263,7 @@ export default function MyTaskPage() {
         )}
       </section>
       )}
+      </TabSwap>
       {moving && (
         <QaStatusDialog
           key={`${moving.task.id}:${moving.to}`}

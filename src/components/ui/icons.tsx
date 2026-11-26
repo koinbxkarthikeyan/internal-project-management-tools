@@ -88,9 +88,19 @@ export const SettingsIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** The + of every create button: it turns a quarter and grows a little while the button is hovered or focused (see .plus-spin in globals.css). */
 export const PlusIcon = (p: IconProps) => (
-  <Icon {...p}>
+  <Icon {...p} className={`plus-spin ${p.className ?? ""}`.trim()}>
     <path d="M12 5v14M5 12h14" />
+  </Icon>
+);
+
+/** Three columns, for a board view. */
+export const BoardIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="4" width="5" height="16" rx="1.5" />
+    <rect x="9.5" y="4" width="5" height="10" rx="1.5" />
+    <rect x="16" y="4" width="5" height="13" rx="1.5" />
   </Icon>
 );
 

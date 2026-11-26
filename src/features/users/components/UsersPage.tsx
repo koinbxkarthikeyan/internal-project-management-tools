@@ -58,7 +58,7 @@ export default function UsersPage() {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader title="Team Members" />
-        <section className="rounded-2xl border border-border bg-surface">
+        <section className="card">
           <EmptyState title="Admins only" description="Admins only." />
         </section>
       </div>
@@ -71,7 +71,7 @@ export default function UsersPage() {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader title="Team Members" />
-        <section role="alert" className="rounded-2xl border border-border bg-surface">
+        <section role="alert" className="card">
           <EmptyState
             title="Couldn't load users"
             description={error}
@@ -111,7 +111,7 @@ export default function UsersPage() {
 
       <FilterBar
         count={{ shown: shown.length, total: users.length }}
-        search={<BacklogSearch value={filters.query} onChange={(query) => setFilters({ ...filters, query })} placeholder="Search name, email or team…" ariaLabel="Search team members" />}
+        search={<BacklogSearch value={filters.query} onChange={(query) => setFilters({ ...filters, query })} placeholder="Search users…" ariaLabel="Search team members" />}
         activeCount={Object.values(filters).filter(Boolean).length}
         onClear={() => setFilters({ query: "", team: "", role: "", status: "" })}
       >
@@ -127,7 +127,7 @@ export default function UsersPage() {
 
       <TeamsPanel users={users} />
 
-      <section className="overflow-hidden rounded-2xl border border-border bg-surface">
+      <section className="overflow-hidden card">
         {/* About 10 rows are visible; the rest scroll inside, with the header kept in view. */}
         <div className="rt-box"><div className="table-scroll" style={{ "--row-h": "3.05rem" } as React.CSSProperties}>
         <table className="rt w-full min-w-[34rem] text-sm">

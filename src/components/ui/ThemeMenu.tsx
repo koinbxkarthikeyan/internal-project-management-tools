@@ -1,125 +1,51 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { CheckIcon, MonitorIcon, MoonIcon, SunIcon } from "@/components/ui/icons";
-import { useThemeStore, type ThemePreference } from "@/stores/themeStore";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { MoonIcon, SunIcon } from "@/components/ui/icons";
+import { useThemeStore } from "@/stores/themeStore";
 
-const OPTIONS: { value: ThemePreference; label: string; icon: typeof SunIcon }[] = [
-  { value: "light", label: "Light Mode", icon: SunIcon },
-  { value: "dark", label: "Dark Mode", icon: MoonIcon },
-  { value: "system", label: "System Default", icon: MonitorIcon },
-];
-
-const WIDTH = 208;
+const DARK_QUERY = "(prefers-color-scheme: dark)";
+const subscribeSystem = (notify: () => void) => {
+  const media = matchMedia(DARK_QUERY);
+  media.addEventListener("change", notify);
+  return () => media.removeEventListener("change", notify);
+};
 
 /**
- * The sidebar's theme button: its icon shows the choice in use, and clicking it opens a small menu with Light Mode, Dark Mode and System Default. Picking one applies
- * it at once and closes the menu, as does a click outside or Escape. The saved choice and the system listener live in the theme store.
- * The menu is drawn on the page, not inside the sidebar. In the collapsed desktop rail the button is hidden (see globals.css).
+ * The sidebar's theme button: one click switches between Light and Dark; its icon shows the look in use, and while you hover it (or focus it by keyboard) it previews the look a click gives: the other icon, and the button takes a soft tint of that icon's colour (blue for dark, amber for light). Choosing System Default (follow the device) is done in Settings;
+ * while it is chosen, the button shows the look the device gives and a click picks the other one. The saved choice and the system listener live in the theme store.
+ * In the collapsed desktop rail the button is hidden (see globals.css).
  */
 export default function ThemeMenu() {
   const preference = useThemeStore((s) => s.preference);
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-  const button = useRef<HTMLButtonElement>(null);
-  const menu = useRef<HTMLDivElement>(null);
+  const systemDark = useSyncExternalStore(subscribeSystem, () => matchMedia(DARK_QUERY).matches, () => false);
   useEffect(() => useThemeStore.getState().start(), []);
 
-  const current = OPTIONS.find((o) => o.value === preference) ?? OPTIONS[2];
-  const CurrentIcon = current.icon;
+  const dark = preference === "dark" || (preference === "system" && systemDark);
+  const next = dark ? "light" : "dark";
+  // While the pointer is over the button it shows the look a click will give (the other icon, in its colour); after a click it shows the new look until the pointer leaves.
+  const [peek, setPeek] = useState(false);
+  const shownDark = peek ? !dark : dark;
+  const label = `Switch to ${next} mode`;
 
-  function toggle() {
-    if (!open && button.current) {
-      const r = button.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 8, left: Math.max(8, Math.min(r.left, window.innerWidth - WIDTH - 8)) });
-    }
-    setOpen((o) => !o);
-  }
-
-  function choose(value: ThemePreference) {
-    useThemeStore.getState().setPreference(value);
-    setOpen(false);
-    button.current?.focus();
-  }
-
-  // Outside click closes; the first option takes focus when the menu opens so the keyboard works at once.
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: PointerEvent) => {
-      const t = e.target as Node;
-      if (!menu.current?.contains(t) && !button.current?.contains(t)) setOpen(false);
-    };
-    document.addEventListener("pointerdown", away);
-    menu.current?.querySelector<HTMLElement>('[aria-checked="true"]')?.focus();
-    return () => document.removeEventListener("pointerdown", away);
-  }, [open]);
-
-  function onMenuKey(e: React.KeyboardEvent) {
-    const items = [...(menu.current?.querySelectorAll<HTMLElement>('[role="menuitemradio"]') ?? [])];
-    const i = items.indexOf(document.activeElement as HTMLElement);
-    if (e.key === "Escape") {
-      e.preventDefault();
-      setOpen(false);
-      button.current?.focus();
-    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      e.preventDefault();
-      items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
-    } else if (e.key === "Home" || e.key === "End") {
-      e.preventDefault();
-      items[e.key === "Home" ? 0 : items.length - 1]?.focus();
-    } else if (e.key === "Tab") {
-      setOpen(false);
-    }
-  }
-
+  // Both icons are in the button; the one for the look in use shows (a sun, warm amber, for light; a moon, soft blue, for dark) and they turn into each other when it changes.
+  const swap = "absolute inset-0 m-auto transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none";
   return (
-    <>
-      <button
-        ref={button}
-        type="button"
-        onClick={toggle}
-        aria-label={`Theme: ${current.label}`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className={`sb-theme inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border transition-colors focus-visible:outline-2 focus-visible:outline-accent ${
-          open ? "bg-accent-soft text-accent" : "text-muted hover:bg-hover hover:text-foreground"
-        }`}
-      >
-        <CurrentIcon width={18} height={18} />
-      </button>
-      {open &&
-        createPortal(
-          <div
-            ref={menu}
-            role="menu"
-            aria-label="Theme"
-            onKeyDown={onMenuKey}
-            style={{ top: pos.top, left: pos.left, width: WIDTH }}
-            className="anim-fade-up fixed z-[60] flex flex-col gap-0.5 rounded-xl border border-border bg-surface p-1.5 shadow-menu"
-          >
-            {OPTIONS.map(({ value, label, icon: Icon }) => {
-              const on = preference === value;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={on}
-                  onClick={() => choose(value)}
-                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-accent ${
-                    on ? "bg-accent-soft font-medium text-accent" : "text-foreground hover:bg-hover"
-                  }`}
-                >
-                  <Icon width={16} height={16} className="shrink-0" />
-                  <span className="flex-1">{label}</span>
-                  {on && <CheckIcon width={16} height={16} className="shrink-0" />}
-                </button>
-              );
-            })}
-          </div>,
-          document.body,
-        )}
-    </>
+    <button
+      type="button"
+      onClick={() => (setPeek(false), useThemeStore.getState().setPreference(next))}
+      onPointerEnter={() => setPeek(true)}
+      onPointerLeave={() => setPeek(false)}
+      onFocus={(e) => e.currentTarget.matches(":focus-visible") && setPeek(true)}
+      onBlur={() => setPeek(false)}
+      aria-label={label}
+      title={label}
+      className={`sb-theme relative inline-flex h-9 w-9 items-center justify-center rounded-lg border transition-[background-color,border-color] duration-300 ease-out motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-accent ${peek ? (shownDark ? "border-sky-400/40 bg-sky-400/15" : "border-amber-400/50 bg-amber-400/15") : "border-border bg-transparent"}`}
+    >
+      <span aria-hidden="true" className="theme-shake absolute inset-0">
+      <SunIcon width={18} height={18} className={`${swap} text-amber-500 ${shownDark ? "-rotate-90 scale-50 opacity-0" : "rotate-0 scale-100 opacity-100"}`} />
+      <MoonIcon width={18} height={18} className={`${swap} text-sky-400 ${shownDark ? "rotate-0 scale-100 opacity-100" : "rotate-90 scale-50 opacity-0"}`} />
+      </span>
+    </button>
   );
 }

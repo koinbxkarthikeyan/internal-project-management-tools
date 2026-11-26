@@ -2,10 +2,10 @@
 
 import LoadingLabel from "./LoadingLabel";
 import { ArrowRightIcon, LockIcon } from "@/components/ui/icons";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { DisabledTip } from "@/components/ui/DisabledTip";
 import { PasswordField } from "@/components/ui/PasswordField";
-import { completePasswordLogin } from "@/lib/auth/authService";
+import { awaitSignInApproval, completePasswordLogin, withdrawSignIn } from "@/lib/auth/authService";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/passwordRules";
 import { FieldError } from "@/components/ui/FieldError";
 
@@ -22,6 +22,19 @@ export default function PasswordStep({ email, onChangeEmail }: PasswordStepProps
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // The account is open on another computer: this sign-in waits for Allow there.
+  const [waiting, setWaiting] = useState<{ requestId: string; initial: boolean } | null>(null);
+  useEffect(() => {
+    if (!waiting) return;
+    const stop = new AbortController();
+    void awaitSignInApproval(waiting.requestId, waiting.initial, stop.signal).then((result) => {
+      // Signed in: the login page notices the new session and moves on. Otherwise back to the password with the reason.
+      if (result.ok || stop.signal.aborted) return;
+      setWaiting(null);
+      setError(result.message);
+    });
+    return () => stop.abort();
+  }, [waiting]);
   // A usability check only: Sign in waits for the minimum length; the saved account decides whether the password is right.
   const tooShort = password.length < MIN_PASSWORD_LENGTH;
   // Nothing is flagged when the step opens: an empty password is reported once the person has left the field (clicked or
@@ -40,7 +53,25 @@ export default function PasswordStep({ email, onChangeEmail }: PasswordStepProps
     setBusy(false);
     // On success the login page notices the new session and moves on.
     if (result.ok) return;
+    if (result.waiting) return setWaiting(result.waiting);
     setError(result.message);
+  }
+
+  if (waiting) {
+    return (
+      <div className="flex flex-col gap-4" role="status" aria-live="polite">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 h-6 w-6 shrink-0 animate-spin rounded-full border-2 border-border border-t-accent" aria-hidden="true" />
+          <div>
+            <p className="text-sm font-semibold">Waiting for approval</p>
+            <p className="mt-1 text-sm text-muted">
+              <strong className="break-all font-semibold text-foreground">{email}</strong> is signed in on another computer. A pop-up is asking them to <strong>Allow</strong> or <strong>Deny</strong> this sign-in. You will be signed in as soon as they allow it.
+            </p>
+          </div>
+        </div>
+        <button type="button" onClick={() => (withdrawSignIn(waiting.requestId), setWaiting(null))} className="btn btn-secondary w-full">Cancel</button>
+      </div>
+    );
   }
 
   return (

@@ -34,7 +34,7 @@ export async function startLogin(rawEmail: string): Promise<StartLoginResult> {
   }
 }
 
-export type CompleteLoginResult = { ok: true; user: AppUser } | { ok: false; message: string; locked?: boolean };
+export type CompleteLoginResult = { ok: true; user: AppUser } | { ok: false; message: string; locked?: boolean; /** The account is open on another computer: this sign-in waits there for Allow. */ waiting?: { requestId: string; initial: boolean } };
 
 function failure(err: unknown): CompleteLoginResult {
   const message = getErrorMessage(err);
@@ -51,10 +51,33 @@ async function finish(login: authApi.Login): Promise<CompleteLoginResult> {
 /** Step 2: email and password. */
 export async function completePasswordLogin(email: string, password: string): Promise<CompleteLoginResult> {
   try {
-    return await finish(await authApi.signInWithPassword(email, password));
+    const login = await authApi.signInWithPassword(email, password);
+    if ("pending" in login) return { ok: false, message: "", waiting: { requestId: login.requestId, initial: login.initial } };
+    return await finish(login);
   } catch (err) {
     return failure(err);
   }
+}
+
+/** Gives up a held sign-in: the other computer is no longer asked about it. A failed call changes nothing (the request runs out by itself). */
+export const withdrawSignIn = (requestId: string): void => void authApi.withdrawSignInRequest(requestId).catch(() => undefined);
+
+/** Waits (asking every 2 seconds) until the account's owner answers a held sign-in: signed in on Allow, a message on Deny or when it runs out. Stops quietly when `signal` aborts. */
+export async function awaitSignInApproval(requestId: string, initial: boolean, signal: AbortSignal): Promise<CompleteLoginResult> {
+  while (!signal.aborted) {
+    await new Promise((r) => setTimeout(r, 2000));
+    if (signal.aborted) break;
+    try {
+      const answer = await authApi.checkSignInRequest(requestId, initial);
+      if (signal.aborted) break;
+      if (answer.status === "allowed") return await finish(answer.login);
+      if (answer.status === "denied") return { ok: false, message: "The sign-in was denied on your other computer." };
+      if (answer.status === "expired") return { ok: false, message: "Nobody answered in time. Sign in again." };
+    } catch (err) {
+      return failure(err);
+    }
+  }
+  return { ok: false, message: "" };
 }
 
 /** On an empty app: whether the first Super Admin still has to be created. A failed check means "no" (the normal sign-in is shown). */

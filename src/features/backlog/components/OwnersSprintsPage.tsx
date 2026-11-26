@@ -92,7 +92,7 @@ export default function OwnersSprintsPage() {
         <FilterPill label="Role" value={filters.role} onChange={(role) => setFilters({ ...filters, role })} options={roleChoices} />
       </FilterBar>
 
-      <section className="overflow-hidden rounded-2xl border border-border bg-surface">
+      <section className="overflow-hidden card">
         {/* About 10 rows are visible; the rest scroll inside, with the header kept in view. */}
         <div className="rt-box"><div className="table-scroll" style={{ "--row-h": "3.3rem" } as React.CSSProperties}>
         <table className="rt w-full min-w-[40rem] text-sm">

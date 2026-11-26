@@ -1,5 +1,8 @@
 "use client";
 
+import { MESSAGES_LABEL } from "@/constants/work";
+import FitList from "@/components/ui/FitList";
+import TabSwap from "@/components/ui/TabSwap";
 import { disclosureKeys } from "@/lib/disclosureKeys";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -26,30 +29,33 @@ export default function TaskCardMore({ task }: { task: BacklogItemData }) {
   const tabClass = (on: boolean) => `rounded-md px-2.5 py-1 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-accent ${on ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-hover hover:text-foreground"}`;
   return (
     <div className="flex flex-col gap-2 border-t border-border/70 pt-2" onClick={(e) => e.stopPropagation()}>
-      <div role="tablist" aria-label="Tickets and comments" className="flex gap-1">
+      <div role="tablist" aria-label={`Tickets and ${MESSAGES_LABEL.toLowerCase()}`} className="flex gap-1">
         <button type="button" role="tab" aria-selected={tab === "tickets"} onClick={() => setTab("tickets")} className={tabClass(tab === "tickets")}>Tickets{tickets ? ` (${tickets.length})` : ""}</button>
-        <button type="button" role="tab" aria-selected={tab === "comments"} onClick={() => setTab("comments")} className={tabClass(tab === "comments")}>Comments</button>
+        <button type="button" role="tab" aria-selected={tab === "comments"} onClick={() => setTab("comments")} className={tabClass(tab === "comments")}>{MESSAGES_LABEL}</button>
       </div>
-      {tab === "comments" ? (
-        <TaskComments taskId={task.id} small />
-      ) : error ? (
-        <p role="alert" className="text-xs text-red-700 dark:text-red-300">{error}</p>
-      ) : tickets === null ? (
-        <p role="status" className="text-xs text-muted">Loading…</p>
-      ) : tickets.length === 0 ? (
-        <p className="text-xs text-muted">No Tickets yet.</p>
-      ) : (
-        <ul className="flex flex-col gap-1">
-          {tickets.map((t) => (
-            <li key={t.id}>
-              <button type="button" onClick={() => router.push(`${area}/ticket?id=${t.apiId}`)} className="flex w-full items-center justify-between gap-2 rounded-md bg-surface/70 px-2 py-1.5 text-left text-xs hover:bg-surface focus-visible:outline-2 focus-visible:outline-accent">
-                <span className="min-w-0 truncate"><span className="font-mono text-[11px] text-muted">{t.id}</span> {t.title}</span>
-                <StatusBadge status={t.status} />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <TabSwap id={tab}>
+        {tab === "comments" ? (
+          <TaskComments taskId={task.id} small />
+        ) : error ? (
+          <p role="alert" className="text-xs text-red-700 dark:text-red-300">{error}</p>
+        ) : tickets === null ? (
+          <p role="status" className="text-xs text-muted">Loading…</p>
+        ) : tickets.length === 0 ? (
+          <p className="text-xs text-muted">No Tickets yet.</p>
+        ) : (
+          // Tall lists scroll inside, fitted to the screen (a task with many Tickets doesn't stretch the card or the page).
+          <FitList className="flex flex-col gap-1 pr-1" min={96}>
+            {tickets.map((t) => (
+              <li key={t.id}>
+                <button type="button" onClick={() => router.push(`${area}/ticket?id=${t.apiId}`)} className="flex w-full items-center justify-between gap-2 rounded-md bg-surface/70 px-2 py-1.5 text-left text-xs hover:bg-surface focus-visible:outline-2 focus-visible:outline-accent">
+                  <span className="min-w-0 truncate"><span className="font-mono text-xs text-muted">{t.id}</span> {t.title}</span>
+                  <StatusBadge status={t.status} />
+                </button>
+              </li>
+            ))}
+          </FitList>
+        )}
+      </TabSwap>
     </div>
   );
 }
@@ -63,8 +69,8 @@ export function RowArrow({ open, onToggle }: { open: boolean; onToggle: () => vo
       onKeyDown={disclosureKeys(open, onToggle)}
       data-disclosure
       aria-expanded={open}
-      aria-label={open ? "Hide Tickets and comments" : "Show Tickets and comments"}
-      title={open ? "Hide Tickets and comments" : "Tickets and comments"}
+      aria-label={`${open ? "Hide" : "Show"} Tickets and ${MESSAGES_LABEL.toLowerCase()}`}
+      title={open ? `Hide Tickets and ${MESSAGES_LABEL.toLowerCase()}` : `Tickets and ${MESSAGES_LABEL.toLowerCase()}`}
       className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border bg-hover align-middle text-foreground transition-colors hover:bg-border focus-visible:outline-2 focus-visible:outline-accent"
     >
       <ChevronRightIcon width={12} height={12} className={`transition-transform ${open ? "rotate-90" : ""}`} />

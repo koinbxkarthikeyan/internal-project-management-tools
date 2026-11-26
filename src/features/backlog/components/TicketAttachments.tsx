@@ -1,5 +1,6 @@
 "use client";
 
+import ModalClose from "@/components/ui/ModalClose";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { getErrorMessage } from "@/lib/apiClient";
@@ -22,11 +23,11 @@ export function Lightbox({ image, onClose }: { image: Shown; onClose: () => void
       aria-label={image.name}
       onClose={(e) => e.target === e.currentTarget && onClose()}
       onClick={(e) => e.target === ref.current && ref.current?.close()}
-      className="m-auto max-h-[94dvh] max-w-[94vw] overflow-hidden rounded-2xl border border-border bg-surface p-0 text-foreground shadow-modal backdrop:bg-black/80"
+      className="m-auto max-h-[94dvh] max-w-[94vw] overflow-hidden card p-0 text-foreground shadow-modal backdrop:bg-black/80"
     >
       <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-2 text-sm">
         <p className="min-w-0 truncate font-medium">{image.name} <span className="font-normal text-muted">· {sizeText(image.size)}{image.originalSize > image.size ? ` (optimized from ${sizeText(image.originalSize)})` : ""}</span></p>
-        <button type="button" onClick={() => ref.current?.close()} className="rounded-lg px-2 py-1 text-muted hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent">Close</button>
+        <ModalClose onClick={() => ref.current?.close()} />
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {image.url && <img src={image.url} alt={image.name} className="max-h-[calc(94dvh-3rem)] max-w-[94vw] object-contain" />}
@@ -124,7 +125,7 @@ export default function TicketAttachments({ ticketCode, canEdit }: { ticketCode:
                 )}
               </button>
               <p className="truncate text-xs font-medium" title={a.name}>{a.name}</p>
-              <p className="flex items-center justify-between text-[11px] text-muted">
+              <p className="flex items-center justify-between text-xs text-muted">
                 <span title={a.originalSize > a.size ? `Optimized from ${sizeText(a.originalSize)}` : undefined}>{sizeText(a.size)}</span>
                 {canEdit && <button type="button" onClick={() => void remove(a)} className="font-medium text-red-600 hover:underline focus-visible:outline-2 focus-visible:outline-accent dark:text-red-300">Remove</button>}
               </p>

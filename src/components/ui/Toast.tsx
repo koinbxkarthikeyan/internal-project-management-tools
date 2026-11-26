@@ -67,7 +67,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         popover="manual"
         role="status"
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] top-auto z-[60] m-0 flex flex-col items-center gap-2 overflow-visible border-0 bg-transparent p-0 sm:inset-x-auto sm:left-auto sm:right-4 sm:w-96 sm:items-stretch"
+        className="pointer-events-none fixed inset-x-4 bottom-auto top-[max(4rem,calc(env(safe-area-inset-top)+4rem))] z-[60] lg:top-[max(1rem,env(safe-area-inset-top))] m-0 flex flex-col items-center gap-2 overflow-visible border-0 bg-transparent p-0 sm:inset-x-auto sm:left-auto sm:right-4 sm:w-96 sm:items-stretch"
       >
         {toasts.map((t) => {
           const Icon = ICON[t.tone];
@@ -75,12 +75,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <div
               key={t.id}
               role={t.tone === "danger" || t.tone === "warning" ? "alert" : undefined}
-              className={`pointer-events-auto flex w-full max-w-sm items-center gap-3 sm:max-w-none rounded-xl px-4 py-3 text-sm font-medium shadow-menu ring-1 ring-black/10 ${STYLE[t.tone]} ${
+              className={`pointer-events-auto flex w-full max-w-sm items-center gap-3 sm:max-w-[min(32rem,calc(100vw-2rem))] rounded-xl px-4 py-3 text-sm font-medium shadow-menu ring-1 ring-black/10 ${STYLE[t.tone]} ${
                 t.leaving ? "anim-toast-out" : "anim-toast-in"
               }`}
             >
               <Icon width={18} height={18} className="shrink-0" aria-hidden="true" />
-              <span className="min-w-0 flex-1">{t.message}</span>
+              <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{t.message}</span>
               <button
                 type="button"
                 onClick={() => dismiss(t.id)}

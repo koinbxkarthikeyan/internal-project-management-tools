@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import PageHeader from "@/components/layout/PageHeader";
+import GreetingBanner from "@/components/layout/GreetingBanner";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import { useOffFor } from "@/features/work/hooks/useOffDays";
 import FilterBar, { DateRangeFilter, FilterPill } from "@/components/ui/FilterBar";
@@ -18,6 +18,7 @@ import { useItemDetailStore } from "@/stores/itemDetailStore";
 import { useMyTasksStore } from "@/stores/myTasksStore";
 import type { ActivityEntry, Status } from "@/types/backlog";
 import { buildActivity, chartDays, filterEntries, filterTasks, focusSprint, hoursByDay, hoursByWeek, sprintFigures, sumHours, taskCounts, type OverviewFilters } from "../stats";
+import PageFinder from "./PageFinder";
 import { ActivityList, BarChart, Panel, ProgressBar, RecentCompleted, RecentWork, StatCard, StatusChart } from "./OverviewPanels";
 
 const EMPTY_FILTERS: OverviewFilters = { from: "", to: "", sprintId: "", status: "" };
@@ -99,7 +100,7 @@ export default function PersonalOverviewPage({ tabs }: { /** Shown in the page h
   if (work.status === "loading" || (mine.status === "loading" && myTasks.length === 0)) return <PageSkeleton />;
   if (work.status === "error" || mine.status === "error") {
     return (
-      <section role="alert" className="flex min-h-64 flex-col items-center justify-center rounded-2xl border border-border bg-surface p-5 text-center">
+      <section role="alert" className="flex min-h-64 flex-col items-center justify-center card p-5 text-center">
         <h2 className="text-base font-semibold">Couldn&apos;t load your overview</h2>
         <p className="mt-1 max-w-sm text-sm text-muted">{work.error || mine.error}</p>
         <button
@@ -123,7 +124,8 @@ export default function PersonalOverviewPage({ tabs }: { /** Shown in the page h
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Overview" description="Your tasks, sprint and hours." actions={tabs} />
+      <GreetingBanner description="Your tasks, sprint and hours.">{tabs}</GreetingBanner>
+      <PageFinder />
 
       <FilterBar
         activeCount={[filters.from || filters.to, filters.sprintId, filters.status].filter(Boolean).length}

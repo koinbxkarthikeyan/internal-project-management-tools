@@ -7,8 +7,10 @@ import * as attachments from "./handlers/attachments";
 import * as bulk from "./handlers/bulk";
 import * as comments from "./handlers/comments";
 import * as dir from "./handlers/directory";
+import * as messages from "./handlers/messages";
 import * as items from "./handlers/items";
 import * as notifications from "./handlers/notifications";
+import * as search from "./handlers/search";
 import * as sprints from "./handlers/sprints";
 import * as users from "./handlers/users";
 import * as work from "./handlers/work";
@@ -88,6 +90,19 @@ const ROUTES: [Method, string, Handler][] = [
   ["GET", "/notifications", notifications.list],
   ["POST", "/notifications/read-all", notifications.markAllRead],
   ["PATCH", "/notifications/:id/read", notifications.markRead],
+
+  ["GET", "/search", search.search],
+
+  ["GET", "/messages/conversations", messages.conversations],
+  ["POST", "/messages/typing", messages.typing],
+  ["GET", "/messages/typing", messages.typingNow],
+  ["POST", "/messages/read", messages.markRead],
+  ["POST", "/messages/delete", messages.remove],
+  ["POST", "/messages/files", messages.registerFiles],
+  ["POST", "/messages/edit", messages.edit],
+  ["POST", "/messages/react", messages.react],
+  ["GET", "/messages", messages.list],
+  ["POST", "/messages", messages.send],
 
   ["POST", "/bulk/backlog", bulk.backlog],
   ["POST", "/bulk/owners", bulk.owners],

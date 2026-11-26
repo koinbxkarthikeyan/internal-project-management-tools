@@ -72,7 +72,7 @@ function CreateForm() {
 
   const metaItem = (label: string, value: string) => (
     <div>
-      <dt className="text-[11px] text-muted">{label}</dt>
+      <dt className="text-xs text-muted">{label}</dt>
       <dd className="mt-0.5 text-sm font-semibold">{value}</dd>
     </div>
   );

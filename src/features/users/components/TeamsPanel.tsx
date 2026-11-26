@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Collapse from "@/components/ui/Collapse";
 import { EditIcon, PlusIcon, TrashIcon } from "@/components/ui/icons";
 import { teamOptions } from "@/lib/auth/teams";
 import { useTeamStore } from "@/stores/teamStore";
@@ -20,6 +21,7 @@ export default function TeamsPanel({ users }: { users: readonly AppUser[] }) {
   const custom = useTeamStore((s) => s.custom);
   const teams = teamOptions(users, [], { renames, deleted, custom });
 
+  const [open, setOpen] = useState(false);
   const [fresh, setFresh] = useState("");
   const [freshError, setFreshError] = useState("");
   const [edit, setEdit] = useState<{ from: string; text: string } | null>(null);
@@ -34,20 +36,21 @@ export default function TeamsPanel({ users }: { users: readonly AppUser[] }) {
     setFreshError("");
   }
   function save() {
-    if (!edit) return;
+    if (!edit || edit.text.trim() === edit.from) return; // unchanged: nothing to save
     const err = renameTeam(edit.from, edit.text, teams);
     if (err) setRowError(err);
     else reset();
   }
 
   return (
-    <details className="group rounded-2xl border border-border bg-surface">
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
-        <span aria-hidden="true" className="text-muted transition-transform group-open:rotate-90">▸</span>
+    <div className="card">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full cursor-pointer items-center gap-2 px-4 py-3 text-left text-sm font-medium focus-visible:outline-2 focus-visible:outline-accent">
+        <span aria-hidden="true" className={`text-muted transition-transform ${open ? "rotate-90" : ""}`}>▸</span>
         Manage teams
         <span className="rounded-full bg-hover px-2 py-0.5 text-xs text-muted">{teams.length}</span>
         <span className="ml-auto text-xs font-normal text-muted">Add, rename or delete a team</span>
-      </summary>
+      </button>
+      <Collapse open={open}>
       <div className="flex flex-col gap-3 border-t border-border p-4">
         <form
           onSubmit={(e) => (e.preventDefault(), add())}
@@ -66,7 +69,7 @@ export default function TeamsPanel({ users }: { users: readonly AppUser[] }) {
             {freshError && <p role="alert" className="text-xs text-red-600 dark:text-red-300">{freshError}</p>}
           </div>
           <button type="submit" disabled={!fresh.trim()} className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-accent px-3 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
-            <PlusIcon width={14} height={14} /> Add team
+            <PlusIcon width={14} height={14} /> <span className="max-sm:sr-only">Add team</span>
           </button>
         </form>
 
@@ -92,7 +95,7 @@ export default function TeamsPanel({ users }: { users: readonly AppUser[] }) {
                           }}
                           className="field h-8 min-w-0 flex-1 px-2 text-sm"
                         />
-                        <button type="button" onClick={save} className={`${btn} text-accent`}>Save</button>
+                        <button type="button" onClick={save} disabled={edit.text.trim() === t} className={`${btn} text-accent disabled:cursor-not-allowed disabled:opacity-50`}>Save</button>
                         <button type="button" onClick={reset} className={`${btn} text-muted`}>Cancel</button>
                       </div>
                       {rowError && <p role="alert" className="text-xs text-red-600 dark:text-red-300">{rowError}</p>}
@@ -137,6 +140,7 @@ export default function TeamsPanel({ users }: { users: readonly AppUser[] }) {
           </ul>
         )}
       </div>
-    </details>
+      </Collapse>
+    </div>
   );
 }

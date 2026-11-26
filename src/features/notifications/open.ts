@@ -2,13 +2,15 @@
 
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { MY_TASK_HREF, READY_FOR_QA_HREF } from "@/constants/work";
+import { MESSAGES_HREF, MY_TASK_HREF, READY_FOR_QA_HREF } from "@/constants/work";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useNotificationStore } from "./store";
 import type { AppNotification } from "./types";
 
 /** Where a notification leads: straight to the task, Bug or Ticket it is about (by its id, so it works from any page and whoever the item is assigned to), at its comment when it is about one. The QA team and the admins use the QA Workspace pages, everyone else My Task. */
 export function notificationHref(n: AppNotification, qa: boolean): string {
+  // A chat message opens its conversation in Work Chat.
+  if (n.type === "chat.message") return `${MESSAGES_HREF}?open=dm:${encodeURIComponent(n.actor.id)}`;
   const area = qa ? READY_FOR_QA_HREF : MY_TASK_HREF;
   const comment = n.commentId ? `&comment=${encodeURIComponent(n.commentId)}` : "";
   if (!n.taskId) return `${MY_TASK_HREF}?task=${encodeURIComponent(n.taskCode)}${comment}`;

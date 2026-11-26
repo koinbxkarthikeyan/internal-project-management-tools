@@ -1,5 +1,9 @@
 "use client";
 
+import ViewToggle from "@/components/ui/ViewToggle";
+import { useIsPhone } from "@/hooks/useIsPhone";
+import TaskChatButton from "@/features/messages/components/TaskChatButton";
+import { useMenuPresence } from "@/hooks/usePresence";
 import { disclosureKeys } from "@/lib/disclosureKeys";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -35,7 +39,9 @@ export default function QaTaskPage() {
   // The layout (List View unless the address says Board View) and the selected Ticket live in the address, so a refresh or a shared link comes back to the same place.
   // The layout is also remembered, so coming back from a Ticket, or opening another task, keeps the one last chosen.
   const asked = params.get("view");
-  const view: WorkspaceView = (asked ?? readPref("taskLayout")) === "board" ? "board" : "list";
+  const phone = useIsPhone();
+  // A phone has no Board view: it always shows the list.
+  const view: WorkspaceView = !phone && (asked ?? readPref("taskLayout")) === "board" ? "board" : "list";
   const ticketCode = params.get("ticket");
   const setParams = (patch: Record<string, string | null>) => {
     if (patch.view) writePref("taskLayout", patch.view);
@@ -52,6 +58,7 @@ export default function QaTaskPage() {
   const [reopening, setReopening] = useState(false);
   // The main task's full details, opened by the arrow beside the Owner name.
   const [more, setMore] = useState(false);
+  const detailsMenu = useMenuPresence(more);
   const panel = useRef<HTMLDivElement>(null);
   const toggler = useRef<HTMLButtonElement>(null);
   // The details float over the page like a menu: a click (or tap) anywhere outside them, other than on their own arrow button, or Escape closes them.
@@ -114,14 +121,16 @@ export default function QaTaskPage() {
   const canCreate = withQa;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 sm:gap-6">
       <BackLink href={base.href} label={base.label} />
-      <div className="relative flex flex-col gap-6">
+      <div className="relative flex flex-col gap-3 sm:gap-6">
       <PageHeader
+        oneLine
         title={item.title}
         description={
-          <span className="flex flex-wrap items-center gap-x-1.5">
-            {item.id}{item.type ? ` · ${item.type}` : ""} · {sprintLabel(item.sprint)} · Owner {item.owner}
+          <span className="flex items-center gap-x-1.5">
+            {/* One line: the text shortens with "…" when the screen is narrow (no "Owner" word on a phone), the arrow always stays beside it. */}
+            <span className="min-w-0 truncate">{item.id}{item.type ? ` · ${item.type}` : ""} · {sprintLabel(item.sprint)} · <span className="hidden sm:inline">Owner </span>{item.owner}</span>
             {tickets && !(mine && !withQa) && (
               <button
                 ref={toggler}
@@ -133,7 +142,7 @@ export default function QaTaskPage() {
                 data-disclosure
                 aria-label={more ? "Hide task details" : "Show more task details"}
                 title={more ? "Hide task details (Up arrow)" : "More task details (Down arrow)"}
-                className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border bg-hover text-foreground transition-colors hover:bg-border focus-visible:outline-2 focus-visible:outline-accent"
+                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border bg-hover text-foreground transition-colors hover:bg-border focus-visible:outline-2 focus-visible:outline-accent"
               >
                 <ChevronRightIcon width={14} height={14} className={`transition-transform ${more ? "rotate-90" : ""}`} />
               </button>
@@ -141,21 +150,10 @@ export default function QaTaskPage() {
           </span>
         }
         actions={
-          <span className="flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-2 sm:flex-wrap">
+            {item.apiId != null && <TaskChatButton taskId={item.apiId} />}
             {tickets && (
-            <div role="group" aria-label="Layout" className="flex overflow-hidden rounded-lg border border-border text-xs font-medium">
-              {(["list", "board"] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  aria-pressed={view === v}
-                  onClick={() => setParams({ view: v })}
-                  className={`h-8 px-3 focus-visible:outline-2 focus-visible:outline-accent ${view === v ? "bg-accent-soft text-accent" : "text-muted hover:bg-hover"}`}
-                >
-                  {v === "list" ? "List" : "Board"}
-                </button>
-              ))}
-            </div>
+            <ViewToggle value={view} onChange={(v) => setParams({ view: v })} label="Layout" />
             )}
             {!mine && (isQa || isAdmin) && item.status === "Ready for QA" && (
               <button type="button" onClick={() => setAsking(true)} className="btn-brand h-8 rounded-lg px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">Open for testing</button>
@@ -169,10 +167,12 @@ export default function QaTaskPage() {
           </span>
         }
       />
-      {tickets && !(mine && !withQa) && <QaTaskMeta task={item} />}
-      {more && tickets && !(mine && !withQa) && (
-        <div ref={panel} className="anim-menu-in absolute inset-x-0 top-full z-30 mt-2 max-h-[min(36rem,calc(100dvh-8rem))] overflow-y-auto overscroll-contain rounded-2xl shadow-menu">
-          <ViewTaskDrawer key={`${item.id}:${item.status}`} inline hideComments item={item} onClose={() => setMore(false)} onSaved={load} />
+      {/* On a phone this row is inside the details dropdown (the arrow by the title) instead of under the title. */}
+      {tickets && !(mine && !withQa) && <div className="hidden sm:block"><QaTaskMeta task={item} /></div>}
+      {detailsMenu.mounted && tickets && !(mine && !withQa) && (
+        <div ref={panel} className={`${detailsMenu.motion} absolute inset-x-0 top-full z-30 mt-2 rounded-2xl shadow-menu`}>
+          <div className="mb-2 card px-4 py-3 sm:hidden"><QaTaskMeta task={item} inline /></div>
+          <ViewTaskDrawer key={`${item.id}:${item.status}`} inline fit hideComments item={item} onClose={() => setMore(false)} onSaved={load} />
         </div>
       )}
       </div>

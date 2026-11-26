@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { PlusIcon } from "@/components/ui/icons";
+import { ChevronRightIcon, PlusIcon } from "@/components/ui/icons";
 import { getErrorMessage } from "@/lib/apiClient";
 import { onExternalChange } from "@/lib/localApi";
 import * as backlogService from "@/services/backlogService";
 import type { BacklogItemData, Status } from "@/types/backlog";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { refreshTicketViews } from "../ticketRefresh";
+import { TICKET_FORM_OPEN_TIP, useTicketFormSlot } from "../ticketFormSlot";
 import { useBacklog } from "../context/BacklogContext";
 import CreateTicketDrawer from "./CreateTicketDrawer";
 import TicketBoard from "./TicketBoard";
@@ -19,10 +20,10 @@ import { NO_TICKET_FILTERS, filterTickets, groupTickets, type TicketFilters, typ
  * The Tickets under one task, shown inside that task: each with its code, title, status, priority and assignee, and a Create Ticket button for the people
  * who may add them (QA, Super Admin, enabled Admins). The task itself is the parent: no separate Bug record or heading is involved.
  */
-export default function TaskTickets({ task, canCreate = false, variant, selectedId, filters: controlled, groupBy: controlledGroup, onMove, onTickets, onOpen, onChanged, reloadToken = 0 }: { task: BacklogItemData; /** Offers the Create Ticket button (the people who may add Tickets). */ canCreate?: boolean; /** How the Tickets are laid out: the default block (with its own Board / List switch), the expandable list of the List View, or the board of the Board View (cards can be dragged when `onMove` is given). */ variant: "tree" | "board"; /** The Ticket whose details are showing (marked in the list and on the board). */ selectedId?: string; /** The filters, when the page keeps them (so both layouts share them); otherwise this block keeps its own. */ filters?: TicketFilters; /** The grouping, when the page keeps it (so the filter row can sit above both columns). */ groupBy?: TicketGroupBy; onMove?: (ticket: BacklogItemData, to: Status) => void; /** Leave the whole block out when there is nothing to show and nobody can add one. */ hideWhenEmpty?: boolean; /** Told how many Tickets the task has, each time they are read. */ /** Show the Tickets as a board (a column per status: To Do, In Progress, Ready for QA, Testing, Done, each with its count) instead of one list. */ board?: boolean; onCount?: (count: number) => void; /** Given the Tickets each time they are read. */ onTickets?: (tickets: BacklogItemData[]) => void; /** Opens a Ticket's details (to change its status, for example). */ onOpen?: (ticket: BacklogItemData) => void; /** Changes when the Tickets should be read again (a Ticket was saved elsewhere). */ reloadToken?: number; /** Called after a Ticket was created (creating one can change who the task is assigned to). */ onChanged?: () => void }) {
+export default function TaskTickets({ task, canCreate = false, variant, selectedId, filters: controlled, groupBy: controlledGroup, onMove, onTickets, onOpen, onChanged, onHide, reloadToken = 0, collapseSidebar }: { task: BacklogItemData; /** Offers the Create Ticket button (the people who may add Tickets). */ canCreate?: boolean; /** How the Tickets are laid out: the default block (with its own Board / List switch), the expandable list of the List View, or the board of the Board View (cards can be dragged when `onMove` is given). */ variant: "tree" | "board"; /** The Ticket whose details are showing (marked in the list and on the board). */ selectedId?: string; /** The filters, when the page keeps them (so both layouts share them); otherwise this block keeps its own. */ filters?: TicketFilters; /** The grouping, when the page keeps it (so the filter row can sit above both columns). */ groupBy?: TicketGroupBy; onMove?: (ticket: BacklogItemData, to: Status) => void; /** Leave the whole block out when there is nothing to show and nobody can add one. */ hideWhenEmpty?: boolean; /** Told how many Tickets the task has, each time they are read. */ /** Show the Tickets as a board (a column per status: To Do, In Progress, Ready for QA, Testing, Done, each with its count) instead of one list. */ board?: boolean; onCount?: (count: number) => void; /** Given the Tickets each time they are read. */ onTickets?: (tickets: BacklogItemData[]) => void; /** Opens a Ticket's details (to change its status, for example). */ onOpen?: (ticket: BacklogItemData) => void; /** Changes when the Tickets should be read again (a Ticket was saved elsewhere). */ reloadToken?: number; /** Called after a Ticket was created (creating one can change who the task is assigned to). */ onHide?: () => void; onChanged?: () => void; /** On the board: collapse the sidebar while a card is open (passed on to the board). */ collapseSidebar?: boolean }) {
   const [tickets, setTickets] = useState<BacklogItemData[] | null>(null);
   const [error, setError] = useState("");
-  const [creating, setCreating] = useState(false);
+  const { creating, blocked, begin, end } = useTicketFormSlot();
   const { refreshItems } = useBacklog();
   const { user } = useAuth();
   // Filters and grouping come from the Main Task page, which has the filter row; everywhere else (the task panel and drawer) the Tickets are shown unfiltered and ungrouped.
@@ -47,26 +48,33 @@ export default function TaskTickets({ task, canCreate = false, variant, selected
     variant === "tree" ? (
       <TicketTree tickets={list} selectedId={selectedId} onSelect={(t) => onOpen?.(t)} />
     ) : (
-      <TicketBoard tickets={list} onOpen={onOpen} selectedId={selectedId} onMove={onMove} />
+      <TicketBoard tickets={list} onOpen={onOpen} selectedId={selectedId} onMove={onMove} collapseSidebar={collapseSidebar} />
     );
 
   if (task.type === "Ticket") return null;
 
   return (
-    <div className="rounded-xl border border-border bg-background/60 p-3">
+    <div className="card-inset p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-medium text-muted">
           Tickets{tickets && tickets.length > 0 ? ` · ${tickets.length} (${tickets.filter((t) => t.status === "Done").length} done)` : ""}
         </p>
+        <div className="flex items-center gap-2">
         {canCreate && (
           <button
             type="button"
-            onClick={() => setCreating(true)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-semibold text-accent hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
+            onClick={begin}
+            disabled={blocked}
+            title={blocked ? TICKET_FORM_OPEN_TIP : undefined}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-semibold text-accent hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
           >
             <PlusIcon width={14} height={14} /> Create Ticket
           </button>
         )}
+        {onHide && (
+          <button type="button" onClick={onHide} aria-expanded="true" title="Hide Tickets" className="grid h-8 place-items-center rounded-lg px-2 text-xs font-medium text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent max-sm:w-8 max-sm:border max-sm:border-border"><ChevronRightIcon width={14} height={14} className="-rotate-90 sm:hidden" /><span className="hidden sm:inline">‹ Hide</span></button>
+        )}
+        </div>
       </div>
       {error ? (
         <p role="alert" className="mt-2 text-xs text-red-600 dark:text-red-300">{error}</p>
@@ -98,9 +106,9 @@ export default function TaskTickets({ task, canCreate = false, variant, selected
       {creating && typeof document !== "undefined" && createPortal(
         <CreateTicketDrawer
           task={task}
-          onClose={() => setCreating(false)}
+          onClose={end}
           onCreated={() => {
-            setCreating(false);
+            end();
             load();
             // A QA member creating a Ticket is added to the task (and a first Ticket moves it to Testing): the lists, My Task and the page it was made on all read the task again.
             refreshItems();

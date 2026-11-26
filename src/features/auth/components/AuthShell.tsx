@@ -30,7 +30,7 @@ export default function AuthShell({ title, description, children }: AuthShellPro
   const focusOut = (e: FocusEvent) => !isField(e.relatedTarget) && setFocus(false);
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 pb-12 pt-20 sm:px-6 sm:pb-16 sm:pt-12 lg:px-8">
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 pb-12 pt-20 sm:px-6 sm:pb-16 sm:pt-12 lg:px-8">
       {/* Background marks. Sizes and offsets follow the admin sign-in: 720px at -top-32 -left-30, 600px at -bottom-40 -right-25. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="auth-glow absolute left-1/2 top-1/2 size-[min(90vw,760px)] -translate-x-1/2 -translate-y-1/2 rounded-full" />
@@ -73,7 +73,7 @@ export default function AuthShell({ title, description, children }: AuthShellPro
             <div key={title} className="anim-step-in mt-6">{children}</div>
           </div>
         </section>
-        <p className="mt-5 text-center text-[11px] font-medium tracking-wide text-muted">© {new Date().getFullYear()} KoinBX · All rights reserved</p>
+        <p className="mt-5 text-center text-xs font-medium tracking-wide text-muted">© {new Date().getFullYear()} KoinBX · All rights reserved</p>
       </main>
     </div>
   );

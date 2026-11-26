@@ -1,5 +1,6 @@
 "use client";
 
+import { useMenuPresence } from "@/hooks/usePresence";
 import { useId, useRef, useState } from "react";
 import { Field, controlClass } from "@/components/ui/FormControls";
 import { createPortal } from "react-dom";
@@ -55,6 +56,7 @@ export default function AssigneeField({ value, onChange, placeholder, onPick, ba
   };
   const listId = useId();
   const [open, setOpen] = useState(false);
+  const menu = useMenuPresence(open);
 
   // Everything after the last comma is the search text; the names before it are already chosen. A last entry that is exactly a
   // user's name (an assignee loaded with the task, or one just picked) is a chosen name, not a search, so the whole list stays open.
@@ -112,9 +114,9 @@ export default function AssigneeField({ value, onChange, placeholder, onPick, ba
           <path d="m5 8 5 5 5-5" />
         </svg>
       </Field>
-      {open && (
+      {menu.mounted && (
         // Only the names scroll; "+ Add New Team Member" stays fixed at the bottom.
-        <div className={`anim-fade-up absolute inset-x-0 z-10 flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-menu ${up ? "bottom-full mb-1" : "top-full mt-1"}`}>
+        <div className={`${menu.motion} absolute inset-x-0 z-10 flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-menu ${up ? "bottom-full mb-1" : "top-full mt-1"}`}>
           <ul id={listId} role="listbox" aria-label="Registered users" className="max-h-48 min-h-0 flex-1 overflow-y-auto p-1">
           {matches.length === 0 && (
             <li className="px-3 py-2 text-sm text-muted">

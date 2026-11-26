@@ -39,7 +39,7 @@ export default function WorkEntriesList({ title, entries, showPerson, sprintTota
       {hoursLine}
 
       {sprintTotals && sprintTotals.length > 0 && (
-        <p className="mt-1 font-mono text-[11px] text-muted" title="Your logged hours per sprint">
+        <p className="mt-1 font-mono text-xs text-muted" title="Your logged hours per sprint">
           {sprintTotals.map((s) => `${s.name}: ${formatHours(s.hours)}`).join(" | ")} | <span className="font-semibold text-foreground">Total: {formatHours(sprintTotals.reduce((sum, s) => sum + s.hours, 0))}</span>
         </p>
       )}

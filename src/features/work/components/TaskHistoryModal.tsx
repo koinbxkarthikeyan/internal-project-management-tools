@@ -1,5 +1,6 @@
 "use client";
 
+import ModalClose from "@/components/ui/ModalClose";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import PersonLabel from "@/components/ui/PersonLabel";
 import { PriorityBadge, StatusBadge, TypeLabel } from "@/components/ui/Badge";
@@ -169,7 +170,7 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
           {item.notes && <p className="whitespace-pre-line break-words text-sm text-muted">{item.notes}</p>}
         </section>
 
-        <section aria-label="Who worked on it" className="rounded-xl border border-border bg-background/60 p-4">
+        <section aria-label="Who worked on it" className="card-inset p-4">
           <h3 className="text-sm font-semibold">{onlyMine ? "Your work" : "Contribution"}</h3>
           {entriesLoading && !given ? (
             <p className="mt-1 text-sm text-muted">Loading the logged time…</p>
@@ -216,7 +217,7 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
               const byPerson = [...new Set(entries.map((e) => e.person))];
               const log = activity[task.id] ?? task.activity ?? [];
               return (
-                <li key={key} className="relative rounded-xl border border-border bg-background/60 p-4">
+                <li key={key} className="relative card-inset p-4">
                   <span className="absolute -left-[1.4rem] top-5 h-2.5 w-2.5 rounded-full bg-accent" aria-hidden="true" />
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                     <h4 className="text-sm font-semibold">
@@ -283,12 +284,12 @@ export function TaskHistoryBody({ item, allTasks, allSprints, allEntries: given,
                   </div>
 
                   {!moved && <div className="mt-3">
-                    {/* About 3 entries are visible below; the rest scroll inside the list (the same limit as the activity list in the task panels). */}
+                    {/* A short list, newest first; a long one scrolls inside (the same as the activity list in the task panels). */}
                     <p className="text-xs font-medium text-muted">Activity in this sprint</p>
                     {log.length === 0 ? (
                       <p className="mt-1 text-sm text-muted">No activity recorded.</p>
                     ) : (
-                      <ul className="mt-1 max-h-[5.6rem] divide-y divide-border overflow-y-auto rounded-lg border border-border text-xs">
+                      <ul className="mt-1 max-h-[11rem] divide-y divide-border overflow-y-auto overscroll-contain rounded-lg border border-border text-xs">
                         {newestFirst(log).map((a, i) => (
                           <li key={i} className="flex justify-between gap-3 px-3 py-1.5">
                             <span className="min-w-0 break-words">{a.text}</span>
@@ -349,9 +350,7 @@ export function HistoryDialog({ title, label, onClose, children }: { title: stri
         </h2>
         <div className="flex shrink-0 items-center gap-1">
           <ExpandToggle expanded={full} onToggle={() => setFull((v) => !v)} />
-          <button type="button" onClick={() => ref.current?.close()} className="rounded-lg px-2 py-1 text-sm text-muted hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent">
-            Close
-          </button>
+          <ModalClose onClick={() => ref.current?.close()} />
         </div>
       </header>
 

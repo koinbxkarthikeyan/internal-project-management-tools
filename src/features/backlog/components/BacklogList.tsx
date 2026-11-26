@@ -40,7 +40,7 @@ export default function BacklogList({ items, total, actions, rowAction, leavingI
   return (
     <section
       aria-label="Backlog items"
-      className="overflow-hidden rounded-2xl border border-border bg-surface"
+      className="@container overflow-hidden card"
     >
       {header}
       <div

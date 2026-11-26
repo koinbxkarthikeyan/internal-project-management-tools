@@ -1,6 +1,7 @@
 "use client";
 
 import { DisabledTip } from "./DisabledTip";
+import { useMenuPresence } from "@/hooks/usePresence";
 import { useId, useRef, useState, type ReactNode } from "react";
 import { AlertCircleIcon, EditIcon, TrashIcon } from "./icons";
 
@@ -109,6 +110,7 @@ type SearchableSelectProps = Omit<SelectFieldProps, "label"> & CreateProps & {
 export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hideArrow, value, onChange, options, groups, placeholder, required, disabled, disabledReason, onCreate, action, onRenameOption, onRemoveOption, removeBlocked, className = "" }: SearchableSelectProps) {
   const listId = useId();
   const [open, setOpen] = useState(false);
+  const menu = useMenuPresence(open);
   const [up, setUp] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   // Opens the list below the field, or above it when there is little room below (so it is never cut off by the form).
@@ -126,7 +128,7 @@ export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hi
   const [askBlocked, setAskBlocked] = useState(false);
   const resetRow = () => (setEdit(null), setAsking(null), setRowError(""), setAskBlocked(false));
   const saveEdit = () => {
-    if (!edit) return;
+    if (!edit || edit.text.trim() === edit.from) return; // unchanged: nothing to save
     const err = onRenameOption?.(edit.from, edit.text);
     if (err) setRowError(err);
     else resetRow();
@@ -220,10 +222,10 @@ export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hi
       </FieldOrNot>
       {/* Lets the browser's own "required" check work for the custom control. */}
       {required && <input tabIndex={-1} aria-hidden="true" required value={value} onChange={() => {}} className="pointer-events-none absolute bottom-0 left-1/2 h-0 w-0 opacity-0" />}
-      {open && !disabled && (
+      {menu.mounted && !disabled && (
         // Only the options scroll; the action ("+ Add …") stays fixed at the bottom of the list.
         <div
-          className={`anim-menu-in absolute inset-x-0 z-20 flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-menu ${up ? "bottom-full mb-1" : "top-full mt-1"}`}
+          className={`${menu.motion} absolute inset-x-0 z-20 flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-menu ${up ? "bottom-full mb-1" : "top-full mt-1"}`}
         >
           <ul id={listId} role="listbox" aria-label={label ?? ariaLabel} className="max-h-48 min-h-0 flex-1 overflow-y-auto p-1">
           {rows.length === 0 && <li className="px-3 py-2 text-sm text-muted">No matches.</li>}
@@ -244,7 +246,7 @@ export function SearchableSelect({ label, ariaLabel, inputClassName = "h-10", hi
                       }}
                       className={`${controlClass} h-8 min-w-0 flex-1 px-2 text-sm`}
                     />
-                    <button type="button" onClick={saveEdit} aria-label="Save name" title="Save" className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-accent hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent">Save</button>
+                    <button type="button" onClick={saveEdit} disabled={edit.text.trim() === edit.from} aria-label="Save name" title="Save" className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-accent hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50">Save</button>
                     <button type="button" onClick={resetRow} aria-label="Cancel" title="Cancel" className="shrink-0 rounded-md px-2 py-1 text-xs text-muted hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent">Cancel</button>
                   </div>
                   {rowError && <p role="alert" className="text-xs text-red-600 dark:text-red-300">{rowError}</p>}
@@ -426,6 +428,7 @@ type ComboFieldProps = {
 export function ComboField({ label, value, onChange, suggestions, placeholder, required, onCommit, onEditOption, onDeleteOption }: ComboFieldProps) {
   const listId = useId();
   const [open, setOpen] = useState(false);
+  const combo = useMenuPresence(open);
   const [active, setActive] = useState(0);
   const q = value.trim().toLowerCase();
   const matches = q ? suggestions.filter((o) => o.toLowerCase().includes(q)) : suggestions;
@@ -476,8 +479,8 @@ export function ComboField({ label, value, onChange, suggestions, placeholder, r
           </svg>
         </span>
       </Field>
-      {open && (matches.length > 0 || isNew) && (
-        <ul id={listId} role="listbox" aria-label={label} className="anim-menu-in absolute inset-x-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-menu">
+      {combo.mounted && (matches.length > 0 || isNew) && (
+        <ul id={listId} role="listbox" aria-label={label} className={`${combo.motion} absolute inset-x-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-menu`}>
           {matches.map((o, i) => (
             <li key={o} role="option" aria-selected={o.toLowerCase() === q} className="flex items-center gap-1">
               <button

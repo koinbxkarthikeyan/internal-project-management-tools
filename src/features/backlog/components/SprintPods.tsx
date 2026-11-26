@@ -43,10 +43,11 @@ export default function SprintPods({ sprint, onAdd, onView, onEdit, onHide }: Sp
           type="button"
           onClick={() => onAdd(sprint)}
           aria-label={`Add POD to ${sprint.name}`}
-          className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted hover:bg-hover hover:text-accent focus-visible:outline-2 focus-visible:outline-accent"
+          title={`Add POD to ${sprint.name}`}
+          className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted hover:bg-hover hover:text-accent focus-visible:outline-2 focus-visible:outline-accent max-sm:p-2"
         >
           <PlusIcon width={14} height={14} />
-          Add POD
+          <span className="max-sm:sr-only">Add POD</span>
         </button>
       )}
     </div>

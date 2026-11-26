@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "@/styles/globals.css";
 
@@ -22,6 +22,9 @@ const geistMono = localFont({
   display: "swap",
   fallback: ["ui-monospace", "monospace"],
 });
+
+// On Android the page shrinks to what is left above the keyboard (so a message box at the bottom of the screen stays visible); other browsers scroll it into view.
+export const viewport: Viewport = { width: "device-width", initialScale: 1, interactiveWidget: "resizes-content" };
 
 export const metadata: Metadata = {
   title: { default: "Backlog Tracker", template: "%s · Backlog Tracker" },

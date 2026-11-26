@@ -1,5 +1,6 @@
 import type { ActivityEntry, BacklogItemData } from "@/types/backlog";
 import { statusLabel } from "@/constants/backlog-options";
+import FitList from "@/components/ui/FitList";
 import { formatActivityTime } from "../utils";
 
 const hasTime = (v?: string) => !!v && /T\d{2}:\d{2}/.test(v);
@@ -31,11 +32,12 @@ export function whenOrUnavailable(date?: string, at?: string): string {
 }
 
 /** The date list of a task's activity: entries only, newest first. */
-export function ActivityList({ entries, className = "", compact = false, latestBy, updatedAt }: { entries: readonly ActivityEntry[] | undefined; className?: string; /** Names the newest entry when it names nobody itself (the task's last updater, if that entry is the last update). */ latestBy?: string; updatedAt?: string; /** A short list (room for the 3 newest entries) that scrolls inside itself. */ compact?: boolean }) {
+export function ActivityList({ entries, className = "", compact = false, latestBy, updatedAt }: { entries: readonly ActivityEntry[] | undefined; className?: string; /** Names the newest entry when it names nobody itself (the task's last updater, if that entry is the last update). */ latestBy?: string; updatedAt?: string; /** Tighter rows. */ compact?: boolean }) {
   const rows = newestFirst(entries);
   if (rows.length === 0) return <p className="mt-1 text-sm text-muted">No activity recorded.</p>;
+  // The list takes the room there is, from where it starts to the bottom of the screen, newest first; only a history longer than that scrolls inside it.
   return (
-    <ul className={`mt-1 divide-y divide-border rounded-xl border border-border text-sm ${compact ? "max-h-[9.25rem] overflow-y-auto" : ""} ${className}`}>
+    <FitList bottom={64} min={compact ? 140 : 180} className={`mt-1 divide-y divide-border rounded-xl border border-border text-sm ${className}`}>
       {rows.map((entry, i) => {
         const a = i === 0 && !entry.by && latestBy && isTheLastUpdate(entry, updatedAt) ? { ...entry, by: latestBy } : entry;
         return (
@@ -67,7 +69,7 @@ export function ActivityList({ entries, className = "", compact = false, latestB
         </li>
         );
       })}
-    </ul>
+    </FitList>
   );
 }
 
@@ -75,11 +77,11 @@ export function ActivityList({ entries, className = "", compact = false, latestB
  * A task's history: when it was created and last updated (from the API's own timestamps, labelled apart from the log), then the
  * log itself with the newest entry first.
  */
-export default function ActivityTimeline({ item, activity, compact = false }: { item: Pick<BacklogItemData, "created" | "createdAt" | "updatedAt" | "createdBy" | "updatedBy">; activity: readonly ActivityEntry[] | undefined; /** Smaller: a short activity list that scrolls (used in the Backlog form). */ compact?: boolean }) {
+export default function ActivityTimeline({ item, activity, compact = false }: { item: Pick<BacklogItemData, "created" | "createdAt" | "updatedAt" | "createdBy" | "updatedBy">; activity: readonly ActivityEntry[] | undefined; /** Smaller spacing (used in the Backlog form and the details panel). */ compact?: boolean }) {
   const updatedBy = item.updatedBy ?? latestUpdater(activity, item.updatedAt);
   return (
     <section aria-label="Activity" className={`flex flex-col ${compact ? "gap-2" : "gap-3"}`}>
-      <dl className={`grid grid-cols-2 gap-3 rounded-xl border border-border bg-background/60 ${compact ? "px-3 py-2" : "p-3"}`}>
+      <dl className={`grid grid-cols-2 gap-3 card-inset ${compact ? "px-3 py-2" : "p-3"}`}>
         <div className="min-w-0">
           <dt className="text-xs font-medium text-muted">Created</dt>
           <dd className="mt-0.5 break-words text-sm font-semibold">

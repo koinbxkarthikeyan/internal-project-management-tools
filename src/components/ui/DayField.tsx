@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useMenuPresence } from "@/hooks/usePresence";
 import { DisabledTip } from "./DisabledTip";
 import { Field, controlClass } from "./FormControls";
 import MultiDatePicker from "./MultiDatePicker";
@@ -23,6 +24,7 @@ type Props = {
 /** One date, picked from a calendar popup in which weekends, leave and out-of-range days are greyed out (a browser date box cannot do that). */
 export default function DayField({ label, value, onChange, required, disabled, disabledReason, min, max, blocked }: Props) {
   const [open, setOpen] = useState(false);
+  const calendar = useMenuPresence(open);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -44,8 +46,8 @@ export default function DayField({ label, value, onChange, required, disabled, d
             {value ? SHOWN.format(new Date(`${value}T00:00:00Z`)) : "Select a date"}
           </button>
         </DisabledTip>
-        {open && (
-          <div role="dialog" aria-label={label} className="absolute left-0 top-full z-30 mt-1 rounded-xl border border-border bg-surface p-1 shadow-lg">
+        {calendar.mounted && (
+          <div role="dialog" aria-label={label} className={`${calendar.motion} absolute left-0 top-full z-30 mt-1 rounded-xl border border-border bg-surface p-1 shadow-lg`}>
             <MultiDatePicker
               compact
               value={value ? [value] : []}

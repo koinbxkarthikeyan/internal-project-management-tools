@@ -32,9 +32,12 @@ export async function createSprint(input: SprintInput): Promise<Sprint> {
 }
 
 /** Changes name, start date or goal. `status: "Closed"` closes the sprint instead (the next sprint then waits as Paused). */
-export async function updateSprint(id: string, patch: Partial<SprintInput>): Promise<Sprint> {
+/** On closing, `choices` says what happens to each unfinished task (by the task's API id): "carry" (the default), "backlog" or "done". */
+export type CloseChoices = Record<string, "carry" | "backlog" | "done">;
+
+export async function updateSprint(id: string, patch: Partial<SprintInput>, choices?: CloseChoices): Promise<Sprint> {
   if (patch.status === "Closed") {
-    const { data } = await apiClient.post<unknown>(`/sprints/${encodeURIComponent(id)}/close`);
+    const { data } = await apiClient.post<unknown>(`/sprints/${encodeURIComponent(id)}/close`, choices ? { choices } : undefined);
     const closed = sprintFromApi({ ...(rec(rec(data)?.closed) ?? { id }), status: "CLOSED" });
     directory.sprints = directory.sprints.map((s) => (s.id === id ? { ...s, ...closed } : s));
     return directory.sprints.find((s) => s.id === id) ?? closed;

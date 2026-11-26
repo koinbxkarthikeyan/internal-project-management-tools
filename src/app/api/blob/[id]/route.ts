@@ -9,7 +9,9 @@ const deny = (status: number, message: string) => Response.json({ error: { statu
 
 /** An image file of an attachment. Signed-in people only; the image is served only as the image type it was registered with. */
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  if (!sameApp(req) || !sessionUser(readCookie(req))) return deny(401, "Sign in to continue.");
+  // Shown by the browser itself in an <img> (no custom header possible): same-site requests are accepted as well as the app's own.
+  const site = req.headers.get("sec-fetch-site");
+  if ((!sameApp(req) && site !== "same-origin" && site !== "none") || !sessionUser(readCookie(req))) return deny(401, "Sign in to continue.");
   const id = Number((await ctx.params).id);
   try {
     return await runExclusive(async () => {

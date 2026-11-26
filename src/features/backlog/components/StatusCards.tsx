@@ -35,7 +35,8 @@ export default function StatusCards({ items, selected, onSelect, partial = false
 
   return (
     <section aria-label="Backlog summary">
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
+      {/* A phone shows them four to a row (two short rows, not four tall ones) so the list is not pushed off the screen. */}
+      <dl className="grid grid-cols-4 gap-2 sm:gap-3 xl:grid-cols-8">
         {stats.map((s, i) => {
           const on = selected === s.key;
           return (
@@ -44,7 +45,7 @@ export default function StatusCards({ items, selected, onSelect, partial = false
                 type="button"
                 aria-pressed={on}
                 onClick={() => onSelect(on && s.key !== "" ? "" : s.key)}
-                className={`flex h-full w-full flex-col rounded-2xl border bg-surface p-4 text-left transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-accent ${
+                className={`flex h-full w-full flex-col rounded-2xl border bg-surface p-2.5 text-left sm:p-4 transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-accent ${
                   on ? "border-accent ring-2 ring-accent/40" : "border-border"
                 }`}
               >
@@ -58,7 +59,7 @@ export default function StatusCards({ items, selected, onSelect, partial = false
                   )}
                   {s.label}
                 </dt>
-                <dd className={`mt-1 text-2xl font-semibold tabular-nums ${s.tone}`}>{s.value}</dd>
+                <dd className={`mt-1 text-xl font-semibold sm:text-2xl tabular-nums ${s.tone}`}>{s.value}</dd>
               </button>
             </div>
           );

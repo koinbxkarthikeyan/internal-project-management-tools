@@ -93,7 +93,7 @@ export default function CommentBox({ draft, onChange, onSend, sending = false, c
                 >
                   <Avatar name={u.name} id={u.id} />
                   <span className="min-w-0 flex-1 truncate font-medium">{u.name}</span>
-                  {u.team && <span className="shrink-0 text-[11px] text-muted">{u.team}</span>}
+                  {u.team && <span className="shrink-0 text-xs text-muted">{u.team}</span>}
                 </button>
               </li>
             ))}
@@ -185,7 +185,7 @@ export default function CommentBox({ draft, onChange, onSend, sending = false, c
                 <input ref={replace} type="file" accept={IMAGE_ACCEPT} tabIndex={-1} aria-label="Choose a replacement image" className="sr-only" onChange={(e) => (replacing != null && void take([...(e.target.files ?? [])].slice(0, 1), replacing), setReplacing(null), (e.target.value = ""))} />
               </>
             )}
-            <span className="text-[11px] text-muted">{busy ? "Optimizing…" : bare ? "@ to mention · paste or attach images" : "Enter to send · Shift + Enter for a new line · @ to mention"}</span>
+            <span className="text-xs text-muted">{busy ? "Optimizing…" : bare ? "@ to mention · paste or attach images" : "Enter to send · Shift + Enter for a new line · @ to mention"}</span>
           </div>
           {!bare && (<button type="button" aria-label={sendLabel} title={sendLabel} disabled={!canSend || sending || busy} onClick={onSend} className="btn-brand grid size-8 place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50">
             <Send />

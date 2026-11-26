@@ -2,7 +2,7 @@ import { clientAddress } from "@/lib/localApi/rateLimit";
 import { db } from "@/lib/localApi/db";
 import { LocalApiError } from "@/lib/localApi/errors";
 import { dispatch, type Method } from "@/lib/localApi/routes";
-import { createSession, endSession, endUserSessions, requestContext, runExclusive, sessionUser, state } from "./store";
+import { createSession, decideSignInApproval, endSession, endUserSessions, hasActiveSession, pendingSignIns, requestContext, requestSignInApproval, takeSignInApproval, withdrawSignInApproval, runExclusive, sessionUser, state } from "./store";
 
 /**
  * The server's one door. The page sends every request here (POST /api/rpc with { method, url, params, data }); the routes of lib/localApi answer it from the shared data,
@@ -61,11 +61,37 @@ export async function handleRpc(req: Request): Promise<Response> {
           headers["set-cookie"] = setCookie(req, "", 0);
           return { ok: true };
         }
+        // Multi-computer sign-in approval. The owner (signed in) lists and answers the sign-ins waiting on other computers; the waiting computer asks for the answer.
+        if (method === "POST" && path === "/auth/sign-in-requests/pending") {
+          if (!userId) throw new LocalApiError(401, "Sign in first.");
+          return { items: pendingSignIns(userId) };
+        }
+        if (method === "POST" && path === "/auth/sign-in-requests/decide") {
+          if (!userId) throw new LocalApiError(401, "Sign in first.");
+          const d = (body.data ?? {}) as { id?: unknown; allow?: unknown };
+          if (!decideSignInApproval(String(d.id ?? ""), userId, d.allow === true)) throw new LocalApiError(410, "This sign-in request has expired or was already answered.");
+          return { ok: true };
+        }
+        if (method === "POST" && path === "/auth/sign-in/withdraw") {
+          withdrawSignInApproval(String((body.data as { requestId?: unknown } | undefined)?.requestId ?? ""));
+          return { ok: true };
+        }
+        // On Allow the waiting computer is signed in right here (the session starts as for a normal sign-in); nothing else ever gives it a session.
+        if (method === "POST" && path === "/auth/sign-in/status") {
+          const answer = takeSignInApproval(String((body.data as { requestId?: unknown } | undefined)?.requestId ?? ""));
+          if (answer.status !== "allowed") return { status: answer.status };
+          const session = createSession(answer.userId);
+          headers["set-cookie"] = setCookie(req, session.token, session.maxAge);
+          return { status: "allowed", ...(answer.answer as Record<string, unknown>) };
+        }
         const result = await dispatch<Record<string, unknown>>(method, url, { params: body.params as Record<string, unknown> | undefined, data: body.data });
         // A sign-in that was accepted starts a session: the cookie is set here, and the answer carries no token for the page to keep.
         if (method === "POST" && (path === "/auth/setup" || path === "/auth/sign-in/password")) {
           const id = Number((result?.user as { id?: unknown } | undefined)?.id);
           if (Number.isFinite(id) && db().users.some((u) => u.id === id)) {
+            // MULTI-COMPUTER APPROVAL (switched off for now): when the account is already in use on another computer, the new sign-in waits for the owner's Allow instead of
+            // getting a session. To turn it on, uncomment this line AND the <SignInApprovalGate /> in app/(dashboard)/layout.tsx. The rest of the feature is ready and idle.
+            // if (hasActiveSession(id, token)) return { pending: true, requestId: requestSignInApproval(id, result, clientAddress(req.headers), req.headers.get("user-agent") ?? "") };
             const session = createSession(id);
             headers["set-cookie"] = setCookie(req, session.token, session.maxAge);
           }

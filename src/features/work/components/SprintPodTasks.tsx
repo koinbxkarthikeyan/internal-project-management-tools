@@ -107,7 +107,7 @@ export default function SprintPodTasks({ sprints, pods, items, selection, logged
                 const picked = selection?.sprintId === sprint.id && (isPseudoPod(pod.id) || selection.podId === pod.id) ? selection.itemIds : [];
                 return (
                   // Same minimum height for every card; a long list scrolls inside the card, under its header.
-                  <div key={pod.id} className="flex min-h-[13rem] flex-col overflow-hidden rounded-xl border border-border bg-background/60">
+                  <div key={pod.id} className="flex min-h-[13rem] flex-col overflow-hidden card-inset">
                     {pod.id !== SPRINT_TASKS_POD.id && (
                       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2.5">
                         <h4 className="text-sm font-medium">{pod.id === UNPLANNED_POD.id ? "Backlog" : pod.name}</h4>
@@ -156,7 +156,7 @@ export default function SprintPodTasks({ sprints, pods, items, selection, logged
                               </label>
                               </DisabledTip>
                               {/* Outside the label, so opening the details never ticks the task. */}
-                              <span className="ml-auto shrink-0 whitespace-nowrap py-2.5 pl-4 font-mono text-[11px] text-muted" title="Your hours on this task, per sprint">
+                              <span className="ml-auto shrink-0 whitespace-nowrap py-2.5 pl-4 font-mono text-xs text-muted" title="Your hours on this task, per sprint">
                                 {(() => {
                                   const t = sprintTime(task);
                                   return `${t.parts.map((r) => `${sprintLabel(r.name)}: ${formatHours(r.hours)}`).join(" | ")} | Total: ${formatHours(t.total)}`;

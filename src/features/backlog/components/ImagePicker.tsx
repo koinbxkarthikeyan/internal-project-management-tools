@@ -90,10 +90,10 @@ export default function ImagePicker({ files, onChange }: { files: OptimizedImage
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={previews[i]} alt={`Preview of ${f.file.name}`} className="h-24 w-full rounded-lg bg-hover object-cover" />
               <p className="truncate text-xs font-medium" title={f.file.name}>{f.file.name}</p>
-              <p className="text-[11px] text-muted" title={f.reachedTarget ? undefined : "Kept above 20 KB so the image stays clear"}>
+              <p className="text-xs text-muted" title={f.reachedTarget ? undefined : "Kept above 20 KB so the image stays clear"}>
                 {f.unchanged ? `${sizeText(f.file.size)} · already small` : `${sizeText(f.originalSize)} → ${sizeText(f.file.size)}`}
               </p>
-              <p className="text-[11px] text-muted">{f.width} × {f.height}{f.width !== f.originalWidth ? ` (from ${f.originalWidth} × ${f.originalHeight})` : ""}</p>
+              <p className="text-xs text-muted">{f.width} × {f.height}{f.width !== f.originalWidth ? ` (from ${f.originalWidth} × ${f.originalHeight})` : ""}</p>
               <div className="flex gap-2 text-xs font-medium">
                 <button type="button" onClick={() => (setReplacing(i), replace.current?.click())} className="text-accent hover:underline focus-visible:outline-2 focus-visible:outline-accent">Replace</button>
                 <button type="button" onClick={() => (imageLog(`Image removed: ${f.file.name}`), onChange(files.filter((_, k) => k !== i)))} className="text-red-600 hover:underline focus-visible:outline-2 focus-visible:outline-accent dark:text-red-300">Remove</button>

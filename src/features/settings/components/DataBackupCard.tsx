@@ -3,10 +3,10 @@
 import { todayISO } from "@/lib/today";
 import { useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
+import SettingsCard from "./SettingsCard";
 import { getErrorMessage } from "@/lib/apiClient";
 import { exportDatabase, readBackup, restoreDatabase, type BackupSummary } from "@/lib/localApi";
 
-const card = "flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5 sm:p-6";
 const quiet = "h-10 rounded-xl border border-border px-4 text-sm font-medium transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50";
 
 const when = (iso: string) => {
@@ -66,13 +66,11 @@ export default function DataBackupCard() {
   }
 
   return (
-    <section aria-label="Backup and restore" className={card}>
-      <header>
-        <h2 className="text-base font-semibold">Backup &amp; restore</h2>
-        <p className="mt-0.5 text-sm text-muted">
-          Everything is kept on the shared server, so every computer sees it. Save a copy to a file now and then. The file holds your data and everyone&apos;s sign-in hashes, so keep it private. Images attached to Tickets are stored separately on the server and are not in the file.
-        </p>
-      </header>
+    <SettingsCard
+      title="Backup & restore"
+      label="Backup and restore"
+      description="Everything is kept on the shared server, so every computer sees it. Save a copy to a file now and then. The file holds your data and everyone's sign-in hashes, so keep it private. Images attached to Tickets are stored separately on the server and are not in the file."
+    >
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={download} className="btn-brand h-10 rounded-xl px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
           Export backup
@@ -99,6 +97,6 @@ export default function DataBackupCard() {
           </div>
         </div>
       )}
-    </section>
+    </SettingsCard>
   );
 }

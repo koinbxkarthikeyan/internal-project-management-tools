@@ -3,7 +3,7 @@
 import { DisabledTip } from "@/components/ui/DisabledTip";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import PageHeader from "@/components/layout/PageHeader";
+import GreetingBanner from "@/components/layout/GreetingBanner";
 import { Field, TextField, controlClass } from "@/components/ui/FormControls";
 import { PasswordField } from "@/components/ui/PasswordField";
 import { useToast } from "@/components/ui/Toast";
@@ -20,13 +20,14 @@ import { FieldError } from "@/components/ui/FieldError";
 import AuditLogCard from "./AuditLogCard";
 import DataBackupCard from "./DataBackupCard";
 import PasswordChangeNotice from "./PasswordChangeNotice";
+import SettingsCard from "./SettingsCard";
+import ThemeChoice from "./ThemeChoice";
 
 const NEEDS_NEW = `Enter your new password (at least ${MIN_PASSWORD_LENGTH} characters) first.`;
 const NEEDS_CURRENT = `Enter your current password (at least ${MIN_PASSWORD_LENGTH} characters) first.`;
 const SAME_AS_CURRENT = "New password must be different from the current password.";
 const INITIAL_REUSED = "Choose a password different from the initial password.";
 const MISMATCH = "New password and confirm password do not match.";
-const card = "flex h-full flex-col gap-4 rounded-2xl border border-border bg-surface p-5 sm:p-6";
 const cancelClass =
   "rounded-xl border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-hover disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 const submitClass =
@@ -133,19 +134,22 @@ export default function SettingsPage() {
   const initialsOf = user.name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
 
   return (
-    <div className="flex w-full flex-col gap-6">
-      <PageHeader title="Settings" description="Manage your profile and keep your account secure." />
+    <div className="flex w-full flex-col gap-4">
+      <GreetingBanner description="Manage your profile and keep your account secure." workLink={false} />
 
       {forced && !noticeDone && <PasswordChangeNotice onContinue={() => setNoticeDone(true)} />}
 
-      {/* Who is signed in: a summary strip across the whole width. */}
-      <section aria-label="Account" className="flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-surface p-5 sm:p-6">
-        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent-soft text-lg font-semibold text-accent" aria-hidden="true">
-          {initialsOf || "?"}
-        </span>
-        <div className="min-w-0 flex-1 basis-56">
-          <p className="truncate text-lg font-semibold">{user.name}</p>
-          <p className="truncate text-sm text-muted">{user.email}</p>
+      {/* Two columns: who is signed in (and the look of the app) on the left, Profile and Change password stacked on the right. One column on a small screen. */}
+      <div className="grid items-start gap-4 lg:grid-cols-[18.5rem_minmax(0,1fr)]">
+      <section aria-label="Account" className="flex flex-col gap-4 card p-4 lg:sticky lg:top-4">
+        <div className="flex items-center gap-4">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent-soft text-lg font-semibold text-accent" aria-hidden="true">
+            {initialsOf || "?"}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-lg font-semibold">{user.name}</p>
+            <p className="truncate text-sm text-muted">{user.email}</p>
+          </div>
         </div>
         <ul className="flex flex-wrap gap-2 text-xs">
           <li className="rounded-full border border-border px-3 py-1 text-muted">{user.role}</li>
@@ -155,15 +159,36 @@ export default function SettingsPage() {
             <li className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600 dark:bg-slate-500/20 dark:text-slate-300">{user.status}</li>
           )}
         </ul>
+        {/* The look of the app (Light, Dark or System Default), one choice per line. */}
+        {!forced && <ThemeChoice />}
       </section>
 
-      <div className="grid items-stretch gap-6 lg:grid-cols-2">
-        <form onSubmit={saveName} noValidate className={card} aria-label="Profile">
-          <header>
-            <h2 className="text-base font-semibold">Profile</h2>
-            <p className="mt-0.5 text-sm text-muted">Your name, and the email you sign in with (read-only).</p>
-          </header>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+      <div className="flex flex-col gap-4">
+        <form onSubmit={saveName} noValidate className="flex flex-col" aria-label="Profile">
+          <SettingsCard
+            title="Profile"
+            description="Your name, and the email you sign in with (read-only)."
+            footer={
+          <>
+                <DisabledTip reason={!savingName && !nameChanged && "No changes to make."} className="inline-block">
+                <button
+                  type="button"
+                  onClick={() => (setName(user.name), setNameError(""))}
+                  disabled={savingName || !nameChanged}
+                  className={cancelClass}
+                >
+                  Cancel
+                </button>
+                </DisabledTip>
+                <DisabledTip reason={!savingName && !nameChanged && "No changes to save."} className="inline-block">
+                <button type="submit" disabled={savingName || !nameChanged} className={submitClass}>
+                  {savingName ? "Saving…" : "Save changes"}
+                </button>
+                </DisabledTip>
+              </>
+            }
+          >
+          <div className="grid gap-4 sm:grid-cols-2">
             <TextField label="Name" required value={name} onChange={(v) => (setName(v), setNameError(""))} />
             <Field label="Email">
               <input value={user.email} readOnly disabled aria-readonly="true" className={`${controlClass} h-10 disabled:opacity-60`} />
@@ -171,30 +196,33 @@ export default function SettingsPage() {
           </div>
           <p className="-mt-2 text-xs text-muted">Your email can&apos;t be changed.</p>
           <Problem text={nameError} />
-          <footer className="mt-auto flex flex-wrap justify-end gap-2 border-t border-border pt-4">
-            <DisabledTip reason={!savingName && !nameChanged && "No changes to make."} className="inline-block">
-            <button
-              type="button"
-              onClick={() => (setName(user.name), setNameError(""))}
-              disabled={savingName || !nameChanged}
-              className={cancelClass}
-            >
-              Cancel
-            </button>
-            </DisabledTip>
-            <DisabledTip reason={!savingName && !nameChanged && "No changes to save."} className="inline-block">
-            <button type="submit" disabled={savingName || !nameChanged} className={submitClass}>
-              {savingName ? "Saving…" : "Save changes"}
-            </button>
-            </DisabledTip>
-          </footer>
+          </SettingsCard>
         </form>
 
-        <form onSubmit={savePassword} noValidate className={card} aria-label="Change password">
-          <header>
-            <h2 className="text-base font-semibold">Change password</h2>
-            <p className="mt-0.5 text-sm text-muted">Use at least 8 characters. You&apos;ll need your current password.</p>
-          </header>
+        <form onSubmit={savePassword} noValidate className="flex flex-col" aria-label="Change password">
+          <SettingsCard
+            title="Change password"
+            description="Use at least 8 characters. You'll need your current password."
+            footer={
+          <>
+                <DisabledTip reason={!savingPassword && !(current || next || confirm) && "Nothing to clear."} className="inline-block">
+                <button
+                  type="button"
+                  onClick={() => (setCurrent(""), setNext(""), setConfirm(""), setPasswordError(""))}
+                  disabled={savingPassword || !(current || next || confirm)}
+                  className={cancelClass}
+                >
+                  Clear
+                </button>
+                </DisabledTip>
+                <DisabledTip reason={!savingPassword && !passwordReady && (sameAsCurrent ? SAME_AS_CURRENT : isInitial ? INITIAL_REUSED : tooShort ? TOO_SHORT : mismatch ? MISMATCH : "Fill in the current, new and confirm password fields to continue.")} className="inline-block">
+                <button type="submit" disabled={savingPassword || !passwordReady} className={submitClass}>
+                  {savingPassword ? "Saving…" : "Change password"}
+                </button>
+                </DisabledTip>
+              </>
+            }
+          >
           <PasswordField
             label="Current password"
             required
@@ -211,7 +239,7 @@ export default function SettingsPage() {
               }
             }}
           />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <PasswordField label="New password" required invalid={sameAsCurrent || isInitial || (!!next && !enough(next))} aria-describedby={sameAsCurrent ? "password-same" : isInitial ? "password-initial" : undefined} disabled={!unlocked} disabledReason={NEEDS_CURRENT} value={next} onChange={(v) => {
               setNext(v);
               setPasswordError("");
@@ -241,24 +269,9 @@ export default function SettingsPage() {
             </FieldError>
           )}
           <Problem text={passwordError} />
-          <footer className="mt-auto flex flex-wrap justify-end gap-2 border-t border-border pt-4">
-            <DisabledTip reason={!savingPassword && !(current || next || confirm) && "Nothing to clear."} className="inline-block">
-            <button
-              type="button"
-              onClick={() => (setCurrent(""), setNext(""), setConfirm(""), setPasswordError(""))}
-              disabled={savingPassword || !(current || next || confirm)}
-              className={cancelClass}
-            >
-              Clear
-            </button>
-            </DisabledTip>
-            <DisabledTip reason={!savingPassword && !passwordReady && (sameAsCurrent ? SAME_AS_CURRENT : isInitial ? INITIAL_REUSED : tooShort ? TOO_SHORT : mismatch ? MISMATCH : "Fill in the current, new and confirm password fields to continue.")} className="inline-block">
-            <button type="submit" disabled={savingPassword || !passwordReady} className={submitClass}>
-              {savingPassword ? "Saving…" : "Change password"}
-            </button>
-            </DisabledTip>
-          </footer>
+          </SettingsCard>
         </form>
+      </div>
       </div>
 
       {isSuperAdmin && !forced && <DataBackupCard />}

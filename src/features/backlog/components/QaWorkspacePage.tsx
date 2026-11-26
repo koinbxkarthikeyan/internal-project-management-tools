@@ -1,5 +1,8 @@
 "use client";
 
+import ViewToggle from "@/components/ui/ViewToggle";
+import { useIsPhone } from "@/hooks/useIsPhone";
+import TabSwap from "@/components/ui/TabSwap";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/layout/PageHeader";
@@ -54,7 +57,9 @@ export default function QaWorkspacePage() {
   const users = useUsers();
   const notices = useNotificationStore((s) => s.items);
   const openNotification = useOpenNotification();
-  const [view, setView] = useQueryState<"list" | "board">("view", ["list", "board"], "list", "qaWorkspaceView");
+  const [chosenView, setView] = useQueryState<"list" | "board">("view", ["list", "board"], "list", "qaWorkspaceView");
+  // A phone has no Board view: it always shows the list.
+  const view = useIsPhone() ? "list" : chosenView;
   const [queue, setQueue] = useState<BacklogItemData[] | null>(null);
   const [error, setError] = useState("");
   const [start] = useState(saved);
@@ -73,12 +78,12 @@ export default function QaWorkspacePage() {
     }
   };
   const changeFilters = (f: Filters) => (setFilters(f), remember({ filters: f }));
-  const changeSort = (key: SortKey) => {
-    // First click ascending, second descending, third back to the default order.
-    const next: Sort = sort?.key !== key ? { key, dir: "asc" } : sort.dir === "asc" ? { key, dir: "desc" } : null;
+  const applySort = (next: Sort) => {
     setSort(next);
     remember({ sort: next });
   };
+  // First click ascending, second descending, third back to the default order.
+  const changeSort = (key: SortKey) => applySort(sort?.key !== key ? { key, dir: "asc" } : sort.dir === "asc" ? { key, dir: "desc" } : null);
 
   const load = useCallback(() => {
     backlogService.getQaQueue().then(
@@ -137,7 +142,7 @@ export default function QaWorkspacePage() {
 
   const reopen = (t: BacklogItemData) =>
     canReopenItem(t, undefined, user, isAdmin, isQa) ? (
-      <button type="button" onClick={(e) => (e.stopPropagation(), setReopening(t))} className="h-7 rounded-lg border border-border px-2.5 text-[11px] font-semibold text-accent hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">Reopen</button>
+      <button type="button" onClick={(e) => (e.stopPropagation(), setReopening(t))} className="h-7 rounded-lg border border-border px-2.5 text-xs font-semibold text-accent hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">Reopen</button>
     ) : null;
 
   return (
@@ -146,13 +151,7 @@ export default function QaWorkspacePage() {
         title="QA Workspace"
         description="Every task handed to QA, whoever it is assigned to: Ready for QA, Testing and Done. Drag a card on the board to the next status, or click a task to open its full page."
         actions={
-          <div role="group" aria-label="View" className="flex overflow-hidden rounded-lg border border-border text-xs font-medium">
-            {(["list", "board"] as const).map((v) => (
-              <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} className={`h-8 px-3 capitalize focus-visible:outline-2 focus-visible:outline-accent ${view === v ? "bg-accent-soft text-accent" : "text-muted hover:bg-hover"}`}>
-                {v}
-              </button>
-            ))}
-          </div>
+          <ViewToggle value={view} onChange={setView} />
         }
       />
       {error ? (
@@ -167,17 +166,19 @@ export default function QaWorkspacePage() {
             {filtering && <span role="status">Showing {shown.length} of {all.length}</span>}
           </p>
 
+          <TabSwap id={view}>
           {all.length === 0 ? (
             <EmptyState title="Nothing is with QA" description="Tasks set to Ready for QA show up here." />
           ) : view === "list" ? (
             shown.length === 0 ? (
               <EmptyState title="No tasks match" description="Try other filters or clear them." />
             ) : (
-              <QaTaskList tasks={sortTasks(shown, sort, assigneeText, teamText)} sort={sort} onSort={changeSort} selectedId={selected ?? undefined} onOpen={open} assignee={assigneeText} team={teamText} reopen={reopen} unreadFor={(t) => unreadForTask(notices, t)} />
+              <QaTaskList tasks={sortTasks(shown, sort, assigneeText, teamText)} sort={sort} onSort={changeSort} onSetSort={applySort} selectedId={selected ?? undefined} onOpen={open} assignee={assigneeText} team={teamText} reopen={reopen} unreadFor={(t) => unreadForTask(notices, t)} />
             )
           ) : (
             <QaTaskBoard tasks={sortTasks(shown, sort, assigneeText, teamText)} totals={totals} filtering={filtering} onOpen={open} onMove={canWork ? move : undefined} assignee={assigneeText} team={teamText} reopen={reopen} unreadFor={(t) => unreadForTask(notices, t)} onBell={(t) => { const n = unreadNoticesForTask(notices, t)[0]; if (n) openNotification(n); }} />
           )}
+          </TabSwap>
         </>
       )}
       {moving && (

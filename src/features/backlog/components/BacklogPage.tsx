@@ -1,5 +1,6 @@
 "use client";
 
+import TabSwap from "@/components/ui/TabSwap";
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import {
@@ -54,7 +55,7 @@ export default function BacklogPage() {
     onToggleHidden: (item) =>
       exitThen(item.id, async () => {
         if (item.hidden) {
-          if (await restoreItem(item.id)) toast.show(`${item.title} restored to All items`);
+          if (await restoreItem(item.id)) toast.show(`${item.title} restored to Backlog items`);
         } else if (await hideItem(item.id)) {
           toast.show(`${item.title} hidden`, "info");
         }
@@ -103,6 +104,7 @@ export default function BacklogPage() {
           </button>
         )}
       </div>
+      <TabSwap id={view}>
       <BacklogList
         items={visible}
         total={view === "hidden" ? counts.hidden : counts.visible}
@@ -118,6 +120,7 @@ export default function BacklogPage() {
             : "Use Create backlog to add your first item."
         }
       />
+      </TabSwap>
       {deleting && (
         <ConfirmDeleteDrawer
           key={deleting.id}

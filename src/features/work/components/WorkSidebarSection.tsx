@@ -18,7 +18,7 @@ export default function WorkSidebarSection() {
   const on = (href: string) => (href === WORK_HREF ? pathname === href : pathname === href || pathname.startsWith(`${href}/`));
 
   return (
-    <section aria-labelledby="sidebar-work-heading" className="sb-section rounded-xl border border-border bg-background/60 p-2">
+    <section aria-labelledby="sidebar-work-heading" className="sb-section card-inset p-2">
       <h2 id="sidebar-work-heading" className="sb-label text-base font-semibold">
         {isAdmin ? "Work & Team" : "My Work"}
       </h2>

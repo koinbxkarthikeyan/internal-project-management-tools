@@ -5,6 +5,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { onExternalChange } from "@/lib/localApi";
 import { useMyTasksStore } from "@/stores/myTasksStore";
 import { startNotificationTransport } from "..";
+import { playPing, unlockPing } from "../ping";
 import { useNotificationStore } from "../store";
 
 /** Starts following the signed-in person's notifications once for the whole app (the bells only read the store). Renders nothing. */
@@ -23,7 +24,26 @@ export default function NotificationFeed() {
       timer = setTimeout(() => void useMyTasksStore.getState().load(userId, true), 300);
     });
     const stopTransport = startNotificationTransport(userId);
+    // Every new unread notification (one not seen in the list before) chimes and rings the bell. What was already there when the list first loaded does not.
+    const unlock = unlockPing();
+    let known: Set<string> | null = null;
+    const stopRing = useNotificationStore.subscribe((st) => {
+      if (st.userId !== userId || st.loading) return;
+      const ids = new Set(st.items.map((n) => n.id));
+      if (known === null) {
+        known = ids;
+        return;
+      }
+      const fresh = st.items.some((n) => !n.read && !known!.has(n.id));
+      known = new Set([...known, ...ids]);
+      if (fresh) {
+        playPing();
+        window.dispatchEvent(new Event("notification-arrived"));
+      }
+    });
     return () => {
+      stopRing();
+      unlock();
       clearTimeout(timer);
       stopWatch();
       stopTransport();

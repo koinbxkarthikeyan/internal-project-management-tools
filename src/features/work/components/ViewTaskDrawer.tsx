@@ -1,5 +1,6 @@
 "use client";
 
+import SendBack from "@/features/backlog/components/SendBack";
 import { statusOptionsFor } from "@/features/backlog/statusOptions";
 import { useEffect, useState } from "react";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/FormControls";
@@ -31,7 +32,7 @@ type Row = { label: string; value: React.ReactNode };
  * Details of a task. For everyone it is read-only (nothing to delete), except that the task's Lead can also manage
  * the Assigned Users and set the Developer ETA here.
  */
-export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly = false, assignedToMe = false, inline = false, hideComments = false, onSaved, }: { item: BacklogItemData; onClose: () => void; /** Details only: no editing controls, even for the task's Lead. */ viewOnly?: boolean; /** The task came from My Tasks (the backend lists it as assigned to me), even when its own data names no assignees. */ assignedToMe?: boolean; /** A full-page view (a card in the page, with a Back button) instead of a side panel. */ inline?: boolean; /** Leave the comments out (the page puts them in a column of their own). */ hideComments?: boolean; /** Called after a change was saved (a full-page view reads the task again). */ onSaved?: () => void; }) {
+export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly = false, assignedToMe = false, inline = false, hideComments = false, fit = false, onSaved, }: { item: BacklogItemData; onClose: () => void; /** Details only: no editing controls, even for the task's Lead. */ viewOnly?: boolean; /** The task came from My Tasks (the backend lists it as assigned to me), even when its own data names no assignees. */ assignedToMe?: boolean; /** A full-page view (a card in the page, with a Back button) instead of a side panel. */ inline?: boolean; /** Leave the comments out (the page puts them in a column of their own). */ hideComments?: boolean; /** A compact full-page card with nothing scrolling inside it (tighter spacing, three detail columns when wide, the whole activity list). */ fit?: boolean; /** Called after a change was saved (a full-page view reads the task again). */ onSaved?: () => void; }) {
   const { allPods, sprints, items, hiddenItems, leadUpdateItem, changeStatusWithDetails } = useBacklog();
   // A task of a closed sprint is history: details only, no status / assignee / deadline changes.
   const sprintClosed = sprints.some((s) => s.name === item.sprint && s.status === "Closed");
@@ -77,8 +78,10 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
   const needsReason = status === "Blocked" || status === "On hold";
   // Changing the task's status never changes its Tickets: say so when some are still open.
   const openTickets = item.type === "Ticket" || !item.ticketStats ? 0 : item.ticketStats.total - item.ticketStats.done;
+  // The Status / Assignees / ETA box: stacked normally; in the compact (fit) form its fields sit side by side when there is room, so the panel stays short.
+  const boxClass = fit ? "grid gap-x-4 gap-y-3 card-inset p-3 @2xl:grid-cols-3" : "flex flex-col gap-4 card-inset p-4";
   const ticketsNote = openTickets > 0 && status !== item.status && (
-    <p role="note" className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+    <p role="note" className="col-span-full rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
       {openTickets} of {item.ticketStats?.total} {openTickets === 1 ? "Ticket is" : "Tickets are"} not Done yet. Changing the task&apos;s status does not close {openTickets === 1 ? "it" : "them"}.
     </p>
   );
@@ -109,6 +112,31 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
     onSaved?.();
   }
 
+  // Whose turn it is, and the one-click hand-over: for the Lead and the Assigned Users while the task is still in development.
+  const atQa = item.status === "Ready for QA" || item.status === "Testing";
+  const canHand = (isLead || canChangeStatus) && !isQa && !atQa && item.status !== "Done" && item.type !== "Ticket" && item.sprint !== "Unplanned" && statusOptionsFor(item, isAdmin, canComplete).some((o) => o.value === "Ready for QA");
+  const [handing, setHanding] = useState(false);
+  async function handToQa() {
+    setHanding(true);
+    try {
+      if (await changeStatusWithDetails(item.id, "Ready for QA", "Handed to QA")) {
+        toast.show(`${item.title} handed to QA`);
+        onSaved?.();
+      }
+    } finally {
+      setHanding(false);
+    }
+  }
+
+  // QA (and the admins) return a task that is with them: "Send back to developer" asks what needs fixing, then sets In progress.
+  const canSendBack = atQa && (isQa || isAdmin) && !forceViewOnly && !sprintClosed && item.type !== "Ticket";
+  async function sendBack(reason: string) {
+    if (await changeStatusWithDetails(item.id, "In progress", reason)) {
+      toast.show(`${item.title} sent back to the developer`);
+      onSaved?.();
+    } else throw new Error("not sent");
+  }
+
   const pod = item.podId ? allPods.find((p) => p.id === item.podId)?.name : undefined;
   const assignees = (item.assignees ?? "").split(",").map((n) => n.trim()).filter(Boolean);
 
@@ -132,8 +160,8 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
   // The full-page task: only the key details at the top, then all its Tickets as a board, then the status, hours, history and comments.
   const full = inline && item.type !== "Ticket";
 
-  return (
-    <BacklogDrawer inline={inline} heading={item.type === "Ticket" ? "Ticket details" : "Task details"} subtitle="Everything about this task in one place." submitLabel="Save changes" onSubmit={isLead ? save : canChangeStatus ? saveStatus : () => {}} canSubmit={canChangeStatus ? status !== item.status || leadDeadline !== (item.leadDeadline ?? "") : taskChanged} onClose={onClose} viewOnly={!isLead && !canChangeStatus}>
+  const leftPart = (
+    <>
       {detailError && (
         <FieldError>
           Couldn&apos;t load the latest details ({detailError}). What you see may be out of date.
@@ -151,28 +179,39 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
           <p className="mt-1 whitespace-pre-line break-words text-sm">{item.description}</p>
         </div>
       )}
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-        {rows
-          .filter((r) => r.value)
-          .map((r) => (
-            <div key={r.label} className="min-w-0">
-              <dt className="text-xs font-medium text-muted">{r.label}</dt>
-              <dd className="mt-1 break-words">{r.value}</dd>
-            </div>
-          ))}
-      </dl>
+      <div className="@container">
+        <dl className={`grid grid-cols-2 text-sm ${fit ? "gap-x-4 gap-y-2 @2xl:grid-cols-3 @5xl:grid-cols-4" : "gap-x-4 gap-y-3"}`}>
+          {rows
+            .filter((r) => r.value)
+            .map((r) => (
+              <div key={r.label} className="min-w-0">
+                <dt className="text-xs font-medium text-muted">{r.label}</dt>
+                <dd className={`break-words ${fit ? "mt-0.5" : "mt-1"}`}>{r.value}</dd>
+              </div>
+            ))}
+        </dl>
+      </div>
       {!full && (
         <div>
           <p className="text-xs font-medium text-muted">Task Title</p>
           <p className="mt-1 break-words text-sm font-semibold">{item.title}</p>
         </div>
       )}
+      {canSendBack && <SendBack onSend={sendBack} />}
+      {canHand && (
+        <div className="flex flex-wrap items-center justify-between gap-3 card-inset px-4 py-3">
+          <p className="text-sm"><span className="font-medium">With the developer</span> <span className="text-muted">· when the work is done, hand it to QA.</span></p>
+          <button type="button" onClick={() => void handToQa()} disabled={handing} className="btn-brand h-9 rounded-lg px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60">{handing ? "Handing over…" : "Hand to QA"}</button>
+        </div>
+      )}
       {isLead && (
-        <div className="flex flex-col gap-4 rounded-xl border border-border bg-background/60 p-4">
-          <p className="text-xs text-muted">{etaHidden ? "You lead this task: change its status and assign users." : "You lead this task: change its status, assign users and set the Developer ETA (Estimated Time of Arrival)."}</p>
+        <div className={fit ? "@container" : undefined}>
+        <div className={boxClass}>
+          <p className="col-span-full text-xs text-muted">{etaHidden ? "You lead this task: change its status and assign users." : "You lead this task: change its status, assign users and set the Developer ETA (Estimated Time of Arrival)."}</p>
           <SelectField label="Status" value={status} onChange={(v) => (setStatus(v as Status), setError(""))} options={statusOptionsFor(item, isAdmin, canComplete)} />
           {ticketsNote}
           {commenting && (
+            <div className="col-span-full">
             <TextAreaField
               label={needsReason ? "Why is it blocked or on hold?" : "Comment"}
               required={needsReason}
@@ -181,22 +220,26 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
               onChange={(v) => (setReason(v), setError(""))}
               placeholder={needsReason ? "What's it waiting on, and who can unblock it?" : "What did you do? Add a note about this status change"}
             />
+            </div>
           )}
           <AssigneeField value={assigned} onChange={setAssigned} />
           {!etaHidden && <TextField label={DEVELOPER_ETA} type="date" value={leadDeadline} onChange={setLeadDeadline} min={item.deadline || undefined} disabled={etaLocked} disabledReason="Already set. Only a Super Admin or an Admin can change it." />}
           {error && (
-            <FieldError>
+            <div className="col-span-full"><FieldError>
               {error}
-            </FieldError>
+            </FieldError></div>
           )}
+        </div>
         </div>
       )}
       {canChangeStatus && (
-        <div className="flex flex-col gap-4 rounded-xl border border-border bg-background/60 p-4">
-          <p className="text-xs text-muted">{mine ? (etaHidden ? "You are assigned to this task: change its status." : "You are assigned to this task: change its status and set the Developer ETA (Estimated Time of Arrival).") : item.type === "Ticket" ? "Change this Ticket's status, and mark it Done when it has been checked." : "This task is Ready for QA: change its status, and mark it Done when the testing is complete."}</p>
+        <div className={fit ? "@container" : undefined}>
+        <div className={boxClass}>
+          <p className="col-span-full text-xs text-muted">{mine ? (etaHidden ? "You are assigned to this task: change its status." : "You are assigned to this task: change its status and set the Developer ETA (Estimated Time of Arrival).") : item.type === "Ticket" ? "Change this Ticket's status, and mark it Done when it has been checked." : "This task is Ready for QA: change its status, and mark it Done when the testing is complete."}</p>
           <SelectField label="Status" value={status} onChange={(v) => (setStatus(v as Status), setError(""))} options={statusOptionsFor(item, isAdmin, canComplete)} />
           {ticketsNote}
           {commenting && (
+            <div className="col-span-full">
             <TextAreaField
               label={needsReason ? "Why is it blocked or on hold?" : "Comment"}
               required
@@ -205,9 +248,11 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
               onChange={(v) => (setReason(v), setError(""))}
               placeholder={needsReason ? "What's it waiting on, and who can unblock it?" : "What did you do? Add a note about this status change"}
             />
+            </div>
           )}
           {mine && !etaHidden && item.type !== "Ticket" && <TextField label={DEVELOPER_ETA} type="date" value={leadDeadline} onChange={setLeadDeadline} min={item.deadline || undefined} disabled={etaLocked} disabledReason="Already set. Only a Super Admin or an Admin can change it." />}
-          {error && <FieldError>{error}</FieldError>}
+          {error && <div className="col-span-full"><FieldError>{error}</FieldError></div>}
+        </div>
         </div>
       )}
       {!isLead && item.blockedReason && (
@@ -222,10 +267,33 @@ export default function ViewTaskDrawer({ item, onClose, viewOnly: forceViewOnly 
           <p className="mt-1 whitespace-pre-line break-words text-sm">{item.notes}</p>
         </div>
       )}
+    </>
+  );
+  const rightPart = (
+    <>
       <TaskFamily item={item} skipTickets />
       <TaskLoggedHours taskId={item.id} />
       <ActivityTimeline compact item={detail ?? item} activity={activity} />
       {!hideComments && <CommentsCard taskId={item.id} reloadToken={Date.parse(item.updatedAt ?? "") || 0} />}
+    </>
+  );
+
+  return (
+    <BacklogDrawer inline={inline} compact={fit} heading={item.type === "Ticket" ? "Ticket details" : "Task details"} subtitle="Everything about this task in one place." submitLabel="Save changes" onSubmit={isLead ? save : canChangeStatus ? saveStatus : () => {}} canSubmit={canChangeStatus ? status !== item.status || leadDeadline !== (item.leadDeadline ?? "") : taskChanged} onClose={onClose} viewOnly={!isLead && !canChangeStatus}>
+      {fit ? (
+        // The compact page: the details and the status controls on the left, the history (hours, activity, comments) beside them, so a wide screen is used and the panel stays short.
+        <div className="@container">
+          <div className="grid items-start gap-5 @4xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+            <div className="flex min-w-0 flex-col gap-4">{leftPart}</div>
+            <div className="flex min-w-0 flex-col gap-4">{rightPart}</div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {leftPart}
+          {rightPart}
+        </>
+      )}
     </BacklogDrawer>
   );
 }

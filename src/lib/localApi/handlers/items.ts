@@ -1,3 +1,4 @@
+import { isQaTeam } from "@/lib/auth/qaTeam";
 import { recordAudit } from "../audit";
 import { db, nextId, save, type DbItem, type DbUser } from "../db";
 import { clean, codeOf, findItem, isAdminUser, isQaUser, isSprintClosed, logActivity, nowISO, num, requireAdmin, requireUser, str, todayISO, userRef, type Req, type Rec } from "../core";
@@ -203,7 +204,13 @@ export function create({ data }: Req) {
 function applyStatus(item: DbItem, status: string, me: DbUser): boolean {
   const next = enumOf(status, STATUSES, "status");
   if (next === item.status) return false;
-  if (next === "READY_FOR_QA" && item.type === "TICKET") fail(400, "A Ticket can't be set to Ready for QA: that is how a task is handed to QA.");
+  // A Ticket: its creator, QA and the admins may set any status. Everyone else on it hands it to QA (Ready for QA) and, once it is with QA (Ready for QA, Testing, Done), cannot move it on.
+  if (item.type === "TICKET" && !isAdminUser(me) && !isQaUser(me) && item.createdById !== me.id) {
+    if (inQa(item) || item.status === "COMPLETED") fail(403, "This Ticket is with QA: only QA, an admin or the person who created it can move it on.");
+    if (next === "TESTING" || next === "COMPLETED") fail(403, "Only QA, an admin or the person who created this Ticket can put it into Testing or mark it Done.");
+    // On a Ticket that QA created, the people it is assigned to cannot set Blocked or On hold either (they hand it back with Ready for QA).
+    if ((next === "BLOCKED" || next === "ON_HOLD") && isQaTeam(item.createdByTeam)) fail(403, "On a Ticket created by QA you can set To Do, In progress or Ready for QA. Only QA, an admin or its creator can set Blocked or On hold.");
+  }
   // Only QA (and the admins) take a task into Testing.
   // (A Ticket's own people may put the Ticket into Testing too; only Done is held back for QA, the admins and the Ticket's creator.)
   if (next === "TESTING" && item.type !== "TICKET" && !isAdminUser(me) && !isQaUser(me)) fail(403, "Only QA, a Super Admin or an enabled Admin can put a task into Testing.");

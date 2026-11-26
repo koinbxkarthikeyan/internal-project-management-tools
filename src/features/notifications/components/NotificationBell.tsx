@@ -8,7 +8,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import { BellIcon } from "@/components/ui/icons";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { MY_TASK_HREF } from "@/constants/work";
-import { EVENT_LABEL, describe, timeAgo } from "../describe";
+import { EVENT_LABEL, describe, isDirect, isPod, kindTint, timeAgo } from "../describe";
 import { useMyTasksStore } from "@/stores/myTasksStore";
 import { useOpenNotification } from "../open";
 import { selectUnread, useNotificationStore } from "../store";
@@ -19,7 +19,7 @@ const WIDTH = 384;
 /** Where notifications come from. */
 function ConnectionLine() {
   return (
-    <p className="flex items-center gap-1.5 border-b border-border px-4 py-1.5 text-[11px] text-muted" role="status" data-notification-status="local">
+    <p className="flex items-center gap-1.5 border-b border-border px-4 py-1.5 text-xs text-muted" role="status" data-notification-status="local">
       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" aria-hidden="true" />
       Shared with every computer · new ones show up within seconds
     </p>
@@ -119,6 +119,19 @@ export default function NotificationBell() {
     };
   }, [open, full]);
 
+  // A new notification arrived (see NotificationFeed): the bell rings for a moment, whether or not the pointer is on it.
+  const [ringing, setRinging] = useState(false);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const ring = () => {
+      setRinging(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => setRinging(false), 1200);
+    };
+    window.addEventListener("notification-arrived", ring);
+    return () => (window.removeEventListener("notification-arrived", ring), clearTimeout(timer));
+  }, []);
+
   if (!user || settingsOnly) return null;
 
   // Full view keeps the panel under the bell, wider, and slid left only as far as needed to stay on the screen.
@@ -141,9 +154,9 @@ export default function NotificationBell() {
         title="Notifications (Menu key, between right Alt and Ctrl)"
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent"
+        className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted transition-[background-color,border-color,color] duration-300 ease-out hover:border-amber-400/50 hover:bg-amber-400/15 hover:text-amber-500 focus-visible:border-amber-400/50 focus-visible:text-amber-500 focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transition-none"
       >
-        <BellIcon />
+        <BellIcon className={`bell-shake ${ringing ? "bell-ringing" : ""}`} />
         {unread > 0 && (
           <span className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold tabular-nums text-white" aria-hidden="true">
             {unread > 99 ? "99+" : unread}
@@ -157,7 +170,7 @@ export default function NotificationBell() {
             role="dialog"
             aria-label="Notifications"
             style={panelStyle}
-            className={`anim-fade-up fixed z-[60] flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-menu ${full ? "h-[calc(100dvh-5rem)] max-h-[48rem]" : "max-h-[min(34rem,calc(100vh-5rem))]"}`}
+            className={`anim-fade-up fixed z-[60] flex flex-col overflow-hidden card shadow-menu ${full ? "h-[calc(100dvh-5rem)] max-h-[48rem]" : "max-h-[min(34rem,calc(100vh-5rem))]"}`}
           >
             <div className="flex items-center gap-2 whitespace-nowrap border-b border-border px-4 py-3">
               <h2 className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
@@ -223,24 +236,25 @@ export default function NotificationBell() {
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center justify-between gap-2">
                           <span className={`text-sm ${full ? "" : "truncate"} ${n.read ? "font-medium" : "font-semibold"}`}>
-                            {n.taskCode} · {n.taskTitle}
+                            {isDirect(n) ? n.actor.name : `${n.taskCode} · ${n.taskTitle}`}
                           </span>
-                          <span className="shrink-0 rounded-full bg-hover px-2 py-0.5 text-[11px] font-medium text-muted">{EVENT_LABEL[n.type]}</span>
+                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${kindTint(n)}`}>{EVENT_LABEL[n.type]}</span>
                         </span>
                         <span className="mt-0.5 block text-xs text-muted">
-                          {n.message ? n.message : <><span className="font-medium text-foreground">{n.actor.name}</span> {describe(n)}</>}
+                          {/* A direct message has the sender as its title; a POD message names who wrote it. */}
+                          {n.message && !isPod(n) ? n.message : <><span className="font-medium text-foreground">{n.actor.name}</span>{n.message ? (/^mentioned you/.test(n.message) ? " " : ": ") + n.message : ` ${describe(n)}`}</>}
                         </span>
                         {full && !!n.changes?.length && (
                           <span className="mt-1.5 flex flex-wrap gap-1.5">
                             {n.changes.map((c, i) => (
-                              <span key={i} className="rounded-md border border-border bg-background px-2 py-0.5 text-[11px] text-muted">
+                              <span key={i} className="rounded-md border border-border bg-background px-2 py-0.5 text-xs text-muted">
                                 <span className="font-medium text-foreground">{c.field}</span>
                                 {c.from || c.to ? <>: {c.from ?? "–"} → {c.to ?? "–"}</> : null}
                               </span>
                             ))}
                           </span>
                         )}
-                        <time dateTime={n.occurredAt} title={new Date(n.occurredAt).toLocaleString()} className="mt-0.5 block text-[11px] text-muted">
+                        <time dateTime={n.occurredAt} title={new Date(n.occurredAt).toLocaleString()} className="mt-0.5 block text-xs text-muted">
                           {timeAgo(n.occurredAt)}
                         </time>
                       </span>

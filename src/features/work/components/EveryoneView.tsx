@@ -59,14 +59,14 @@ const BREAKDOWNS: { id: Breakdown; label: string }[] = [
   { id: "sprint", label: "Across the sprint" },
 ];
 
-const card = "rounded-2xl border border-border bg-surface p-5";
+const card = "card p-5";
 const timeFormat = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 const sum = (list: readonly WorkEntry[]) => list.reduce((total, e) => total + e.hours, 0);
 
 function Stat({ value, total, label, valueClass = "", totalClass = "text-muted" }: { value: string; total: string; label: string; valueClass?: string; totalClass?: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface p-4">
+    <div className="card p-4">
       <p>
         <span className={`text-2xl font-semibold tabular-nums ${valueClass}`}>{value}</span>{" "}
         <span className={`text-sm tabular-nums ${totalClass}`}>/ {total}</span>
@@ -329,9 +329,9 @@ function ByPerson({
                         <span className="h-2 w-2 shrink-0 rounded-sm" style={{ background: taskColor(r.id) }} aria-hidden="true" />
                         <span className="truncate">{r.title}</span>
                       </span>
-                      <span className="shrink-0 font-mono text-[11px] text-muted">{formatHours(r.hours)}</span>
+                      <span className="shrink-0 font-mono text-xs text-muted">{formatHours(r.hours)}</span>
                     </div>
-                    {r.notes.length > 0 && <p className="truncate pl-3.5 text-[11px] text-muted">{r.notes.join(" · ")}</p>}
+                    {r.notes.length > 0 && <p className="truncate pl-3.5 text-xs text-muted">{r.notes.join(" · ")}</p>}
                   </li>
                 ))}
                 {assigned.map((t) => (
@@ -342,7 +342,7 @@ function ByPerson({
                         {t.title} · {t.podId ? (podNames[t.podId] ?? "POD") : "Backlog"} · {sprintLabel(t.sprint)}
                       </span>
                     </span>
-                    <span className="shrink-0 font-mono text-[11px]">assigned</span>
+                    <span className="shrink-0 font-mono text-xs">assigned</span>
                   </li>
                 ))}
               </ul>
@@ -352,7 +352,7 @@ function ByPerson({
       })}
     </ul>
     {idle.length > 0 && (
-      <section aria-label="No work logged yet" className="rounded-xl border border-border bg-background/60 p-3">
+      <section aria-label="No work logged yet" className="card-inset p-3">
         <p className="text-center text-sm font-semibold">No work logged yet</p>
         <p className="mt-0.5 text-center text-xs text-muted">
           {idle.length} {idle.length === 1 ? "person" : "people"}
@@ -369,7 +369,7 @@ function ByPerson({
       </section>
     )}
     </div>
-    <p className="mt-3 text-[11px] text-muted">Each colour is one task. Time on several tasks is split equally.</p>
+    <p className="mt-3 text-xs text-muted">Each colour is one task. Time on several tasks is split equally.</p>
     </>
   );
 }
@@ -506,7 +506,7 @@ function ByPod({
                   if (b.key === "unplanned") return <UnplannedCard key={b.key} block={b} max={max} allTasks={allTasks} onView={setViewing} taskHours={(t) => taskHours(t, sprint)} />;
                   return (
                     // Every card has the same minimum height; its list scrolls inside, under the header.
-                    <li key={b.key} className="flex min-h-[13rem] flex-col rounded-xl border border-border bg-background/60 p-3">
+                    <li key={b.key} className="flex min-h-[13rem] flex-col card-inset p-3">
                       <div className="flex shrink-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                         <p className="flex min-w-0 items-baseline gap-2 text-sm">
                           <span className="h-2 w-2 shrink-0 rounded-sm" style={{ background: color }} aria-hidden="true" />
@@ -570,7 +570,7 @@ function UnplannedCard({ block, max, allTasks, onView, taskHours }: { block: Pod
   lines.sort((a, b) => totalOf(b) - totalOf(a));
   const people = new Set(lines.map((e) => e.person)).size;
   return (
-    <li className="flex min-h-[13rem] flex-col rounded-xl border border-border bg-background/60 p-3">
+    <li className="flex min-h-[13rem] flex-col card-inset p-3">
       <div className="flex shrink-0 items-baseline justify-between gap-3">
         <p className="flex min-w-0 items-baseline gap-2 text-sm">
           <span className="h-2 w-2 shrink-0 rounded-sm" style={{ background: colorFor(block.key) }} aria-hidden="true" />
@@ -602,12 +602,12 @@ function UnplannedCard({ block, max, allTasks, onView, taskHours }: { block: Pod
                       type="button"
                       onClick={() => onView(task)}
                       aria-label={`View ${task.title}`}
-                      className="text-[11px] font-medium text-accent hover:underline focus-visible:outline-2 focus-visible:outline-accent"
+                      className="text-xs font-medium text-accent hover:underline focus-visible:outline-2 focus-visible:outline-accent"
                     >
                       View
                     </button>
                   )}
-                  <span className="font-mono text-[11px] text-muted">{formatHours(e.hours)}</span>
+                  <span className="font-mono text-xs text-muted">{formatHours(e.hours)}</span>
                 </span>
               </li>
             );
@@ -689,7 +689,7 @@ function PodTask({
           type="button"
           onClick={onView}
           aria-label={`View ${task.title}`}
-          className="h-6 shrink-0 rounded-md border border-border px-2 text-[11px] font-medium text-accent hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
+          className="h-6 shrink-0 rounded-md border border-border px-2 text-xs font-medium text-accent hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
         >
           View
         </button>
@@ -707,12 +707,12 @@ function PodTask({
         )}
       </div>
       {/* Hours per sprint (a carried-over task lists each sprint it was in), then the total. */}
-      <p className="mt-1.5 flex flex-wrap items-baseline justify-end gap-x-3 text-[11px] text-muted">
+      <p className="mt-1.5 flex flex-wrap items-baseline justify-end gap-x-3 text-xs text-muted">
         <span className="font-mono" title="Hours on this task, per sprint">
           {parts.map((p) => `${unplannedAs(p.name, own)}: ${formatHours(p.hours)}`).join(" | ")} = {formatHours(total)}
         </span>
       </p>
-      <p className="text-right text-[11px] text-muted">
+      <p className="text-right text-xs text-muted">
         <span className="font-mono font-semibold text-foreground">Total: {formatHours(total)}</span>
       </p>
       {(byPerson.length > 0 || waiting.length > 0) && (
@@ -724,10 +724,10 @@ function PodTask({
                 {name}
                 {lead && name.toLowerCase() === lead.toLowerCase() && <span className="ml-1.5 font-mono text-[10px] text-blue-500">lead</span>}
               </span>
-              <span className="shrink-0 font-mono text-[11px] text-muted">{formatHours(hours)}</span>
+              <span className="shrink-0 font-mono text-xs text-muted">{formatHours(hours)}</span>
             </li>
           ))}
-          {waiting.length > 0 && <li className="text-[11px] text-muted">Nothing yet from {waiting.join(", ")}</li>}
+          {waiting.length > 0 && <li className="text-xs text-muted">Nothing yet from {waiting.join(", ")}</li>}
         </ul>
       )}
     </li>

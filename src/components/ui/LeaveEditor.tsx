@@ -91,6 +91,9 @@ export default function LeaveEditor({ kind, rows, canEdit, named = false, min, m
   };
   const save = () => {
     if (!editing) return;
+    // Nothing was changed on the row being edited: there is nothing to save (the Save button is off too).
+    const was = rows.find((r) => r.id === editing.id);
+    if (was && editing.date === was.date && editing.name === (was.name ?? "") && editing.hours === (was.hours ? String(was.hours) : "")) return;
     const h = parse(editing.hours);
     if (typeof h === "string") return setError(h);
     const err = onEdit?.(editing.id, editing.date, editing.name, h.hours);
@@ -144,7 +147,7 @@ export default function LeaveEditor({ kind, rows, canEdit, named = false, min, m
                   <input type="date" min={min} max={max} value={editing.date} onChange={(e) => setEditing({ ...editing, date: e.target.value })} onKeyDown={enter(save)} aria-label="Leave date" className={`${input} w-40`} />
                   {!named && <input type="number" min={0.5} max={6} step={0.5} value={editing.hours} onChange={(e) => setEditing({ ...editing, hours: e.target.value })} onKeyDown={enter(save)} placeholder="Hours off" title="Hours off (empty = the whole day)" aria-label="Hours off (empty = the whole day)" className={`${input} w-24 shrink-0`} />}
                   {named && <input value={editing.name} maxLength={80} onChange={(e) => setEditing({ ...editing, name: e.target.value })} onKeyDown={enter(save)} placeholder="Description (optional)" aria-label="Description" className={`${input} min-w-36 flex-1`} />}
-                  <button type="button" onClick={save} className={`${btn} text-accent hover:bg-hover`}>Save</button>
+                  <button type="button" onClick={save} disabled={editing.date === r.date && editing.name === (r.name ?? "") && editing.hours === (r.hours ? String(r.hours) : "")} title="Save" className={`${btn} text-accent hover:bg-hover disabled:cursor-not-allowed disabled:opacity-50`}>Save</button>
                   <button type="button" onClick={reset} className={ghost}>Cancel</button>
                 </div>
                 {error && <p role="alert" className="text-xs text-red-600 dark:text-red-300">{error}</p>}

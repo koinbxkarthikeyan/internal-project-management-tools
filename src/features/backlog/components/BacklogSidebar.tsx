@@ -5,6 +5,7 @@ import { useBacklog } from "../context/BacklogContext";
 import RailTip from "@/components/ui/RailTip";
 import SignOutBlock from "@/features/auth/components/SignOutBlock";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import MessagesLink from "@/features/messages/components/MessagesLink";
 import WorkSidebarSection from "@/features/work/components/WorkSidebarSection";
 import BacklogNavigation from "./BacklogNavigation";
 import CreateBacklogButton from "./CreateBacklogButton";
@@ -31,10 +32,10 @@ export default function BacklogSidebar() {
     summary = "Couldn't load data";
   }
 
-  // Only the menu scrolls; who is signed in, Settings and Sign out stay fixed at the bottom of the sidebar.
+  // Only the menu scrolls; the account card (with Theme, Settings and Sign Out in its menu) stays fixed at the bottom of the sidebar.
   const shell = (menu: ReactNode) => (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="sb-pad flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4 pt-4">{menu}</div>
+      <div className="sb-pad sb-menu-area flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4 pt-4">{menu}</div>
       <div className="sb-pad shrink-0 px-4 pb-4">
         <SignOutBlock />
       </div>
@@ -45,17 +46,18 @@ export default function BacklogSidebar() {
   if (settingsOnly) return shell(null);
 
   // A normal User: the sidebar offers only "What are you working on? > My sprint / My Task" (and Settings below).
-  if (restricted) return shell(<WorkSidebarSection />);
+  if (restricted) return shell(<><MessagesLink /><WorkSidebarSection /></>);
 
   return shell(
     <>
-      <header className="sb-card rounded-xl border border-border bg-background/60 p-3">
+      <header className="sb-card card-inset p-3">
         <h2 className="sb-label text-base font-semibold">Backlog tracker</h2>
         <p className="sb-label mt-1 text-xs leading-relaxed text-muted">{summary}</p>
         <RailTip label="Create backlog" className="mt-3 sb-create">
           <CreateBacklogButton />
         </RailTip>
       </header>
+      <MessagesLink />
       <BacklogNavigation between={<WorkSidebarSection />} />
     </>,
   );

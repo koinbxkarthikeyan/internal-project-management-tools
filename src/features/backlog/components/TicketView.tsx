@@ -1,5 +1,8 @@
 "use client";
 
+import SendBack from "./SendBack";
+import { MESSAGES_LABEL } from "@/constants/work";
+import TabSwap from "@/components/ui/TabSwap";
 import AssigneeStack, { assigneePeople } from "@/components/ui/AssigneeStack";
 import AssigneeField, { cleanAssignees } from "./AssigneeField";
 import { useCallback, useEffect, useState } from "react";
@@ -130,13 +133,42 @@ export default function TicketView({ ticket: first, task, initialStatus }: { tic
   }
 
   const options = statusOptionsFor(ticket, isAdmin, isAdmin || isQa, creator);
+  // Whose turn it is: with QA from Ready for QA until Done, otherwise with the people working on it. "Hand to QA" is one click for those who may set Ready for QA (QA itself needn't).
+  const withQa = ticket.status === "Ready for QA" || ticket.status === "Testing";
+  const canHand = (canEdit || mine) && !isQa && !withQa && ticket.status !== "Done" && options.some((o) => o.value === "Ready for QA");
+  // QA (and the admins) return work that is with them: "Send back to developer" asks what needs fixing, then sets In progress.
+  const canSendBack = withQa && (isQa || isAdmin);
+  async function sendBack(reason: string) {
+    try {
+      apply(await backlogService.changeStatusWithDetails(ticket.id, "In progress", reason));
+      setCommentsVersion((v) => v + 1);
+      changed();
+      toast.show(`${ticket.id} sent back to the developer`);
+    } catch (err) {
+      toast.show(getErrorMessage(err), "danger");
+      throw err;
+    }
+  }
+  async function handToQa() {
+    setChanging(true);
+    try {
+      apply(await backlogService.changeStatusWithDetails(ticket.id, "Ready for QA", "Handed to QA"));
+      setCommentsVersion((v) => v + 1);
+      changed();
+      toast.show(`${ticket.id} handed to QA`);
+    } catch (err) {
+      toast.show(getErrorMessage(err), "danger");
+    } finally {
+      setChanging(false);
+    }
+  }
   const reopens = (ticket.activity ?? []).filter((a) => a.reopen).sort((a, b) => Date.parse(b.reopen?.at ?? "") - Date.parse(a.reopen?.at ?? ""));
   const tabClass = (on: boolean) => `rounded-lg px-3 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-accent ${on ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-hover hover:text-foreground"}`;
   const btn = "h-8 rounded-lg px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60";
 
   return (
     <div aria-label={`Ticket ${ticket.id}`} className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(24rem,30rem)] 2xl:items-start">
-      <article className="@container flex min-w-0 flex-col gap-5 rounded-2xl border border-border bg-surface p-6">
+      <article className="@container flex min-w-0 flex-col gap-5 card p-6">
         <header className="flex flex-col gap-3">
           <p className="flex min-w-0 items-center gap-2 text-sm text-muted">
             <span className="shrink-0 rounded-md bg-hover px-2 py-0.5 font-mono text-xs font-semibold text-foreground">{ticket.id}</span>
@@ -145,13 +177,14 @@ export default function TicketView({ ticket: first, task, initialStatus }: { tic
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1 basis-72">
               {editing ? (
-                <input value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Title" className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-2xl font-semibold focus-visible:border-accent focus-visible:outline-none!" />
+                <input value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Title" className="field w-full px-2.5 py-1.5 text-2xl font-semibold" />
               ) : (
-                <h1 className="break-words text-2xl font-semibold">{ticket.title}</h1>
+                <h1 title={ticket.title} className="truncate text-2xl font-semibold">{ticket.title}</h1>
               )}
               <p className="mt-2 flex flex-wrap items-center gap-2">
                 <StatusBadge status={ticket.status} />
                 <PriorityBadge priority={ticket.priority} />
+                {ticket.status !== "Done" && <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted">{withQa ? "Waiting on QA" : "With the developer"}</span>}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -160,21 +193,23 @@ export default function TicketView({ ticket: first, task, initialStatus }: { tic
                 <>
                   {dirty && <span className="text-xs text-muted">Unsaved changes</span>}
                   <button type="button" onClick={() => apply(ticket)} disabled={saving} className={`${btn} border border-border hover:bg-hover`}>Cancel</button>
-                  <button type="button" onClick={() => void save()} disabled={saving || !title.trim()} className={`${btn} btn-brand`}>{saving ? "Saving…" : "Save"}</button>
+                  <button type="button" onClick={() => void save()} disabled={saving || !dirty || !title.trim()} title={!saving && !dirty ? "No changes to save." : undefined} className={`${btn} btn-brand disabled:cursor-not-allowed disabled:opacity-60`}>{saving ? "Saving…" : "Save"}</button>
                 </>
               )}
+              {canHand && <button type="button" onClick={() => void handToQa()} disabled={changing} className={`${btn} btn-brand`}>{changing ? "Handing over…" : "Hand to QA"}</button>}
               {canReopenItem(ticket, task, user, isAdmin, isQa) && <button type="button" onClick={() => setReopening(true)} className={`${btn} border border-accent text-accent hover:bg-accent-soft`}>Reopen</button>}
             </div>
           </div>
         </header>
         {error && <p role="alert" className="text-sm text-red-600 dark:text-red-300">{error}</p>}
+        {canSendBack && <SendBack onSend={sendBack} />}
 
         <section aria-label="Properties">
           <dl className="grid gap-x-8 border-t border-border/60 @2xl:grid-cols-2">
             <Prop label="Status">
               <div className="flex flex-col gap-1.5">
                 <SelectField label="" value={status} onChange={(v) => setStatus(v as Status)} options={options} disabled={!(canEdit || mine) || ticket.status === "Done"} disabledReason={ticket.status === "Done" ? "Use Reopen to change a completed Ticket." : "You can't change this Ticket's status."} />
-                {status !== ticket.status && <span className="text-xs text-muted">Write the comment for this change in the Comments, then press Save status.</span>}
+                {status !== ticket.status && <span className="text-xs text-muted">Write the comment for this change in the {MESSAGES_LABEL}, then press Save status.</span>}
               </div>
             </Prop>
             <Prop label="Assignee">
@@ -218,11 +253,12 @@ export default function TicketView({ ticket: first, task, initialStatus }: { tic
         <TicketAttachments ticketCode={ticket.id} canEdit={canEdit} />
       </article>
 
-      <aside aria-label="Activity" className="flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-surface p-4 2xl:sticky 2xl:top-4">
-        <div role="tablist" aria-label="Comments and activity" className="flex gap-1 border-b border-border pb-1">
-          <button type="button" role="tab" aria-selected={tab === "comments"} onClick={() => setTab("comments")} className={tabClass(tab === "comments")}>Comments</button>
+      <aside aria-label="Activity" className="flex min-w-0 flex-col gap-3 card p-4 2xl:sticky 2xl:top-4">
+        <div role="tablist" aria-label={`${MESSAGES_LABEL} and activity`} className="flex gap-1 border-b border-border pb-1">
+          <button type="button" role="tab" aria-selected={tab === "comments"} onClick={() => setTab("comments")} className={tabClass(tab === "comments")}>{MESSAGES_LABEL}</button>
           <button type="button" role="tab" aria-selected={tab === "history"} onClick={() => setTab("history")} className={tabClass(tab === "history")}>Activity</button>
         </div>
+      <TabSwap id={tab === "comments" || status !== ticket.status ? "c" : "h"} className="min-w-0">
         {tab === "comments" || status !== ticket.status ? (
           <TaskComments
             taskId={ticket.id}
@@ -239,6 +275,7 @@ export default function TicketView({ ticket: first, task, initialStatus }: { tic
             <ActivityList entries={ticket.activity} />
           </div>
         )}
+      </TabSwap>
       </aside>
 
       {reopening && <ReopenDialog item={ticket} onClose={() => setReopening(false)} onReopened={(t) => (apply(t), setCommentsVersion((v) => v + 1), changed())} />}
