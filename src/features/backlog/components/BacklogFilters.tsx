@@ -6,6 +6,8 @@ export type FilterState = {
   status: string;
   priority: string;
   owner: string;
+  /** A person assigned to the task: its Lead or one of its Team Members. */
+  assignee: string;
   sprint: string;
   /** Deadline range, ISO dates (inclusive); empty = unbounded. */
   deadlineFrom: string;
@@ -17,6 +19,7 @@ export const EMPTY_FILTERS: FilterState = {
   status: "",
   priority: "",
   owner: "",
+  assignee: "",
   sprint: "",
   deadlineFrom: "",
   deadlineTo: "",
@@ -29,6 +32,7 @@ type BacklogFiltersProps = {
   options: {
     priority: readonly string[];
     owner: readonly string[];
+    assignee: readonly string[];
     sprint: readonly (string | { value: string; label: string })[];
   };
 };
@@ -36,6 +40,7 @@ type BacklogFiltersProps = {
 const SELECTS = [
   { key: "priority", label: "Priority" },
   { key: "owner", label: "Owner" },
+  { key: "assignee", label: "Assigned To" },
   { key: "sprint", label: "Sprint" },
 ] as const;
 

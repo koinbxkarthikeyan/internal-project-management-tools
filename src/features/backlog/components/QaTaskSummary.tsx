@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronRightIcon } from "@/components/ui/icons";
 import { MESSAGES_LABEL } from "@/constants/work";
 import TabSwap from "@/components/ui/TabSwap";
 import { useState } from "react";
@@ -32,7 +33,7 @@ export default function QaTaskSummary({ task, tickets, canChangeStatus, canCreat
       <div role="tablist" aria-label={`${MESSAGES_LABEL} and activity`} className="flex gap-1 border-b border-border pb-1">
         <button type="button" role="tab" aria-selected={tab === "comments"} onClick={() => setTab("comments")} className={tabClass(tab === "comments")}>{MESSAGES_LABEL}</button>
         <button type="button" role="tab" aria-selected={tab === "history"} onClick={() => setTab("history")} className={tabClass(tab === "history")}>Activity</button>
-        {onHide && <button type="button" onClick={onHide} aria-expanded="true" title={`Hide ${MESSAGES_LABEL.toLowerCase()}`} className="ml-auto rounded-lg px-2 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent">Hide ›</button>}
+        {onHide && <button type="button" onClick={onHide} aria-expanded="true" title={`Hide ${MESSAGES_LABEL.toLowerCase()}`} className="ml-auto grid h-8 place-items-center rounded-lg px-2 text-xs font-medium text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent max-[1399px]:w-8 max-[1399px]:border max-[1399px]:border-border"><ChevronRightIcon width={14} height={14} className="-rotate-90 min-[1400px]:hidden" /><span className="hidden min-[1400px]:inline">Hide ›</span></button>}
       </div>
       <TabSwap id={tab} className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
       {tab === "comments" ? (

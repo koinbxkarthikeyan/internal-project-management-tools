@@ -8,6 +8,7 @@ import {
   sprintLabel,
 } from "@/constants/backlog-options";
 import { useBacklog } from "../context/BacklogContext";
+import { peopleOf } from "../utils";
 import type { BacklogItemData } from "@/types/backlog";
 import type { BacklogItemActions } from "./BacklogItem";
 import BacklogFilters, { EMPTY_FILTERS, type FilterState } from "./BacklogFilters";
@@ -75,11 +76,13 @@ export default function BacklogPage() {
     if (!complete) loadAll();
   }, [complete, loadAll]);
 
+  const assignees = useMemo(() => [...new Set([...items, ...hiddenItems].flatMap(peopleOf))].sort((a, b) => a.localeCompare(b)), [items, hiddenItems]);
   const matching = useMemo(() => {
     const q = filters.query.trim().toLowerCase();
     return inView.filter(
       (i) =>
-        (!q || i.title.toLowerCase().includes(q) || i.owner.toLowerCase().includes(q)) &&
+        (!q || i.title.toLowerCase().includes(q) || i.owner.toLowerCase().includes(q) || peopleOf(i).some((n) => n.toLowerCase().includes(q))) &&
+        (!filters.assignee || peopleOf(i).includes(filters.assignee)) &&
         (!filters.priority || i.priority === filters.priority) &&
         (!filters.owner || i.owner === filters.owner) &&
         (!filters.sprint || i.sprint === filters.sprint) &&
@@ -95,7 +98,7 @@ export default function BacklogPage() {
     <div className="flex flex-col gap-6">
       <BacklogHeader />
       <StatusCards items={matching} selected={filters.status} onSelect={(status) => setFilters({ ...filters, status })} partial={!itemsPaging.complete} partialTotal={otherFilters ? undefined : itemsPaging.totalShown} />
-      <BacklogFilters filters={filters} onChange={setFilters} options={{ ...STATIC_FILTER_OPTIONS, owner: owners, sprint: sprintNames.map((n) => ({ value: n, label: sprintLabel(n) })) }} />
+      <BacklogFilters filters={filters} onChange={setFilters} options={{ ...STATIC_FILTER_OPTIONS, owner: owners, assignee: assignees, sprint: sprintNames.map((n) => ({ value: n, label: sprintLabel(n) })) }} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <BacklogViewTabs view={view} onChange={setView} counts={counts} />
         {isAdmin && view === "hidden" && counts.hidden > 0 && (

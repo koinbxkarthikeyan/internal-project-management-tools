@@ -6,11 +6,7 @@ export default function BacklogHeader() {
     <PageHeader
       title="Backlog items"
       description="Track and filter backlog items."
-      actions={
-        <div className="w-full sm:w-auto">
-          <CreateBacklogButton />
-        </div>
-      }
+      actions={<CreateBacklogButton header />}
     />
   );
 }

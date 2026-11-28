@@ -9,7 +9,7 @@ export const NO_TASK_FILTERS: TaskFilters = { search: "", status: "", priority: 
 export const isTaskFiltering = (f: TaskFilters) => Object.values(f).some(Boolean);
 
 /** The task pages' filter bar (QA Workspace, My Task): the app's shared toolbar with a pill each for Status, Priority, Team and Assignee. Teams and people are given by id. */
-export default function TaskFilterBar({ filters, onChange, statuses, teams, assignees, label }: { filters: TaskFilters; onChange: (f: TaskFilters) => void; statuses: readonly { value: string; label: string }[]; teams: readonly (readonly [string, string])[]; assignees: readonly (readonly [string, string])[]; label: string }) {
+export default function TaskFilterBar({ filters, onChange, statuses, teams, assignees, label, hideStatus }: { filters: TaskFilters; onChange: (f: TaskFilters) => void; statuses: readonly { value: string; label: string }[]; teams: readonly (readonly [string, string])[]; assignees: readonly (readonly [string, string])[]; label: string; /** Board view: every status is already a column, so the Status filter is left out. */ hideStatus?: boolean }) {
   const set = (patch: Partial<TaskFilters>) => onChange({ ...filters, ...patch });
   return (
     <FilterBar
@@ -18,7 +18,7 @@ export default function TaskFilterBar({ filters, onChange, statuses, teams, assi
       activeCount={Object.values(filters).filter(Boolean).length}
       onClear={() => onChange(NO_TASK_FILTERS)}
     >
-      <FilterPill label="Status" value={filters.status} onChange={(status) => set({ status })} options={statuses} />
+      {!hideStatus && <FilterPill label="Status" value={filters.status} onChange={(status) => set({ status })} options={statuses} />}
       <FilterPill label="Priority" value={filters.priority} onChange={(priority) => set({ priority })} options={PRIORITIES} />
       <FilterPill label="Team" value={filters.team} onChange={(team) => set({ team })} options={teams.map(([value, label]) => ({ value, label }))} />
       <FilterPill label="Assignee" value={filters.assignee} onChange={(assignee) => set({ assignee })} options={assignees.map(([value, label]) => ({ value, label }))} />

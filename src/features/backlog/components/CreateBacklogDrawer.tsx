@@ -78,7 +78,7 @@ function CreateForm() {
   );
 
   return (
-    <BacklogDrawer side heading="Create backlog" subtitle="Add a task to the backlog or to a sprint." mode="Create" submitLabel="Create backlog" onSubmit={submit} onClose={closeCreate}>
+    <BacklogDrawer heading="Create backlog" subtitle="Add a task to the backlog or to a sprint." mode="Create" submitLabel="Create backlog" onSubmit={submit} onClose={closeCreate}>
       <dl className="flex gap-6 rounded-xl border border-border bg-background px-4 py-3">
         {metaItem("Created", formatDeadline(created))}
         {metaItem("Status", "To Do")}

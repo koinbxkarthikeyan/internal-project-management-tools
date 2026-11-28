@@ -1,6 +1,7 @@
 import { ToastProvider } from "@/components/ui/Toast";
 import PageTransitions from "@/components/layout/PageTransitions";
 import Sidebar from "@/components/layout/Sidebar";
+import TouchDrag from "@/components/layout/TouchDrag";
 import AuthGate from "@/features/auth/components/AuthGate";
 // import SignInApprovalGate from "@/features/auth/components/SignInApprovalGate"; // multi-computer approval pop-up: switched off, see lib/server/rpc.ts
 import { BacklogProvider } from "@/features/backlog/context/BacklogContext";
@@ -34,6 +35,7 @@ export default function DashboardLayout({ children }: LayoutProps<"/">) {
       <CreateBacklogDrawer />
       <QuickCreateShortcuts />
       <PageTransitions />
+      <TouchDrag />
       <TypeToSearch />
       <QuickSearch />
       <ArrowDisclosure />

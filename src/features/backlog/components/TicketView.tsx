@@ -1,5 +1,6 @@
 "use client";
 
+import { SprintName } from "@/components/ui/NameWithIcon";
 import SendBack from "./SendBack";
 import { MESSAGES_LABEL } from "@/constants/work";
 import TabSwap from "@/components/ui/TabSwap";
@@ -9,7 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 import { PriorityBadge, StatusBadge } from "@/components/ui/Badge";
 import { SelectField, TextAreaField } from "@/components/ui/FormControls";
 import { useToast } from "@/components/ui/Toast";
-import { PRIORITIES, sprintLabel, statusLabel } from "@/constants/backlog-options";
+import { PRIORITIES, statusLabel } from "@/constants/backlog-options";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import TaskComments from "@/features/comments/TaskComments";
 import { useUsers } from "@/features/users/hooks/useUsers";
@@ -25,7 +26,7 @@ import TicketAttachments from "./TicketAttachments";
 
 function Prop({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2 border-b border-border/60 py-2 text-sm">
+    <div className="grid min-h-12 grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-3 border-b border-border/60 py-1.5 text-sm">
       <dt className="text-xs text-muted">{label}</dt>
       <dd className="min-w-0 break-words">{children}</dd>
     </div>
@@ -41,7 +42,7 @@ function Prop({ label, children }: { label: string; children: React.ReactNode })
 export default function TicketView({ ticket: first, task, initialStatus }: { ticket: BacklogItemData; task: BacklogItemData; /** A status already chosen (a card dropped on a column): it waits for its comment and Save status. */ initialStatus?: Status }) {
   const toast = useToast();
   const users = useUsers();
-  const { user, isQa, isAdmin, isSuperAdmin } = useAuth();
+  const { user, isQa, isAdmin } = useAuth();
   const [ticket, setTicket] = useState<BacklogItemData>(first);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<"comments" | "history">("comments");
@@ -188,7 +189,7 @@ export default function TicketView({ ticket: first, task, initialStatus }: { tic
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {(creator || isSuperAdmin) && !editing && <button type="button" onClick={() => setEditing(true)} className={`${btn} border border-border hover:bg-hover`}>Edit</button>}
+              {creator && !editing && <button type="button" onClick={() => setEditing(true)} className={`${btn} border border-border hover:bg-hover`}>Edit</button>}
               {editing && (
                 <>
                   {dirty && <span className="text-xs text-muted">Unsaved changes</span>}
@@ -202,15 +203,12 @@ export default function TicketView({ ticket: first, task, initialStatus }: { tic
           </div>
         </header>
         {error && <p role="alert" className="text-sm text-red-600 dark:text-red-300">{error}</p>}
-        {canSendBack && <SendBack onSend={sendBack} />}
+        {canSendBack && status === ticket.status && <SendBack onSend={sendBack} />}
 
         <section aria-label="Properties">
           <dl className="grid gap-x-8 border-t border-border/60 @2xl:grid-cols-2">
             <Prop label="Status">
-              <div className="flex flex-col gap-1.5">
-                <SelectField label="" value={status} onChange={(v) => setStatus(v as Status)} options={options} disabled={!(canEdit || mine) || ticket.status === "Done"} disabledReason={ticket.status === "Done" ? "Use Reopen to change a completed Ticket." : "You can't change this Ticket's status."} />
-                {status !== ticket.status && <span className="text-xs text-muted">Write the comment for this change in the {MESSAGES_LABEL}, then press Save status.</span>}
-              </div>
+              <SelectField label="" value={status} onChange={(v) => setStatus(v as Status)} options={options} disabled={!(canEdit || mine) || ticket.status === "Done"} disabledReason={ticket.status === "Done" ? "Use Reopen to change a completed Ticket." : "You can't change this Ticket's status."} />
             </Prop>
             <Prop label="Assignee">
               {canSetDetails ? (
@@ -229,7 +227,7 @@ export default function TicketView({ ticket: first, task, initialStatus }: { tic
             <Prop label="Created">{whenOrUnavailable(ticket.created, ticket.createdAt)}</Prop>
             <Prop label="Updated">{whenOrUnavailable(undefined, ticket.updatedAt)}</Prop>
             <Prop label="Parent task"><span className="font-mono text-xs text-muted">{task.id}</span> {task.title}</Prop>
-            <Prop label="Sprint">{sprintLabel(ticket.sprint)}</Prop>
+            <Prop label="Sprint"><SprintName name={ticket.sprint} /></Prop>
             {reopens.length > 0 && (
               <Prop label="Reopened">
                 {whenOrUnavailable(undefined, reopens[0].reopen?.at)} by {reopens[0].reopen?.by}
@@ -237,28 +235,29 @@ export default function TicketView({ ticket: first, task, initialStatus }: { tic
               </Prop>
             )}
           </dl>
+          {status !== ticket.status && <p className="mt-2 text-xs text-muted">Write the comment for this change in the {MESSAGES_LABEL}, then press Save status.</p>}
         </section>
 
-        <section aria-label="Description">
-          <h2 className="text-[11px] font-semibold uppercase tracking-wide text-muted">Description</h2>
+        <section aria-label="Description" className="border-t border-border/60 pt-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Description</h2>
           {editing ? (
             <div className="mt-2">
               <TextAreaField label="Description" rows={8} value={description} onChange={setDescription} placeholder="Steps to reproduce, what you expected, what happened" />
             </div>
           ) : (
-            <p className="mt-1.5 whitespace-pre-line break-words text-sm">{ticket.description || <span className="text-muted">No description.</span>}</p>
+            <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed">{ticket.description || <span className="text-muted">No description.</span>}</p>
           )}
         </section>
 
         <TicketAttachments ticketCode={ticket.id} canEdit={canEdit} />
       </article>
 
-      <aside aria-label="Activity" className="flex min-w-0 flex-col gap-3 card p-4 2xl:sticky 2xl:top-4">
+      <aside aria-label="Activity" className="flex min-w-0 flex-col gap-3 card p-4 2xl:sticky 2xl:top-4 2xl:h-[calc(100dvh-6.5rem)]">
         <div role="tablist" aria-label={`${MESSAGES_LABEL} and activity`} className="flex gap-1 border-b border-border pb-1">
           <button type="button" role="tab" aria-selected={tab === "comments"} onClick={() => setTab("comments")} className={tabClass(tab === "comments")}>{MESSAGES_LABEL}</button>
           <button type="button" role="tab" aria-selected={tab === "history"} onClick={() => setTab("history")} className={tabClass(tab === "history")}>Activity</button>
         </div>
-      <TabSwap id={tab === "comments" || status !== ticket.status ? "c" : "h"} className="min-w-0">
+      <TabSwap id={tab === "comments" || status !== ticket.status ? "c" : "h"} className="flex min-h-0 min-w-0 flex-col 2xl:flex-1">
         {tab === "comments" || status !== ticket.status ? (
           <TaskComments
             taskId={ticket.id}
@@ -271,7 +270,7 @@ export default function TicketView({ ticket: first, task, initialStatus }: { tic
             }
           />
         ) : (
-          <div className="max-h-[calc(100dvh-10rem)] overflow-y-auto overscroll-contain">
+          <div className="max-h-[calc(100dvh-10rem)] overflow-y-auto overscroll-contain 2xl:min-h-0 2xl:flex-1">
             <ActivityList entries={ticket.activity} />
           </div>
         )}

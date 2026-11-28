@@ -1,11 +1,11 @@
 "use client";
 
+import HeaderCreate from "@/components/ui/HeaderCreate";
 import { useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import FilterBar, { FilterPill, FilterSegments } from "@/components/ui/FilterBar";
 import { PersonIcon } from "@/components/ui/PersonLabel";
-import { PlusIcon } from "@/components/ui/icons";
 import ActionsMenu from "@/components/ui/ActionsMenu";
 import { EditIcon, TrashIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/Toast";
@@ -59,20 +59,11 @@ export default function OwnersSprintsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Owners & sprints"
-        description={`How work is distributed across ${owners.length} owners and ${allSprintNames.length} sprints.`}
+        description={`How work is spread across ${owners.length} owners and ${allSprintNames.length} sprints.`}
         // Owners are their own records, separate from users; only Admins manage them.
         actions={
           isAdmin ? (
-            <button
-              type="button"
-              onClick={() => setAdding(true)}
-              aria-keyshortcuts="O"
-              title="Create owner (press O)"
-              className="flex items-center gap-2 rounded-xl btn-brand px-4 py-2.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            >
-              <PlusIcon />
-              Create Owner <kbd className="ml-1 hidden rounded border border-current/30 px-1.5 text-[10px] font-medium opacity-80 lg:inline">O</kbd>
-            </button>
+            <HeaderCreate label="Create Owner" keyHint="O" onClick={() => setAdding(true)} />
           ) : undefined
         }
       />

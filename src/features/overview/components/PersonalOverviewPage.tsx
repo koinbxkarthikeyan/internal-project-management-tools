@@ -1,5 +1,6 @@
 "use client";
 
+import { SprintName } from "@/components/ui/NameWithIcon";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import GreetingBanner from "@/components/layout/GreetingBanner";
@@ -204,7 +205,7 @@ export default function PersonalOverviewPage({ tabs }: { /** Shown in the page h
                 return (
                   <li key={s.id} className="flex flex-col gap-1">
                     <span className="flex justify-between gap-3">
-                      <span className="truncate">{sprintLabel(s.name)}</span>
+                      <SprintName name={s.name} className="truncate" />
                       <span className="shrink-0 tabular-nums text-muted"><span className="font-semibold text-foreground">{formatHours(hours)}</span> of {formatHours(planned)}</span>
                     </span>
                     <ProgressBar percent={planned > 0 ? (hours / planned) * 100 : 0} label={`${sprintLabel(s.name)} hours`} />

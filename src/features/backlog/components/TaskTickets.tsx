@@ -72,7 +72,7 @@ export default function TaskTickets({ task, canCreate = false, variant, selected
           </button>
         )}
         {onHide && (
-          <button type="button" onClick={onHide} aria-expanded="true" title="Hide Tickets" className="grid h-8 place-items-center rounded-lg px-2 text-xs font-medium text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent max-sm:w-8 max-sm:border max-sm:border-border"><ChevronRightIcon width={14} height={14} className="-rotate-90 sm:hidden" /><span className="hidden sm:inline">‹ Hide</span></button>
+          <button type="button" onClick={onHide} aria-expanded="true" title="Hide Tickets" className="grid h-8 place-items-center rounded-lg px-2 text-xs font-medium text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent max-[1399px]:w-8 max-[1399px]:border max-[1399px]:border-border"><ChevronRightIcon width={14} height={14} className="-rotate-90 min-[1400px]:hidden" /><span className="hidden min-[1400px]:inline">‹ Hide</span></button>
         )}
         </div>
       </div>

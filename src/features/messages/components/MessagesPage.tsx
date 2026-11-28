@@ -152,7 +152,7 @@ export default function MessagesPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className={hasOpen ? "hidden md:block" : undefined}>
-        <PageHeader title={MESSAGES_LABEL} description="Chat with the people on your tasks (your PODs) and with anyone else. Open up to three conversations side by side." />
+        <PageHeader title={MESSAGES_LABEL} description="Chat with your PODs and with anyone else." />
       </div>
       <div ref={workspaceRef} className="flex h-[30rem] min-h-0 overflow-hidden card shadow-sm">
         <aside className={`${hasOpen && !showList ? "hidden md:flex" : "flex"} w-full shrink-0 flex-col border-r border-border bg-surface md:w-80`} aria-label="Conversations">

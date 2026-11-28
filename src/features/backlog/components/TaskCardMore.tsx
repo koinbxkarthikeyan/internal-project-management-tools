@@ -15,11 +15,11 @@ import { getErrorMessage } from "@/lib/apiClient";
 import * as backlogService from "@/services/backlogService";
 import type { BacklogItemData } from "@/types/backlog";
 
-/** What a task card opens inside itself with its arrow: the task's Tickets (a click opens one) and its Comments. Read when opened, not before. */
+/** What a task card opens inside itself with its arrow: its Work Chat (shown first) and its Tickets (a click opens one). Read when opened, not before. */
 export default function TaskCardMore({ task }: { task: BacklogItemData }) {
   const router = useRouter();
   const { isQa, isAdmin } = useAuth();
-  const [tab, setTab] = useState<"tickets" | "comments">("tickets");
+  const [tab, setTab] = useState<"tickets" | "comments">("comments");
   const [tickets, setTickets] = useState<BacklogItemData[] | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -30,8 +30,8 @@ export default function TaskCardMore({ task }: { task: BacklogItemData }) {
   return (
     <div className="flex flex-col gap-2 border-t border-border/70 pt-2" onClick={(e) => e.stopPropagation()}>
       <div role="tablist" aria-label={`Tickets and ${MESSAGES_LABEL.toLowerCase()}`} className="flex gap-1">
-        <button type="button" role="tab" aria-selected={tab === "tickets"} onClick={() => setTab("tickets")} className={tabClass(tab === "tickets")}>Tickets{tickets ? ` (${tickets.length})` : ""}</button>
         <button type="button" role="tab" aria-selected={tab === "comments"} onClick={() => setTab("comments")} className={tabClass(tab === "comments")}>{MESSAGES_LABEL}</button>
+        <button type="button" role="tab" aria-selected={tab === "tickets"} onClick={() => setTab("tickets")} className={tabClass(tab === "tickets")}>Tickets{tickets ? ` (${tickets.length})` : ""}</button>
       </div>
       <TabSwap id={tab}>
         {tab === "comments" ? (

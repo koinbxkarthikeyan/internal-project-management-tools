@@ -1,10 +1,10 @@
 "use client";
 
+import { SprintName } from "@/components/ui/NameWithIcon";
 import { useRef, useState } from "react";
 import { useStatusFold } from "@/hooks/useStatusFold";
 import { StatusBadge } from "@/components/ui/Badge";
 import ColumnEmpty from "@/components/ui/ColumnEmpty";
-import { sprintLabel } from "@/constants/backlog-options";
 import type { BacklogItemData, Status } from "@/types/backlog";
 import TaskCard from "@/features/backlog/components/TaskCard";
 import TaskCardMore from "@/features/backlog/components/TaskCardMore";
@@ -37,6 +37,26 @@ export default function MyTaskBoard({ tasks, isMine, openTicketsFor, unreadFor, 
   // The statuses fold into slim vertical bars: how many are open follows the width of the board (In Progress first, statuses with cards before empty ones), see useStatusFold.
   const wrap = useRef<HTMLDivElement>(null);
   const fold = useStatusFold(wrap, COLUMNS.map((c) => c.title), OPEN_FIRST, (title) => tasks.some((t) => COLUMNS.find((c) => c.title === title)?.statuses.includes(t.status)));
+  /** Dropping a card on a status (its column, or its slim bar when it is empty or folded) moves it there. */
+  const drop = (col: (typeof COLUMNS)[number]) =>
+    onMove
+      ? {
+          onDragOver: (e: React.DragEvent) => {
+            const t = tasks.find((x) => x.id === dragging);
+            if (t && canDrop && !canDrop(t, col.drop)) return;
+            e.preventDefault();
+            setOver(col.title);
+          },
+          onDragLeave: () => setOver((o) => (o === col.title ? null : o)),
+          onDrop: (e: React.DragEvent) => {
+            e.preventDefault();
+            const t = tasks.find((x) => x.id === (dragging ?? e.dataTransfer.getData("text/plain")));
+            setOver(null);
+            setDragging(null);
+            if (t && !col.statuses.includes(t.status) && (!canDrop || canDrop(t, col.drop))) onMove(t, col.drop);
+          },
+        }
+      : {};
   // One status column.
   const renderCol = (col: (typeof COLUMNS)[number]) => {
         const cards = tasks.filter((t) => col.statuses.includes(t.status));
@@ -48,8 +68,8 @@ export default function MyTaskBoard({ tasks, isMine, openTicketsFor, unreadFor, 
                 onClick={() => fold.toggle(col.title)}
                 aria-expanded="false"
                 aria-label={`Show ${col.title}, ${cards.length}`}
-                title={`Show ${col.title}`}
-                className="anim-fade-up flex h-36 w-11 shrink-0 flex-col items-center gap-2 card px-1 py-3 text-sm font-semibold text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent self-stretch"
+                aria-disabled={fold.isEmpty(col.title) || undefined} {...drop(col)} title={fold.isEmpty(col.title) ? `${col.title}: nothing here` : `Show ${col.title}`}
+                className={`anim-fade-up aria-disabled:cursor-not-allowed aria-disabled:opacity-60 ${over === col.title ? "border-accent bg-accent-soft/40 opacity-100!" : ""} flex h-36 w-11 shrink-0 flex-col items-center gap-2 card px-1 py-3 text-sm font-semibold text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent self-stretch`}
               >
                 <span className="rounded-full bg-hover px-2 py-0.5 text-xs font-medium">{cards.length}</span>
                 <span className="[writing-mode:vertical-rl]">{col.title}</span>
@@ -59,28 +79,8 @@ export default function MyTaskBoard({ tasks, isMine, openTicketsFor, unreadFor, 
           <section
             key={col.title}
             aria-label={`${col.title}, ${cards.length}`}
-            onDragOver={
-              onMove
-                ? (e) => {
-                    const t = tasks.find((x) => x.id === dragging);
-                    if (t && canDrop && !canDrop(t, col.drop)) return;
-                    e.preventDefault();
-                    setOver(col.title);
-                  }
-                : undefined
-            }
-            onDragLeave={onMove ? () => setOver((o) => (o === col.title ? null : o)) : undefined}
-            onDrop={
-              onMove
-                ? (e) => {
-                    e.preventDefault();
-                    const t = tasks.find((x) => x.id === (dragging ?? e.dataTransfer.getData("text/plain")));
-                    setOver(null);
-                    setDragging(null);
-                    if (t && !col.statuses.includes(t.status) && (!canDrop || canDrop(t, col.drop))) onMove(t, col.drop);
-                  }
-                : undefined
-            }
+            {...drop(col)}
+            data-status-column
             className={`flex min-w-0 flex-col gap-2 self-start rounded-2xl border p-2.5 transition-[flex-grow,border-color,background-color] duration-200 min-h-[15.5rem] flex-1 has-[[data-disclosure][aria-expanded=true]]:flex-[2.4] ${over === col.title ? "border-accent bg-accent-soft/30" : "border-border bg-surface"}`}
           >
             <h2 className="flex items-baseline gap-2 px-1 text-sm font-semibold">
@@ -115,7 +115,7 @@ export default function MyTaskBoard({ tasks, isMine, openTicketsFor, unreadFor, 
                       footer={<span className="ml-auto"><CreateTicketButton task={t} /></span>}
                       badges={(t.status === "Blocked" || t.status === "On hold") && <StatusBadge status={t.status} />}
                     >
-                      <span>{t.type ?? "–"} · {sprintLabel(t.sprint)}</span>
+                      <span className="flex min-w-0 items-center gap-1.5">{t.type ?? "–"} · <SprintName name={t.sprint} /></span>
                       <span>Expected ETA: {t.deadline ? formatDeadline(t.deadline) : "–"}</span>
                       <span className="flex flex-wrap gap-x-3">
                         <span className="whitespace-nowrap">Developer ETA: {t.status !== "Ready for QA" && t.status !== "Testing" && t.leadDeadline ? formatDeadline(t.leadDeadline) : "–"}</span>

@@ -1,14 +1,16 @@
 "use client";
 
+import HeaderCreate from "@/components/ui/HeaderCreate";
 import { PlusIcon } from "@/components/ui/icons";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useBacklog } from "../context/BacklogContext";
 import { canPressB } from "../shortcuts";
 
 /** `gradient` is the brand gradient (page header); the default is the single accent colour (sidebar). */
-export default function CreateBacklogButton({ gradient = false }: { gradient?: boolean }) {
+export default function CreateBacklogButton({ gradient = false, header = false }: { gradient?: boolean; /** The page header's version: words from tablet up, a square "+" with a tooltip on a phone. */ header?: boolean }) {
   const { openCreate } = useBacklog();
   const keyed = canPressB(usePathname(), useSearchParams().get("view"));
+  if (header) return <HeaderCreate label="Create backlog" keyHint={keyed ? "B" : undefined} onClick={openCreate} />;
 
   return (
     <button

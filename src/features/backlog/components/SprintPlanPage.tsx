@@ -10,7 +10,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import { useQueryState } from "@/hooks/useQueryState";
 import { useToast } from "@/components/ui/Toast";
 import EmptyState from "@/components/ui/EmptyState";
-import { PlusIcon } from "@/components/ui/icons";
+import { CheckCircleIcon, ClockIcon, SprintIcon } from "@/components/ui/icons";
 import CloseSprintDrawer from "./CloseSprintDrawer";
 import CreateSprintDrawer from "./CreateSprintDrawer";
 import ConfirmDeleteDrawer from "./ConfirmDeleteDrawer";
@@ -25,7 +25,11 @@ import EditBacklogDrawer from "./EditBacklogDrawer";
 import TaskSearchModal from "./TaskSearchModal";
 import { useTabKeys } from "@/hooks/useTabKeys";
 import { useHoverTip } from "@/components/ui/HoverTip";
-import { formatDeadline, todayISO } from "../utils";
+import { formatDeadline, peopleOf, todayISO } from "../utils";
+import FilterBar, { FilterPill } from "@/components/ui/FilterBar";
+import BacklogSearch from "./BacklogSearch";
+import { PRIORITIES, STATUS_OPTIONS } from "@/constants/backlog-options";
+import HeaderCreate from "@/components/ui/HeaderCreate";
 import { useOffFor } from "@/features/work/hooks/useOffDays";
 import { eachDay, plannedHours, workingDays } from "@/features/work/utils";
 import SprintHeaderTitle from "./SprintHeaderTitle";
@@ -50,6 +54,8 @@ export default function SprintPlanPage() {
   const toast = useToast();
   const starting = useRef(false); // a double click on Start sprint must not send it twice
   const [viewing, setViewing] = useState<BacklogItemData | null>(null);
+  // Search and filters narrow the tasks listed in every tab (the tab counts stay the sprint totals).
+  const [filters, setFilters] = useState({ query: "", priority: "", owner: "", assignee: "", status: "" });
   const [tab, setTab] = useQueryState<"active" | "unplanned-closed" | "closed" | "plan">("sprints", ["active", "unplanned-closed", "closed", "plan"], "active");
   // The one closed sprint that is expanded, by sprint id (opening another closes it; clicking it again collapses it).
   // `undefined` means nothing has been chosen yet: the most recently closed sprint is open until the person picks.
@@ -138,10 +144,19 @@ export default function SprintPlanPage() {
             }}
     />
   );
+  const q = filters.query.trim().toLowerCase();
+  const match = (i: BacklogItemData) =>
+    (!q || i.title.toLowerCase().includes(q) || i.owner.toLowerCase().includes(q) || peopleOf(i).some((n) => n.toLowerCase().includes(q))) &&
+    (!filters.priority || i.priority === filters.priority) &&
+    (!filters.owner || i.owner === filters.owner) &&
+    (!filters.assignee || peopleOf(i).includes(filters.assignee)) &&
+    (!filters.status || i.status === filters.status);
+  const owners = [...new Set(allItems.map((i) => i.owner).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const assignees = [...new Set(allItems.flatMap(peopleOf))].sort((a, b) => a.localeCompare(b));
   const renderSprint = (sp: Sprint, index: number, pick: (i: BacklogItemData) => boolean = () => true) => {
     const sprint = sp.name;
     // The Backlog lists its tasks by the date they were created, oldest first; a place the person gave a task by dragging still wins. Tasks with no date go last.
-    const listed = allItems.filter((i) => i.sprint === sprint && pick(i));
+    const listed = allItems.filter((i) => i.sprint === sprint && pick(i) && match(i));
     const day = (i: BacklogItemData) => i.createdAt ?? i.created ?? "";
     const dated = sprint === "Unplanned" ? [...listed].sort((x, y) => (day(x) && !day(y) ? -1 : !day(x) && day(y) ? 1 : day(x).localeCompare(day(y)))) : listed;
     const items = applyOrder(dated, orders[sprint]);
@@ -235,6 +250,7 @@ export default function SprintPlanPage() {
   const curItems = cur ? allItems.filter((i) => i.sprint === cur.name) : [];
   const remaining = curItems.filter((i) => i.status !== "Done");
   const finished = curItems.filter((i) => i.status === "Done");
+  const finishedShown = finished.filter(match);
 
   // Close Sprint is available only while there is a running sprint with tasks still open (the work to review before closing). Until the data has loaded
   // it is not available either: missing data is never read as "nothing to close". It is worked out from the current sprint and task data on every render.
@@ -251,34 +267,26 @@ export default function SprintPlanPage() {
     <div className="flex flex-col gap-6">
       {dropTip.bubble}
       <PageHeader
+        oneLine
         title="Sprint plan"
         description={
           activeSprint
-            ? `${activeSprint.name} is running. It closes on its end date, or earlier when you close it; the next sprint then waits as Planned until you start it.`
+            ? `${activeSprint.name} is running.`
             : "Items planned for each sprint, in one place."
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <SprintDownloadMenu />
-<button
-            type="button"
-            onClick={() => setCreatingSprint(true)}
-            aria-keyshortcuts="S"
-            title="Plan a new sprint (press S)"
-            className="flex items-center gap-2 rounded-xl btn-brand px-4 py-2.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            <PlusIcon />
-            Plan New Sprint <kbd className="ml-1 hidden rounded border border-current/30 px-1.5 text-[10px] font-medium opacity-80 lg:inline">S</kbd>
-          </button>
+<HeaderCreate label="Plan New Sprint" keyHint="S" onClick={() => setCreatingSprint(true)} />
           </div>
         }
       />
       <div role="tablist" aria-label="Sprints" className="flex w-full max-w-full gap-1 overflow-x-auto rounded-xl border border-border bg-surface p-1 [scrollbar-width:none] sm:w-fit [&::-webkit-scrollbar]:hidden">
         {(
           [
-            { id: "active", label: "Active Sprint", count: current.length },
-            { id: "plan", label: "Plan Sprint", count: planned.length },
-            { id: "closed", label: "Close Sprint", count: closed.length },
+            { id: "active", label: "Active Sprint", count: current.length, Icon: ClockIcon },
+            { id: "plan", label: "Plan Sprint", count: planned.length, Icon: SprintIcon },
+            { id: "closed", label: "Close Sprint", count: closed.length, Icon: CheckCircleIcon },
           ] as const
         ).map((t) => {
           const disabled = t.id === "closed" && !closeAvailable;
@@ -303,6 +311,7 @@ export default function SprintPlanPage() {
               }`}
             >
               {/* A phone has room for the short names only: "Active", "Plan", "Close". */}
+              <t.Icon width={14} height={14} className="shrink-0 max-sm:hidden" aria-hidden="true" />
               <span>{t.label.replace(" Sprint", "")}<span className="max-sm:hidden"> Sprint</span></span>
               <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${on ? "bg-accent font-semibold text-accent-foreground" : "bg-hover text-muted"}`}>{t.count}</span>
             </button>
@@ -311,12 +320,23 @@ export default function SprintPlanPage() {
         })}
       </div>
 
+      <FilterBar
+        search={<BacklogSearch value={filters.query} onChange={(query) => setFilters({ ...filters, query })} placeholder="Search title, owner or assignee…" ariaLabel="Search sprint tasks" />}
+        activeCount={Object.values(filters).filter(Boolean).length}
+        onClear={() => setFilters({ query: "", priority: "", owner: "", assignee: "", status: "" })}
+      >
+        <FilterPill label="Priority" value={filters.priority} onChange={(priority) => setFilters({ ...filters, priority })} options={PRIORITIES} />
+        <FilterPill label="Status" value={filters.status} onChange={(status) => setFilters({ ...filters, status })} options={STATUS_OPTIONS} />
+        <FilterPill label="Owner" value={filters.owner} onChange={(owner) => setFilters({ ...filters, owner })} options={owners} />
+        <FilterPill label="Assigned To" value={filters.assignee} onChange={(assignee) => setFilters({ ...filters, assignee })} options={assignees} />
+      </FilterBar>
+
       {/* The Active Sprint and Plan Sprint tabs stay mounted when the other is open, parked off-screen (not removed, not display:none, and inert only while nothing is being dragged), because a browser
           ends a drag when its source is removed or hidden: a task dragged from one tab can then be dropped in the other. */}
       <div className={activeTab === "plan" ? "anim-tab-in" : PARKED} inert={activeTab !== "plan" && !dragging} aria-hidden={activeTab !== "plan"}>
         <section aria-label="Plan Sprint" className="flex flex-col gap-5">
-          <p className="text-sm text-muted">
-            Plan the next sprint here while the current one runs. Planning only creates it; it starts when you press Start sprint and the running sprint closes when you press Close sprint, as separate actions. Dates can&apos;t overlap another sprint.
+          <p className="text-sm text-muted max-md:hidden">
+            Plan the next sprint while the current one runs. It starts when you press Start sprint. Dates can&apos;t overlap another sprint.
           </p>
           {[
             { key: "active", title: "Active Sprints", list: current, empty: "No sprint is running." },
@@ -369,8 +389,8 @@ export default function SprintPlanPage() {
       </div>
       <div className={activeTab === "active" ? "anim-tab-in" : PARKED} inert={activeTab !== "active" && !dragging} aria-hidden={activeTab !== "active"}>
         <section aria-label="Active sprint" className="flex flex-col gap-4">
-          <p className="-mt-1 text-xs text-muted">
-            Reorder tasks inside a list by dragging a row by its grip (or Alt + Up / Down on a row); the order is kept in this browser only. Dragging a task onto another sprint or the Backlog moves it straight away.
+          <p className="-mt-1 text-xs text-muted max-md:hidden">
+            Drag a row by its grip to reorder it (or press Alt + Up / Down). Drop a task on another sprint or the Backlog to move it.
           </p>
           {running.length === 0 ? (
             sprints.some((s) => s.name !== "Unplanned") ? (
@@ -426,7 +446,7 @@ export default function SprintPlanPage() {
                 <div className="flex flex-col gap-1 border-b border-border px-5 pb-1 pt-3">
                   <h3 className="text-sm font-semibold">Done tasks <span className="font-normal text-muted">({finished.length})</span></h3>
                 </div>
-                <SprintItemsTable items={finished} onOpen={setViewing} onView={setViewing} readOnly carryNote={carryNote} />
+                <SprintItemsTable items={finishedShown} onOpen={setViewing} onView={setViewing} readOnly carryNote={carryNote} />
                 <p className="px-5 py-3 text-sm text-muted">
                   Closing ends this sprint today. Its finished tasks and logged hours stay in it as history. {remaining.length} unfinished {remaining.length === 1 ? "task is" : "tasks are"} carried over when you close it; none is marked Done.
                 </p>
@@ -452,7 +472,7 @@ export default function SprintPlanPage() {
             <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
               {closed.map((sp) => {
                 // The tasks that are in this sprint, and (read-only) the ones the backend says were in it before they moved on: the same task, same ID and code.
-                const items = [...allItems.filter((i) => i.sprint === sp.name), ...allItems.filter((i) => i.sprint !== sp.name && i.historySprintIds?.includes(sp.id))];
+                const items = [...allItems.filter((i) => i.sprint === sp.name), ...allItems.filter((i) => i.sprint !== sp.name && i.historySprintIds?.includes(sp.id))].filter(match);
                 const open = expandedClosedId === sp.id;
                 const toggle = () => setOpenClosed(open ? null : sp.id);
                 return (

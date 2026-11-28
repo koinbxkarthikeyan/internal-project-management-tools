@@ -151,7 +151,7 @@ export default function MessageList({ messages, myId, nameOf, newFrom = null, ta
               <div className={`flex min-w-0 max-w-[85%] flex-col ${mine ? "items-end" : "items-start"}`}>
                 {first && (
                   <div className={`mb-1 flex items-baseline gap-2 px-0.5 ${mine ? "flex-row-reverse" : ""}`}>
-                    <span className="text-[13px] font-semibold">{mine ? "You" : name}</span>
+                    <span className="text-sm font-semibold">{mine ? "You" : name}</span>
                     {tagOf?.(m) && <span className="rounded bg-accent-soft px-1.5 py-0.5 font-mono text-[10px] font-semibold text-accent">{tagOf(m)}</span>}
                   </div>
                 )}

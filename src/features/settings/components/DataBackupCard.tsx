@@ -69,7 +69,7 @@ export default function DataBackupCard() {
     <SettingsCard
       title="Backup & restore"
       label="Backup and restore"
-      description="Everything is kept on the shared server, so every computer sees it. Save a copy to a file now and then. The file holds your data and everyone's sign-in hashes, so keep it private. Images attached to Tickets are stored separately on the server and are not in the file."
+      description="Save a copy of your data to a file."
     >
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={download} className="btn-brand h-10 rounded-xl px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
@@ -80,6 +80,7 @@ export default function DataBackupCard() {
         </button>
         <input ref={input} type="file" accept="application/json,.json" className="sr-only" tabIndex={-1} aria-label="Backup file" onChange={(e) => void choose(e.target.files?.[0])} />
       </div>
+      <p className="text-xs text-muted">The file holds everyone&apos;s sign-in details, so keep it private. Ticket images are not in it.</p>
       {error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}
       {pending && (
         <div role="alertdialog" aria-label="Confirm restore" className="flex flex-col gap-3 rounded-xl border border-red-500/40 bg-red-500/10 p-4">

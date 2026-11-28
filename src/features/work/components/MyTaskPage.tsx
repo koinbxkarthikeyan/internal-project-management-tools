@@ -1,5 +1,7 @@
 "use client";
 
+import { AlertCircleIcon, ListIcon, UsersIcon } from "@/components/ui/icons";
+import { SprintName } from "@/components/ui/NameWithIcon";
 import ViewToggle from "@/components/ui/ViewToggle";
 import { useIsPhone } from "@/hooks/useIsPhone";
 import TabSwap from "@/components/ui/TabSwap";
@@ -27,17 +29,17 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useMyTasksStore } from "@/stores/myTasksStore";
 import type { BacklogItemData, Status } from "@/types/backlog";
 import QaStatusDialog from "@/features/backlog/components/QaStatusDialog";
-import { sprintLabel, statusLabel } from "@/constants/backlog-options";
+import { statusLabel } from "@/constants/backlog-options";
 import { MY_TASK_HREF } from "@/constants/work";
 import { DEVELOPER_ETA, EXPECTED_ETA } from "@/constants/eta";
 
 const head = "px-4 py-2.5 text-left";
 
 type Tab = "mine" | "lead" | "unassigned";
-const TABS: { id: Tab; label: string }[] = [
-  { id: "mine", label: "My Tasks" },
-  { id: "lead", label: "My Lead Tasks" },
-  { id: "unassigned", label: "Unassigned" },
+const TABS: { id: Tab; label: string; Icon: typeof ListIcon }[] = [
+  { id: "mine", label: "My Tasks", Icon: ListIcon },
+  { id: "lead", label: "My Lead Tasks", Icon: UsersIcon },
+  { id: "unassigned", label: "Unassigned", Icon: AlertCircleIcon },
 ];
 
 /**
@@ -168,7 +170,7 @@ export default function MyTaskPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="My Task"
-        description={`${shown.length} ${shown.length === 1 ? "task" : "tasks"} ${copy.noun}. Click one to see its details.`}
+        description={`${shown.length} ${shown.length === 1 ? "task" : "tasks"} ${copy.noun}. Click one to open it.`}
         actions={
           <ViewToggle value={view} onChange={setView} />
         }
@@ -189,6 +191,7 @@ export default function MyTaskPage() {
                 active ? "bg-accent-soft font-medium text-accent" : disabled ? "cursor-not-allowed text-muted opacity-50" : "text-muted hover:bg-hover hover:text-foreground"
               }`}
             >
+              <t.Icon width={14} height={14} className="shrink-0 max-sm:hidden" aria-hidden="true" />
               {t.label}
               <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${active ? "bg-accent font-semibold text-accent-foreground" : "bg-hover text-muted"}`}>{lists[t.id].length}</span>
             </button>
@@ -241,7 +244,7 @@ export default function MyTaskPage() {
                     <td data-label="Status" className="px-4 py-2">
                       <StatusBadge status={item.status} />
                     </td>
-                    <td data-label="Sprint" className="whitespace-nowrap px-4 py-2 text-muted">{sprintLabel(item.sprint)}</td>
+                    <td data-label="Sprint" className="whitespace-nowrap px-4 py-2 text-muted"><SprintName name={item.sprint} /></td>
                     <td data-label={EXPECTED_ETA} className="whitespace-nowrap px-4 py-2 text-muted">
                       {item.deadline ? <time dateTime={item.deadline}>{formatDeadline(item.deadline)}</time> : "–"}
                     </td>

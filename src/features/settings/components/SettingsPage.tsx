@@ -135,7 +135,7 @@ export default function SettingsPage() {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <GreetingBanner description="Manage your profile and keep your account secure." workLink={false} />
+      <GreetingBanner description="Manage your profile and account." workLink={false} />
 
       {forced && !noticeDone && <PasswordChangeNotice onContinue={() => setNoticeDone(true)} />}
 
@@ -167,7 +167,7 @@ export default function SettingsPage() {
         <form onSubmit={saveName} noValidate className="flex flex-col" aria-label="Profile">
           <SettingsCard
             title="Profile"
-            description="Your name, and the email you sign in with (read-only)."
+            description="Your name and sign-in email."
             footer={
           <>
                 <DisabledTip reason={!savingName && !nameChanged && "No changes to make."} className="inline-block">
@@ -202,7 +202,7 @@ export default function SettingsPage() {
         <form onSubmit={savePassword} noValidate className="flex flex-col" aria-label="Change password">
           <SettingsCard
             title="Change password"
-            description="Use at least 8 characters. You'll need your current password."
+            description="Use at least 8 characters."
             footer={
           <>
                 <DisabledTip reason={!savingPassword && !(current || next || confirm) && "Nothing to clear."} className="inline-block">

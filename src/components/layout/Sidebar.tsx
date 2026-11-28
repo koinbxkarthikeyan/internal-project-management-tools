@@ -5,6 +5,7 @@ import Link from "next/link";
 import Logo from "@/components/ui/Logo";
 import RailTip from "@/components/ui/RailTip";
 import ThemeMenu from "@/components/ui/ThemeMenu";
+import TopBarMessagesLink from "@/features/messages/components/TopBarMessagesLink";
 import NotificationBell from "@/features/notifications/components/NotificationBell";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, MenuIcon } from "@/components/ui/icons";
 import { DEFAULT_REDIRECT } from "@/constants/auth";
@@ -18,12 +19,12 @@ type SidebarProps = {
 };
 
 /** The logo, as a link to Overview. A User, or an account with access Disabled, cannot open Overview, so for them it goes to the page they can use (as after sign-in). */
-function LogoLink() {
+function LogoLink({ lettering = false }: { /** The "koinbx" lettering alone instead of the mark with it (the sidebar; the collapsed rail still shows the mark). */ lettering?: boolean }) {
   const { restricted, settingsOnly } = useAuth();
   const href = settingsOnly ? "/settings" : restricted ? OVERVIEW_HREF : DEFAULT_REDIRECT;
   return (
     <Link href={href} aria-label="Go to Overview" title="Overview" className="rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
-      <span className="sb-full inline-flex"><Logo /></span>
+      <span className={`sb-full inline-flex ${lettering ? "[&_img]:h-7" : ""}`}><Logo variant={lettering ? "wordmark" : "full"} /></span>
       <span className="sb-mini"><Logo variant="mark" /></span>
     </Link>
   );
@@ -74,6 +75,7 @@ export default function Sidebar({ children }: SidebarProps) {
       <header className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-border bg-surface px-4 lg:hidden">
         <LogoLink />
         <div className="flex items-center gap-2">
+          <TopBarMessagesLink />
           <NotificationBell />
           <ThemeMenu />
           <button
@@ -103,10 +105,10 @@ export default function Sidebar({ children }: SidebarProps) {
         }`}
       >
         <CollapseTab />
-        <div className="sb-head sb-pad flex items-center justify-between px-5 pb-2 pt-5 lg:pr-8">
-          <LogoLink />
+        <div className="sb-head sb-pad flex items-center justify-between gap-3 px-5 pb-2 pt-5 lg:pr-9">
+          <LogoLink lettering />
           <div className="sb-controls flex items-center gap-2">
-            <div className="sb-controls hidden items-center gap-2 lg:flex">
+            <div className="sb-controls hidden items-center gap-1.5 lg:flex">
               <ShortcutsButton />
               <NotificationBell />
               <ThemeMenu />

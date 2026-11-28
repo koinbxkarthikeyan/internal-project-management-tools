@@ -1,5 +1,6 @@
 "use client";
 
+import { TeamName } from "@/components/ui/NameWithIcon";
 import { Fragment, useState } from "react";
 import AssigneeStack from "@/components/ui/AssigneeStack";
 import { PriorityBadge } from "@/components/ui/Badge";
@@ -82,7 +83,7 @@ export default function QaTaskList({ tasks, sort, onSort, onSetSort, selectedId,
                 <td data-label="Status" className="px-3 py-2.5"><span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${col?.tone ?? ""}`}>{col?.title ?? t.status}</span></td>
                 <td data-label="Priority" className="px-3 py-2.5"><PriorityBadge priority={t.priority} /></td>
                 <td data-label="Assignee" className="px-3 py-2.5 text-xs"><AssigneeStack people={people(t)} size={24} /></td>
-                <td data-label="Team" className="px-3 py-2.5 text-xs text-muted">{team(t) || "–"}</td>
+                <td data-label="Team" className="px-3 py-2.5 text-xs text-muted">{team(t) ? <TeamName name={team(t)} /> : "–"}</td>
                 <td data-label="Tickets" className="px-3 py-2.5 text-xs">{t.ticketStats ? (t.ticketStats.total > 0 ? `${t.ticketStats.done}/${t.ticketStats.total} done` : "0") : "–"}</td>
                 <td data-actions className="whitespace-nowrap px-3 py-2.5"><span className="flex items-center justify-end gap-2"><CreateTicketButton task={t} />{reopen(t)}</span></td>
               </tr>

@@ -2,8 +2,8 @@ import type { BacklogItemData } from "@/types/backlog";
 
 /** The QA statuses, in flow order. Every role sees the same three, with the same names. `drop` is what a task dropped on the column becomes (Ready for QA is only entered by a hand-over). */
 export const QA_COLUMNS = [
-  { status: "Ready for QA", title: "Ready for QA", hint: "Waiting for QA to begin testing", tone: "bg-teal-500/15 text-teal-800 dark:text-teal-300", drop: null },
-  { status: "Testing", title: "Testing", hint: "Being tested", tone: "bg-violet-500/15 text-violet-800 dark:text-violet-300", drop: "Testing" },
+  { status: "Ready for QA", title: "Ready for QA", hint: "Waiting for QA to begin testing", tone: "bg-cyan-500/15 text-cyan-800 dark:text-cyan-300", drop: null },
+  { status: "Testing", title: "Testing", hint: "Being tested", tone: "bg-indigo-500/15 text-indigo-800 dark:text-indigo-300", drop: "Testing" },
   { status: "Done", title: "Done", hint: "Testing completed", tone: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300", drop: "Done" },
 ] as const;
 

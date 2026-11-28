@@ -14,8 +14,8 @@ export default function BacklogSummary({ items, partialTotal }: BacklogSummaryPr
   const stats: { label: string; value: number | string; tone: string; icon?: Status }[] = [
     { label: "Total items", value: partial ? partialTotal : items.length, tone: "text-foreground" },
     { label: "Open", icon: "Open", value: count((i) => i.status === "Open" || i.status === "In progress"), tone: "text-blue-700 dark:text-blue-300" },
-    { label: "Ready for QA", icon: "Ready for QA", value: count((i) => i.status === "Ready for QA"), tone: "text-teal-700 dark:text-teal-300" },
-    { label: "Testing", icon: "Testing", value: count((i) => i.status === "Testing"), tone: "text-violet-700 dark:text-violet-300" },
+    { label: "Ready for QA", icon: "Ready for QA", value: count((i) => i.status === "Ready for QA"), tone: "text-cyan-700 dark:text-cyan-300" },
+    { label: "Testing", icon: "Testing", value: count((i) => i.status === "Testing"), tone: "text-indigo-700 dark:text-indigo-300" },
     { label: "Blocked", icon: "Blocked", value: count((i) => i.status === "Blocked"), tone: "text-red-700 dark:text-red-300" },
     { label: "On hold", icon: "On hold", value: count((i) => i.status === "On hold"), tone: "text-amber-700 dark:text-amber-300" },
     { label: "Done", icon: "Done", value: count((i) => i.status === "Done"), tone: "text-emerald-700 dark:text-emerald-300" },

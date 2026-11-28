@@ -49,7 +49,7 @@ export default function OverviewPage({ tabs }: { /** Shown in the page header (a
 
   return (
     <div className="flex flex-col gap-6">
-      <GreetingBanner description="A snapshot of backlog health across all sprints.">{tabs}</GreetingBanner>
+      <GreetingBanner description="Backlog health across all sprints.">{tabs}</GreetingBanner>
       <PageFinder />
       <GettingStarted />
       <BacklogSummary items={items} />

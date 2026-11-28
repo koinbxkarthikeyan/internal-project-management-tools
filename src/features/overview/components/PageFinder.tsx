@@ -68,7 +68,7 @@ export default function PageFinder() {
           aria-controls={listId}
           aria-activedescendant={results.length ? `${listId}-${active}` : undefined}
           autoComplete="off"
-          className="h-11 w-full rounded-xl border border-border bg-background pl-11 pr-4 text-sm outline-none placeholder:text-muted focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-accent"
+          className="h-11 w-full rounded-xl border border-border bg-background pl-11 pr-4 text-sm outline-none placeholder:text-muted focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/25"
         />
         {term && (
           <ul id={listId} role="listbox" className="absolute inset-x-3 top-full z-20 -mt-1 max-h-72 overflow-y-auto rounded-xl border border-border bg-surface p-1.5 shadow-lg">

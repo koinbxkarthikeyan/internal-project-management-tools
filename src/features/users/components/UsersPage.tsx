@@ -1,12 +1,14 @@
 "use client";
 
+import HeaderCreate from "@/components/ui/HeaderCreate";
+import { TeamName } from "@/components/ui/NameWithIcon";
 import { useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import ActionsMenu from "@/components/ui/ActionsMenu";
 import EmptyState from "@/components/ui/EmptyState";
 import FilterBar, { FilterPill, FilterSegments } from "@/components/ui/FilterBar";
-import { EditIcon, EyeIcon, EyeOffIcon, PlusIcon, TrashIcon } from "@/components/ui/icons";
+import { EditIcon, EyeIcon, EyeOffIcon, TrashIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/Toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import BacklogSearch from "@/features/backlog/components/BacklogSearch";
@@ -25,6 +27,12 @@ const STATUS_STYLE = {
   Enabled: { pill: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300", dot: "bg-emerald-500" },
   Disabled: { pill: "bg-slate-100 text-slate-600 dark:bg-slate-500/20 dark:text-slate-300", dot: "bg-slate-400" },
 } as const;
+/** A role is a quiet badge, so the column reads like the Access Status one beside it; the higher the role, the stronger the tone. */
+const ROLE_STYLE: Record<string, string> = {
+  "Super Admin": "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
+  Admin: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
+  User: "bg-slate-100 text-slate-600 dark:bg-slate-500/20 dark:text-slate-300",
+};
 
 const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
@@ -94,18 +102,9 @@ export default function UsersPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Team Members"
-        description="Only registered users can sign in. Admins add team members; only the Super Admin can edit, delete or disable accounts."
+        description="Add and manage the people who can sign in."
         actions={
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            aria-keyshortcuts="T"
-            title="Add team member (press T)"
-            className="flex items-center gap-2 rounded-xl btn-brand px-4 py-2.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            <PlusIcon />
-            Add Team Member <kbd className="ml-1 hidden rounded border border-current/30 px-1.5 text-[10px] font-medium opacity-80 lg:inline">T</kbd>
-          </button>
+          <HeaderCreate label="Add Team Member" keyHint="T" onClick={() => setAdding(true)} />
         }
       />
 
@@ -130,14 +129,15 @@ export default function UsersPage() {
       <section className="overflow-hidden card">
         {/* About 10 rows are visible; the rest scroll inside, with the header kept in view. */}
         <div className="rt-box"><div className="table-scroll" style={{ "--row-h": "3.05rem" } as React.CSSProperties}>
-        <table className="rt w-full min-w-[34rem] text-sm">
-          <caption className="sr-only">Users and their access status</caption>
+        <table className="rt w-full min-w-[40rem] text-sm">
+          <caption className="sr-only">Users, their roles and access status</caption>
           <thead className="sticky top-0 z-10 bg-surface">
             <tr className="border-b border-border bg-background/60 text-xs font-medium uppercase tracking-wide text-muted">
               <th scope="col" className="px-4 py-2.5 text-left">Name</th>
               <th scope="col" className="px-4 py-2.5 text-left">Email</th>
               <th scope="col" className="px-4 py-2.5 text-left">Team</th>
-              <th scope="col" className="px-4 py-2.5 text-left">Access Status</th>
+              <th scope="col" className="px-4 py-2.5 text-center">Role</th>
+              <th scope="col" className="px-4 py-2.5 text-center">Access Status</th>
               <th scope="col" className="px-4 py-2.5 text-left">Last sign-in</th>
               <th scope="col" className="px-4 py-2.5 text-right">Actions</th>
             </tr>
@@ -161,8 +161,9 @@ export default function UsersPage() {
                     </span>
                   </th>
                   <td data-label="Email" className="px-4 py-2 text-muted">{u.email}</td>
-                  <td data-label="Team" className="px-4 py-2 text-muted">{u.team ?? "–"}</td>
-                  <td data-label="Access Status" className="px-4 py-2">
+                  <td data-label="Team" className="px-4 py-2 text-muted">{u.team ? <TeamName name={u.team} /> : "–"}</td>
+                  <td data-label="Role" className="px-4 py-2 text-center"><span className={`${pill} ${ROLE_STYLE[u.role] ?? ROLE_STYLE.User}`}>{u.role}</span></td>
+                  <td data-label="Access Status" className="px-4 py-2 text-center">
                     <span className={`${pill} ${style.pill}`}>
                       <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} aria-hidden="true" />
                       {u.status}

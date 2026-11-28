@@ -21,11 +21,23 @@ const paint = (collapsed: boolean) => {
 };
 
 /**
- * While something is held open (a card or row showing its details), the sidebar is collapsed to give the page the width, and put back when the last one closes. It is put back only
+ * While something is held open (a card or row showing its details), the sidebar is collapsed to give the page the width (only when the page needs the room, see needsRoom), and put back when the last one closes. It is put back only
  * if it was the page that collapsed it: a sidebar already collapsed stays as it was, and a choice the person makes meanwhile (the toggle) is never undone. This is not saved,
  * so the person's own saved choice is untouched.
  */
 let holds = 0;
+/**
+ * Does the page need the sidebar's width? When a status board is showing, it does if any open column is narrower than MIN_COLUMN_PX (opening a card makes its column wider and the
+ * others narrower, so a column that is already tight would become unreadable: cut-off titles, wrapped headings). With no board on the page, it does when the window is narrower than
+ * ROOMY_PX. Measured each time a card opens or the chat is typed in, so it follows what is on the screen.
+ */
+const MIN_COLUMN_PX = 300;
+const ROOMY_PX = 1600;
+const needsRoom = () => {
+  const columns = [...document.querySelectorAll<HTMLElement>("[data-status-column]")];
+  if (columns.length) return columns.some((c) => c.getBoundingClientRect().width < MIN_COLUMN_PX);
+  return window.innerWidth < ROOMY_PX;
+};
 let autoCollapsed = false;
 
 type State = {
@@ -56,7 +68,7 @@ export const useSidebarStore = create<State>((set, get) => ({
 
   hold: () => {
     holds += 1;
-    if (holds === 1 && !get().collapsed) {
+    if (holds === 1 && !get().collapsed && needsRoom()) {
       autoCollapsed = true;
       set({ collapsed: true });
       paint(true);

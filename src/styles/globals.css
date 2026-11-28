@@ -841,3 +841,7 @@ button, a, summary, [role="button"], [role="tab"] { touch-action: manipulation; 
   .card { border-radius: var(--radius-2xl); border: 1px solid var(--border); background-color: var(--surface); }
   .card-inset { border-radius: var(--radius-xl); border: 1px solid var(--border); background-color: color-mix(in srgb, var(--background) 60%, transparent); }
 }
+
+/* While a card is carried by a finger (see TouchDrag): no text selection, no callout, and a lifted card's copy never takes the finger's events. */
+.touch-dragging, .touch-dragging * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+[draggable="true"] { -webkit-touch-callout: none; }

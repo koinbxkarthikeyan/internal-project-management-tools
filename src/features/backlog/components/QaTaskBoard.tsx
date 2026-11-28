@@ -24,6 +24,21 @@ export default function QaTaskBoard({ tasks, totals, filtering, onOpen, onMove, 
   // The statuses fold into slim vertical bars: how many are open follows the width of the board (In Progress first, statuses with cards before empty ones), see useStatusFold.
   const wrap = useRef<HTMLDivElement>(null);
   const fold = useStatusFold(wrap, QA_COLUMNS.map((c) => c.title), OPEN_FIRST, (title) => tasks.some((t) => t.status === QA_COLUMNS.find((c) => c.title === title)?.status));
+  /** Dropping a card on a status (its column, or its slim bar when it is folded) moves it there. */
+  const drop = (col: (typeof QA_COLUMNS)[number]) =>
+    onMove && col.drop
+      ? {
+          onDragOver: (e: React.DragEvent) => (e.preventDefault(), setOver(col.status)),
+          onDragLeave: () => setOver((o) => (o === col.status ? null : o)),
+          onDrop: (e: React.DragEvent) => {
+            e.preventDefault();
+            const t = tasks.find((x) => x.id === (dragging ?? e.dataTransfer.getData("text/plain")));
+            setOver(null);
+            setDragging(null);
+            if (t) onMove(t, col.status);
+          },
+        }
+      : {};
   // One status column.
   const renderCol = (col: (typeof QA_COLUMNS)[number]) => {
         const cards = tasks.filter((t) => t.status === col.status);
@@ -36,8 +51,8 @@ export default function QaTaskBoard({ tasks, totals, filtering, onOpen, onMove, 
                 onClick={() => fold.toggle(col.title)}
                 aria-expanded="false"
                 aria-label={`Show ${col.title}, ${total}`}
-                title={`Show ${col.title}`}
-                className="anim-fade-up flex h-36 w-11 shrink-0 flex-col items-center gap-2 card px-1 py-3 text-sm font-semibold text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent self-stretch"
+                aria-disabled={fold.isEmpty(col.title) || undefined} {...drop(col)} title={fold.isEmpty(col.title) ? `${col.title}: nothing here` : `Show ${col.title}`}
+                className={`anim-fade-up aria-disabled:cursor-not-allowed aria-disabled:opacity-60 ${over === col.status ? "border-accent bg-accent-soft/40 opacity-100!" : ""} flex h-36 w-11 shrink-0 flex-col items-center gap-2 card px-1 py-3 text-sm font-semibold text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent self-stretch`}
               >
                 <span className="rounded-full bg-hover px-2 py-0.5 text-xs font-medium">{total}</span>
                 <span className="[writing-mode:vertical-rl]">{col.title}</span>
@@ -47,19 +62,8 @@ export default function QaTaskBoard({ tasks, totals, filtering, onOpen, onMove, 
           <section
             key={col.status}
             aria-label={`${col.title}, ${cards.length}`}
-            onDragOver={onMove && col.drop ? (e) => (e.preventDefault(), setOver(col.status)) : undefined}
-            onDragLeave={onMove && col.drop ? () => setOver((o) => (o === col.status ? null : o)) : undefined}
-            onDrop={
-              onMove && col.drop
-                ? (e) => {
-                    e.preventDefault();
-                    const t = tasks.find((x) => x.id === (dragging ?? e.dataTransfer.getData("text/plain")));
-                    setOver(null);
-                    setDragging(null);
-                    if (t) onMove(t, col.status);
-                  }
-                : undefined
-            }
+            {...drop(col)}
+            data-status-column
             className={`flex min-w-0 flex-col gap-2 self-start rounded-2xl border p-2.5 transition-[flex-grow,border-color,background-color] duration-200 min-h-[14rem] flex-1 has-[[data-disclosure][aria-expanded=true]]:flex-[2.4] ${over === col.status ? "border-accent bg-accent-soft/30" : "border-border bg-surface"}`}
           >
             <h2 className="flex flex-wrap items-center gap-2 px-1 text-sm font-semibold">

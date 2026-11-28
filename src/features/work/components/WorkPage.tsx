@@ -7,7 +7,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import PageSkeleton from "@/components/layout/PageSkeleton";
 import EmptyState from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
-import { FOCUS_HOURS_PER_DAY, SPRINT_TASKS_POD, UNPLANNED_POD, WORK_LOGGED_HREF, isPseudoPod } from "@/constants/work";
+import { SPRINT_TASKS_POD, UNPLANNED_POD, WORK_LOGGED_HREF, isPseudoPod } from "@/constants/work";
 import ConfirmDeleteDrawer from "@/features/backlog/components/ConfirmDeleteDrawer";
 import { Field, SearchableSelect } from "@/components/ui/FormControls";
 import { refreshUsers } from "@/lib/auth/userStore";
@@ -314,7 +314,7 @@ export default function WorkPage() {
     <div className="flex flex-col gap-5">
       <PageHeader
         title="What are you working on?"
-        description={`${rangeText}. Pick what you're on, the dates you're on it, and roughly how many hours. We plan around ${FOCUS_HOURS_PER_DAY} focus hours a working day, ${perPerson}h expected so far in ${chosen.length === 1 ? "the sprint" : "these sprints"} — the bar shows how you compare.`}
+        description={`${rangeText} · ${perPerson}h expected so far.`}
       />
 
       <SprintPicker sprints={datedSprints} selectedIds={chosen.map((s) => s.id)} onChange={setSprints} />

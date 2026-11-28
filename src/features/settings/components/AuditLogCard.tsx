@@ -42,7 +42,7 @@ export default function AuditLogCard() {
     );
   }, []);
   return (
-    <SettingsCard title="Audit log" description="What was changed, by whom and when. Only the Super Admin can read it. It never holds a password.">
+    <SettingsCard title="Audit log" description="Who changed what, and when. Only the Super Admin can read it.">
       {error ? (
         <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>
       ) : lines === null ? (

@@ -58,9 +58,10 @@ describe("Ticket status", () => {
 });
 
 describe("Ticket title and description", () => {
-  it("can be changed by the creator and the Super Admin only", async () => {
+  it("can be changed by the creator only", async () => {
     await expect(edit(creator, { title: "New title" })).resolves.toBeTruthy();
-    await expect(edit(superAdmin, { description: "More detail" })).resolves.toBeTruthy();
+    await expect(edit(creator, { description: "More detail" })).resolves.toBeTruthy();
+    await refused(edit(superAdmin, { title: "Other" }));
     await refused(edit(assignee, { title: "Other" }));
     await refused(edit(admin, { description: "Other" }));
   });

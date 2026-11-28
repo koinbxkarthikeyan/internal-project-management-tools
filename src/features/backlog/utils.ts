@@ -1,3 +1,5 @@
+import type { BacklogItemData } from "@/types/backlog";
+
 const dateFormat = new Intl.DateTimeFormat("en-GB", {
   day: "2-digit",
   month: "short",
@@ -54,3 +56,6 @@ export function initials(name: string) {
         .join("")
         .slice(0, 2);
 }
+
+/** The people on a task: its Lead and its Team Members (the assignees are kept as one comma-separated text). */
+export const peopleOf = (i: BacklogItemData): string[] => [...(i.lead ? [i.lead] : []), ...(i.assignees ? i.assignees.split(",").map((n) => n.trim()).filter(Boolean) : [])];

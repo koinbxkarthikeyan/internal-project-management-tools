@@ -6,7 +6,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import { DisabledTip } from "@/components/ui/DisabledTip";
 import { FieldError } from "@/components/ui/FieldError";
 import EmptyState from "@/components/ui/EmptyState";
-import { CloseIcon, PlusIcon, UploadIcon } from "@/components/ui/icons";
+import { CloseIcon, FolderIcon, ListIcon, PlusIcon, UploadIcon, UsersIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/Toast";
 import { useQueryState } from "@/hooks/useQueryState";
 import { useTabKeys } from "@/hooks/useTabKeys";
@@ -401,7 +401,7 @@ export default function BulkUploadPage() {
     <div className="flex flex-col gap-6 pb-32">
       <PageHeader
         title="Bulk Upload"
-        description="Add several records at once. Pick a tab, fill the table, then submit. Drafts are kept on this device."
+        description="Add many records at once. Drafts stay on this device."
         actions={
           <div className="flex items-center gap-3">
             <span role="status" aria-live="polite" className={`text-xs font-medium ${saveStatus === "Save failed" ? "text-danger" : "text-muted"}`}>
@@ -446,10 +446,11 @@ export default function BulkUploadPage() {
               aria-keyshortcuts={String(BULK_TYPES.indexOf(t) + 1)}
               title={`${t.label} (press ${BULK_TYPES.indexOf(t) + 1})`}
               onClick={() => setType(t.value)}
-              className={`flex min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 ${
+              className={`flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-1.5 py-2 text-xs sm:gap-2 sm:text-sm transition-colors focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 ${
                 on ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-hover hover:text-foreground"
               }`}
             >
+              {(() => { const I = { backlog: ListIcon, owner: FolderIcon, users: UsersIcon }[t.value]; return <I width={14} height={14} className="shrink-0 max-sm:hidden" aria-hidden="true" />; })()}
               <span className="truncate">{t.label}</span>
               {count > 0 && (
                 <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${on ? "bg-accent font-semibold text-accent-foreground" : "bg-hover text-muted"}`}>{count}</span>

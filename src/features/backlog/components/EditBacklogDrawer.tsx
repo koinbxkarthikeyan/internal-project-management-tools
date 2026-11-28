@@ -114,7 +114,6 @@ export default function EditBacklogDrawer({ item, onSave, onClose }: EditBacklog
 
   return (
     <BacklogDrawer
-      side
       mode="Edit"
       subtitle="Update this task's details, status and people."
       heading={

@@ -6,7 +6,7 @@ import { fileUrl, type ChatMessage } from "@/services/messageService";
 import CodeBlock from "./CodeBlock";
 import FileCard from "./FileCard";
 import MediaViewer from "./MediaViewer";
-import { linkify } from "./RichText";
+import { richText } from "./RichText";
 import VoicePlayer from "./VoicePlayer";
 
 const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -16,7 +16,7 @@ export default function MessageBody({ m, onOpenTicket }: { m: ChatMessage; /** O
   const [viewing, setViewing] = useState<number | null>(null);
   const files = m.files ?? [];
   const kind = m.kind ?? (files[0]?.kind === "image" ? "image" : undefined);
-  const caption = m.text ? <span className="block min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]">{linkify(m.text)}</span> : null;
+  const caption = m.text ? <span className="block min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]">{richText(m.text)}</span> : null;
 
   if (m.kind === "code") return <CodeBlock code={m.text} lang={m.lang ?? "javascript"} />;
 
@@ -76,7 +76,7 @@ export default function MessageBody({ m, onOpenTicket }: { m: ChatMessage; /** O
 
   return (
     <span className="flex min-w-0 flex-col gap-1.5">
-      <span className="min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]">{linkify(m.text)}</span>
+      <span className="min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]">{richText(m.text)}</span>
       {m.ticket && onOpenTicket && (
         <button type="button" onClick={() => onOpenTicket(m.ticket!)} className="w-fit rounded-md border border-accent/40 bg-accent-soft px-2 py-0.5 font-mono text-xs font-semibold text-accent hover:underline focus-visible:outline-2 focus-visible:outline-accent">Open {m.ticket.code}</button>
       )}

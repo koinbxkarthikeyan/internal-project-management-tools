@@ -1,5 +1,6 @@
 "use client";
 
+import { SprintName } from "@/components/ui/NameWithIcon";
 import { useEffect, useMemo, useState } from "react";
 import { StatusBadge } from "@/components/ui/Badge";
 import { sprintLabel } from "@/constants/backlog-options";
@@ -83,7 +84,7 @@ export default function TaskSearchModal({ tasks, onPick, reserved = [] }: { task
                   <span className="truncate text-sm font-medium">{t.title}</span>
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
                     <span>{t.id}</span>
-                    <span>{sprintLabel(t.sprint)}</span>
+                    <SprintName name={t.sprint} />
                     <span>{t.owner}</span>
                     <StatusBadge status={t.status} />
                     {t.hidden && <span>Hidden</span>}

@@ -9,14 +9,16 @@ import { CHAT_LIMITS, CODE_LANGUAGES, EXTENSIONS, checkFile, sizeText, type File
 import * as chat from "@/services/messageService";
 import { EMOJI_GROUPS } from "../emojis";
 import CodeBlock from "./CodeBlock";
+import FormatToolbar, { shortcut, type Change } from "./FormatToolbar";
 import MediaViewer from "./MediaViewer";
 import PreviewModal from "./PreviewModal";
+import UploadDialog from "./UploadDialog";
 import VoicePlayer from "./VoicePlayer";
 
 const MAX = CHAT_LIMITS.textChars;
 
 export type Person = { id: string; name: string };
-type Panel = "format" | "emoji" | "mention" | "attach" | null;
+type Panel = "emoji" | "mention" | "attach" | null;
 /** A file chosen to send: its upload state is kept here until the message goes. */
 type Pending = { key: string; file: Blob; name: string; size: number; kind: FileKind; duration?: number; preview?: string; id?: number; status: "ready" | "uploading" | "done" | "failed"; progress: number; error?: string };
 type Voice = { state: "idle" } | { state: "denied"; message: string } | { state: "recording" | "paused"; seconds: number } | { state: "preview"; seconds: number; blob: Blob; url: string };
@@ -58,6 +60,24 @@ const ATTACH: { kind: FileKind | "code" | "voice"; label: string; hint: string; 
 ];
 let counter = 0;
 
+/** A photo is stored smaller: scaled down to 1920px on its longer side and saved as WebP. Animated GIFs and anything the browser can't read are left alone, and so is a photo that would not get smaller. */
+async function shrinkImage(file: File): Promise<File> {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 1920 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, "image/webp", 0.82));
+    return blob && blob.type === "image/webp" && blob.size < file.size ? new File([blob], file.name.replace(/\.[^.]+$/, "") + ".webp", { type: "image/webp" }) : file;
+  } catch {
+    return file;
+  }
+}
+
 /** The length of a video, read from the file itself (the browser measures it); 0 when it can't be. */
 const videoLength = (url: string) =>
   new Promise<number>((resolve) => {
@@ -79,6 +99,8 @@ export default function Composer({ label, convKey, people = [], reply, onCancelR
   const [sending, setSending] = useState(false);
   const [failed, setFailed] = useState("");
   const [panel, setPanel] = useState<Panel>(null);
+  /** The formatting row above the text, shown or hidden by the "Aa" button (hidden at first, as in a chat app). */
+  const [bar, setBar] = useState(false);
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   /** Opens a tool panel above the button that was clicked, or closes it when it is the one open. */
   const toggle = (name: Exclude<Panel, null>, button: HTMLElement) => {
@@ -88,6 +110,8 @@ export default function Composer({ label, convKey, people = [], reply, onCancelR
   };
   const [mentions, setMentions] = useState<Person[]>([]);
   const [pending, setPending] = useState<Pending[]>([]);
+  // The upload window (files, a comment, Share) is open after files are chosen; Esc hides it and the files stay in the box below. Voice messages skip it.
+  const [review, setReview] = useState(false);
   const [code, setCode] = useState<{ lang: string; text: string } | null>(null);
   const hasText = draft.trim().length > 0 || !!code?.text.trim();
   useEffect(() => onTyping?.(hasText), [hasText, draft, code?.text, onTyping]);
@@ -166,6 +190,18 @@ export default function Composer({ label, convKey, people = [], reply, onCancelR
     });
   }
 
+  /** Runs one of the formatting edits on the selected words and puts the selection back where the edit says. */
+  function format(change: Change) {
+    const el = areaRef.current;
+    const done = change(draft, el?.selectionStart ?? draft.length, el?.selectionEnd ?? draft.length);
+    if (done.text.length > MAX) return;
+    setDraft(done.text);
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(done.from, done.to);
+    });
+  }
+
   // ---- files ----
   const kindInTray = pending[0]?.kind;
   async function addFiles(kind: FileKind, list: FileList | File[]) {
@@ -174,7 +210,8 @@ export default function Composer({ label, convKey, people = [], reply, onCancelR
     if (kindInTray && kindInTray !== kind) return setFailed("Send or remove the files already chosen first (a message holds one kind of file).");
     if (pending.length + files.length > CHAT_LIMITS.filesPerMessage) return setFailed(`A message can have at most ${CHAT_LIMITS.filesPerMessage} files.`);
     const added: Pending[] = [];
-    for (const file of files) {
+    for (let file of files) {
+      if (kind === "image") file = await shrinkImage(file);
       const problem = checkFile({ name: file.name, type: file.type, size: file.size }, kind);
       if (problem) {
         setFailed(problem);
@@ -184,7 +221,10 @@ export default function Composer({ label, convKey, people = [], reply, onCancelR
       if (preview) previews.current.push(preview);
       added.push({ key: `f${++counter}`, file, name: file.name, size: file.size, kind, preview, ...(kind === "video" && preview ? { duration: await videoLength(preview) } : {}), status: "ready", progress: 0 });
     }
-    if (added.length) setPending((p) => [...p, ...added]);
+    if (added.length) {
+      setPending((p) => [...p, ...added]);
+      if (kind !== "audio") setReview(true);
+    }
   }
   const remove = (key: string) => setPending((p) => p.filter((x) => x.key !== key));
   const patch = (key: string, change: Partial<Pending>) => setPending((p) => p.map((x) => (x.key === key ? { ...x, ...change } : x)));
@@ -338,6 +378,20 @@ export default function Composer({ label, convKey, people = [], reply, onCancelR
     } else if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       void send();
+    } else if (e.key === "Tab" && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      // Tab goes to the next chat box on the page (the toolbar buttons are for the mouse); with no other box after this one it moves on as usual.
+      const boxes = [...document.querySelectorAll<HTMLTextAreaElement>("textarea[data-chat-input]")].filter((b) => b.offsetParent && !b.disabled);
+      const next = boxes[boxes.indexOf(e.currentTarget) + 1];
+      if (next) {
+        e.preventDefault();
+        next.focus();
+      }
+    } else {
+      const change = shortcut(e);
+      if (change) {
+        e.preventDefault();
+        format(change);
+      }
     }
   };
 
@@ -417,6 +471,7 @@ export default function Composer({ label, convKey, people = [], reply, onCancelR
         </ul>
       )}
 
+        {bar && !code && voice.state === "idle" && <FormatToolbar onEdit={format} className="px-2.5 pt-2" />}
         {code ? (
           <div className="flex flex-col gap-2 px-3 pt-3">
             <div className="flex items-center justify-between gap-2">
@@ -495,11 +550,14 @@ export default function Composer({ label, convKey, people = [], reply, onCancelR
         ) : (
           <textarea
             ref={areaRef}
+            data-chat-input=""
+            onPointerDown={() => setPanel(null)}
             // The box around it shows the focus (its border); the app's default ring would draw a second, square outline inside it.
             style={{ outline: "none" }}
             value={draft}
             onChange={(e) => {
               // Typing + into an empty box opens the new Ticket form at once (no Enter needed).
+              setPanel(null);
               if (onPlus && draft === "" && e.target.value === "+") return onPlus();
               setDraft(e.target.value);
             }}
@@ -536,13 +594,6 @@ export default function Composer({ label, convKey, people = [], reply, onCancelR
             ))}
           </Panel>
         )}
-        {panel === "format" && (
-          <Panel anchor={anchor} width={120} role="toolbar" aria-label="Text formatting" className="flex gap-0.5">
-            <button type="button" onClick={() => insert("", ["*", "*"])} aria-label="Bold" title="Bold  *text*" className={`${tool} font-bold`}>B</button>
-            <button type="button" onClick={() => insert("", ["_", "_"])} aria-label="Italic" title="Italic  _text_" className={`${tool} italic`}>I</button>
-            <button type="button" onClick={() => insert("", ["`", "`"])} aria-label="Code" title="Code  `text`" className={`${tool} font-mono text-xs`}>{"</>"}</button>
-          </Panel>
-        )}
         {panel === "emoji" && (
           <Panel anchor={anchor} width={288} role="dialog" aria-label="Emoji" className="p-0">
             <div role="tablist" aria-label="Emoji groups" className="flex gap-0.5 border-b border-border px-1.5 pt-1.5">
@@ -573,7 +624,7 @@ export default function Composer({ label, convKey, people = [], reply, onCancelR
           <button type="button" onClick={(e) => toggle("attach", e.currentTarget)} aria-label="Add attachment" aria-haspopup="menu" aria-expanded={panel === "attach"} title="Add attachment" disabled={sending} className={`${tool} ${panel === "attach" ? "border-border bg-hover text-teal-600" : ""}`}>
             <svg className="transition-transform duration-200 ease-out group-hover/tool:rotate-90 group-focus-visible/tool:rotate-90" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
           </button>
-          <button type="button" onClick={(e) => toggle("format", e.currentTarget)} aria-label="Text formatting" aria-expanded={panel === "format"} title="Text formatting" disabled={!!code || voice.state !== "idle"} className={`${tool} text-sm font-semibold ${panel === "format" ? "border-border bg-hover text-teal-600" : ""}`}><span className="inline-block transition-transform duration-200 ease-out group-hover/tool:scale-125 group-focus-visible/tool:scale-125">Aa</span></button>
+          <button type="button" onClick={() => setBar(!bar)} aria-label="Formatting" aria-pressed={bar} title={bar ? "Hide formatting" : "Show formatting"} disabled={!!code || voice.state !== "idle"} className={`${tool} text-sm font-semibold ${bar ? "border-border bg-hover text-teal-600" : ""}`}><span className="inline-block transition-transform duration-200 ease-out group-hover/tool:scale-125 group-focus-visible/tool:scale-125">Aa</span></button>
           <button type="button" onClick={(e) => toggle("emoji", e.currentTarget)} aria-label="Emoji" aria-expanded={panel === "emoji"} title="Emoji" disabled={!!code || voice.state !== "idle"} className={`${tool} ${panel === "emoji" ? "border-border bg-hover text-teal-600" : ""}`}>
             <svg className="transition-transform duration-200 ease-out group-hover/tool:-rotate-12 group-hover/tool:scale-110 group-focus-visible/tool:-rotate-12" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01" /></svg>
           </button>
@@ -599,6 +650,20 @@ export default function Composer({ label, convKey, people = [], reply, onCancelR
           </button>
         </div>
       </div>
+      {review && pending.length > 0 && pending[0].kind !== "audio" && (
+        <UploadDialog
+          files={pending}
+          comment={draft}
+          onComment={setDraft}
+          onRemove={remove}
+          onAdd={() => inputs.current[pending[0].kind]?.click()}
+          onCancel={() => (setPending([]), setReview(false))}
+          onShare={() => void send()}
+          onClose={() => setReview(false)}
+          sending={sending}
+          error={failed}
+        />
+      )}
       {viewed?.kind === "image" && (() => {
         const images = pending.filter((p) => p.kind === "image" && p.preview);
         return <MediaViewer files={images.map((p, i) => ({ id: -i - 1, name: p.name, url: p.preview }))} start={Math.max(0, images.findIndex((p) => p.key === viewed.key))} onClose={closeView} />;

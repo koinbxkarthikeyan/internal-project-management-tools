@@ -16,7 +16,7 @@ export default function CompletedPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Done" description="Items that are done. Reopen one to put it back where it was before it was completed." />
+      <PageHeader title="Done" description="Finished items. Reopen one to bring it back." />
       <BacklogList
         items={completed}
         total={completed.length}

@@ -9,7 +9,7 @@ export default function SettingsCard({ title, description, footer, children, cla
     <section aria-label={label ?? title} className={`flex flex-col overflow-hidden card ${className}`}>
       <header className="px-5 pt-4">
         <h2 className="text-base font-semibold leading-tight">{title}</h2>
-        {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}
+        {description && <p className="mt-0.5 truncate text-sm text-muted">{description}</p>}
       </header>
       <div className="flex flex-1 flex-col gap-3 px-5 py-3.5">{children}</div>
       {footer && <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-border px-5 py-3">{footer}</footer>}

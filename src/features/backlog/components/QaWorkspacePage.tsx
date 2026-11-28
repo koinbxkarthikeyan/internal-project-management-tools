@@ -149,9 +149,9 @@ export default function QaWorkspacePage() {
     <div className="flex flex-col gap-5">
       <PageHeader
         title="QA Workspace"
-        description="Every task handed to QA, whoever it is assigned to: Ready for QA, Testing and Done. Drag a card on the board to the next status, or click a task to open its full page."
+        description="Tasks handed to QA. Click one to open it."
         actions={
-          <ViewToggle value={view} onChange={setView} />
+          <ViewToggle value={view} onChange={(v) => (setView(v), v === "board" && filters.status && changeFilters({ ...filters, status: "" }))} />
         }
       />
       {error ? (
@@ -160,7 +160,7 @@ export default function QaWorkspacePage() {
         <div className="h-24 animate-pulse rounded-xl bg-hover" role="status" aria-label="Loading" />
       ) : (
         <>
-          <TaskFilterBar label="Filter QA tasks" filters={filters} onChange={changeFilters} statuses={QA_COLUMNS.map((c) => ({ value: c.status, label: c.title }))} teams={teams} assignees={assignees} />
+          <TaskFilterBar hideStatus={view === "board"} label="Filter QA tasks" filters={filters} onChange={changeFilters} statuses={QA_COLUMNS.map((c) => ({ value: c.status, label: c.title }))} teams={teams} assignees={assignees} />
           <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted" aria-label="Counts">
             {QA_COLUMNS.map((c) => <span key={c.status}>{c.title} <strong className="text-foreground">{totals[c.status]}</strong></span>)}
             {filtering && <span role="status">Showing {shown.length} of {all.length}</span>}

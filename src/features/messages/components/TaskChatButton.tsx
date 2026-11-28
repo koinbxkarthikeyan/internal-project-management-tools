@@ -1,5 +1,6 @@
 "use client";
 
+import { ChatIcon } from "@/components/ui/icons";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { MESSAGES_HREF, MESSAGES_LABEL } from "@/constants/work";
@@ -25,7 +26,7 @@ export default function TaskChatButton({ taskId }: { taskId: number }) {
   if (unread === null) return null;
   return (
     <Link href={`${MESSAGES_HREF}?open=task:${taskId}`} title={MESSAGES_LABEL} className="inline-flex h-8 items-center gap-2 rounded-lg border border-border px-2.5 text-xs sm:px-3 font-semibold transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent">
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12Z" /></svg>
+      <ChatIcon width={14} height={14} />
       <span className="sr-only sm:not-sr-only">{MESSAGES_LABEL}</span>
       {unread > 0 && <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-accent-foreground">{unread}</span>}
     </Link>

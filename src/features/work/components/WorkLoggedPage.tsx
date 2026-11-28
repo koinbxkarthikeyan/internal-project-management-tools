@@ -62,7 +62,7 @@ export default function WorkLoggedPage() {
     );
   }
 
-  const header = <PageHeader title="Your Logged Work" description="Everything you logged in the chosen sprint." actions={<Link href={WORK_HREF} className={backLink}>Back to Log Work Sprint</Link>} />;
+  const header = <PageHeader title="Your Logged Work" description="What you logged in the chosen sprint." actions={<Link href={WORK_HREF} className={backLink}>Back to Log Work Sprint</Link>} />;
   if (datedSprints.length === 0) {
     return (
       <div className="flex flex-col gap-6">

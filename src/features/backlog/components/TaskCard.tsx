@@ -58,9 +58,15 @@ export default function TaskCard({ title, code, priority, tickets, unread, onBel
         <PriorityBadge priority={priority} />
         {badges}
       </span>
+      {/* While the card is open the footer (the Ticket count and Create Ticket) is up under the title, so it stays in reach above the long chat and Ticket list. It eases up as the one at the bottom eases away. */}
+      {footer && mounted && <CollapsePanel shown={shown}><span className="flex items-center justify-between gap-2 text-xs text-muted">{footer}</span></CollapsePanel>}
       <span className="flex flex-col gap-0.5 text-xs text-muted">{children}</span>
       {mounted && <CollapsePanel shown={shown}>{more}</CollapsePanel>}
-      {footer && <span className="mt-auto flex items-center justify-between gap-2 text-xs text-muted">{footer}</span>}
+      {footer && (
+        <div inert={open} className="mt-auto">
+          <CollapsePanel shown={!open}><span className="flex items-center justify-between gap-2 text-xs text-muted">{footer}</span></CollapsePanel>
+        </div>
+      )}
     </div>
   );
 }

@@ -582,10 +582,10 @@ export function editTicket({ params, data }: Req) {
   if (isSprintClosed(ticket.sprintId)) fail(403, CLOSED);
   const before = { ...ticket, assigneeIds: [...ticket.assigneeIds] };
   const changed: string[] = [];
-  // The words of a Ticket (its title and description) are edited only by the person who created it or by the Super Admin; the others who work on it change its status, assignee and priority.
-  const writer = ticket.createdById === me.id || me.role === "SUPER_ADMIN";
+  // The words of a Ticket (its title and description) are edited only by the person who created it only; the others who work on it change its status, assignee and priority.
+  const writer = ticket.createdById === me.id;
   const wording = (data.title !== undefined && clean(data.title) !== ticket.title) || (data.description !== undefined && String(data.description ?? "") !== (ticket.description ?? ""));
-  if (wording && !writer) fail(403, "Only the person who created the Ticket or the Super Admin can edit its title and description.");
+  if (wording && !writer) fail(403, "Only the person who created the Ticket can edit its title and description.");
   if (data.title !== undefined) {
     const title = clean(data.title);
     if (!title) fail(400, "Enter a title for the Ticket.");

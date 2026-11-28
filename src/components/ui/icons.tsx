@@ -248,3 +248,10 @@ export const FilterIcon = (p: IconProps) => (
     <path d="M4 5h16l-6.2 7.4V19l-3.6-1.8v-4.8z" />
   </Icon>
 );
+
+/** Work Chat: a speech bubble, the one icon used for it everywhere. */
+export const ChatIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12Z" />
+  </Icon>
+);

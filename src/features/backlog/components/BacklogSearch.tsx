@@ -6,7 +6,7 @@ type BacklogSearchProps = {
   ariaLabel?: string;
 };
 
-export default function BacklogSearch({ value, onChange, placeholder = "Search title or owner…", ariaLabel = "Search backlog items" }: BacklogSearchProps) {
+export default function BacklogSearch({ value, onChange, placeholder = "Search title, owner or assignee…", ariaLabel = "Search backlog items" }: BacklogSearchProps) {
   return (
     <div className="relative min-w-0 flex-1 basis-48">
       <svg

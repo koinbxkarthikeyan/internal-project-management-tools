@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronLeftIcon, ChevronRightIcon, ChatIcon } from "@/components/ui/icons";
 import TabSwap from "@/components/ui/TabSwap";
 import { useEffect, useRef, useState } from "react";
 import { usePresence } from "@/hooks/usePresence";
@@ -93,7 +94,7 @@ export default function TaskWorkspace({ item, view, selectedCode, canCreate, com
   // views. Where it is the full task details (a long page of its own) the row keeps its natural heights.
   const row = useFitToScreen<HTMLDivElement>();
   const match = compact;
-  // Board View: while the person is in the conversation (typing, or any tool of it has focus) the sidebar collapses and the conversation widens, to give it room; both return when they leave it.
+  // Board View: the conversation keeps its narrow width; only while the person is typing in it (the message box or a tool of the composer has focus) the sidebar collapses and it widens, and both return when they leave.
   const [chatFocus, setChatFocus] = useState(false);
   const focusChat = view === "board" && match && side && chatFocus;
   useCollapseSidebar(focusChat);
@@ -144,16 +145,18 @@ export default function TaskWorkspace({ item, view, selectedCode, canCreate, com
   // The Tickets column: the block itself, or (folded) a slim rail that opens it again.
   const ticketsColumn = (variant: "tree" | "board") =>
     ticketsOpen ? (
-      <div className={`min-w-0 flex-1 ${match ? "[&>*]:h-full" : ""}`}>{ticketsBlock(variant)}</div>
+      <div className={`min-w-0 flex-1 ${match ? "min-[1400px]:[&>*]:h-full" : ""}`}>{ticketsBlock(variant)}</div>
     ) : (
-      <div className="w-[3.25rem] shrink-0">
-        <button type="button" onClick={() => (setTicketsOpen(true), stacked() && setSide(false))} aria-expanded="false" title="Show Tickets" className="anim-fade-up flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface text-sm font-medium text-muted transition-colors duration-150 hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent flex-col px-1 py-4">
+      <div className="w-full shrink-0 min-[1400px]:w-[3.25rem]">
+        <button type="button" onClick={() => (setTicketsOpen(true), stacked() && setSide(false))} aria-expanded="false" title="Show Tickets" className="anim-fade-up flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface text-sm font-medium text-muted transition-colors duration-150 hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent flex-row px-3 py-2.5 min-[1400px]:flex-col min-[1400px]:px-1 min-[1400px]:py-4">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M15 4v16" /></svg>
-          <span className="[writing-mode:vertical-rl]">Tickets</span>
+          <span className="min-[1400px]:[writing-mode:vertical-rl]">Tickets</span>
+          <ChevronRightIcon width={14} height={14} className="hidden min-[1400px]:block" />
+          <ChevronRightIcon width={14} height={14} className="ml-auto rotate-90 min-[1400px]:hidden" />
         </button>
       </div>
     );
-  const sideWidth = (w: string) => (ticketsOpen ? w : "w-auto flex-1");
+  const sideWidth = (w: string) => (ticketsOpen ? w : "min-[1400px]:w-auto min-[1400px]:flex-1");
 
   // The search and filters sit above the Tickets block, outside it, in both layouts.
   const filterBar =
@@ -167,12 +170,12 @@ export default function TaskWorkspace({ item, view, selectedCode, canCreate, com
   // Its width is what eases (a length to a length, which every browser animates); the open content keeps a minimum width so it is clipped, not squeezed, while it moves.
   const sideColumn = (openWidth: string) => (
     <div
-      onFocus={() => setChatFocus(true)}
+      onFocus={(e) => (e.target as HTMLElement).closest("textarea, input, [contenteditable], [data-composer-panel]") && setChatFocus(true)}
       onBlur={(e) => {
         const next = e.relatedTarget as HTMLElement | null;
         if (!next || !(e.currentTarget.contains(next) || next.closest?.("[data-composer-panel]"))) setChatFocus(false);
       }}
-      className={`relative min-w-0 transition-[width] duration-200 ease-out motion-reduce:transition-none shrink-0 overflow-hidden ${side ? (focusChat ? "min-[1400px]:w-[32rem]" : openWidth) : "w-[3.25rem]"} ${match ? "h-full" : "sticky top-4"}`}>
+      className={`relative min-w-0 transition-[width] duration-200 ease-out motion-reduce:transition-none shrink-0 overflow-hidden ${side ? "" : "order-first min-[1400px]:order-none "}${side ? `w-full ${focusChat ? "min-[1400px]:w-[32rem]" : openWidth}` : "w-full min-[1400px]:w-[3.25rem]"} ${match ? "min-[1400px]:h-full" : "min-[1400px]:sticky min-[1400px]:top-4"}`}>
       {panel.mounted && (
         <div className={`flex flex-col transition-opacity duration-200 motion-reduce:transition-none min-[1400px]:min-w-[22rem] ${match ? "h-full" : ""} ${panel.shown ? "opacity-100" : "pointer-events-none opacity-0"}`}>
           {!compact && (
@@ -184,9 +187,11 @@ export default function TaskWorkspace({ item, view, selectedCode, canCreate, com
         </div>
       )}
       {!side && (
-        <button type="button" onClick={() => (setSide(true), stacked() && setTicketsOpen(false))} aria-expanded="false" title={`Show ${MESSAGES_LABEL.toLowerCase()} and activity`} className="anim-fade-up flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface text-sm font-medium text-muted transition-colors duration-150 hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent flex-col px-1 py-4">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12Z" /></svg>
-          <span className="[writing-mode:vertical-rl]">{MESSAGES_LABEL}</span>
+        <button type="button" onClick={() => (setSide(true), stacked() && setTicketsOpen(false))} aria-expanded="false" title={`Show ${MESSAGES_LABEL.toLowerCase()} and activity`} className="anim-fade-up flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface text-sm font-medium text-muted transition-colors duration-150 hover:bg-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent flex-row px-3 py-2.5 min-[1400px]:flex-col min-[1400px]:px-1 min-[1400px]:py-4">
+          <ChatIcon width={18} height={18} />
+          <span className="min-[1400px]:[writing-mode:vertical-rl]">{MESSAGES_LABEL}</span>
+          <ChevronLeftIcon width={14} height={14} className="hidden min-[1400px]:block" />
+          <ChevronRightIcon width={14} height={14} className="ml-auto rotate-90 min-[1400px]:hidden" />
         </button>
       )}
     </div>
@@ -197,7 +202,7 @@ export default function TaskWorkspace({ item, view, selectedCode, canCreate, com
       <TabSwap id="board" className="flex flex-col gap-4">
         {filterBar}
         {/* The status board takes the width; the task's comments are a narrow column beside it (under it on a small screen). */}
-        <div ref={match ? row : undefined} className={`flex flex-row gap-4 ${match ? "items-stretch" : "items-start"}`}>
+        <div ref={match ? row : undefined} className={`flex flex-col gap-4 min-[1400px]:flex-row ${match ? "items-stretch" : "items-start"}`}>
           {ticketsColumn("board")}
           {sideColumn(sideWidth("min-[1400px]:w-[22rem]"))}
         </div>
@@ -208,7 +213,7 @@ export default function TaskWorkspace({ item, view, selectedCode, canCreate, com
   return (
     <TabSwap id="list" className="flex flex-col gap-4">
       {filterBar}
-      <div ref={match ? row : undefined} className={`flex flex-row gap-4 ${match ? "items-stretch" : "items-start"}`}>
+      <div ref={match ? row : undefined} className={`flex flex-col gap-4 min-[1400px]:flex-row ${match ? "items-stretch" : "items-start"}`}>
         {ticketsColumn("tree")}
         {sideColumn(sideWidth("min-[1400px]:w-[calc(50%-0.5rem)]"))}
       </div>

@@ -97,9 +97,9 @@ export default function TicketAttachments({ ticketCode, canEdit }: { ticketCode:
   if (images === null && !error) return null;
   if (!canEdit && images?.length === 0 && !error) return null;
   return (
-    <section aria-label="Attachments" className="flex flex-col gap-2">
+    <section aria-label="Attachments" className="flex flex-col gap-2 border-t border-border/60 pt-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-medium text-muted">Attachments{images && images.length > 0 ? ` (${images.length})` : ""}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted">Attachments{images && images.length > 0 ? ` (${images.length})` : ""}</p>
         {canEdit && (images?.length ?? 0) < MAX_IMAGES && (
           <>
             <button type="button" onClick={() => input.current?.click()} disabled={busy} className="h-8 rounded-lg border border-border px-3 text-xs font-semibold text-accent hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-60">

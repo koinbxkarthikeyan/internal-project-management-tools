@@ -76,7 +76,7 @@ export default function GreetingBanner({ description, workLink = true, children 
             </span>
           </Link>
         )}
-        <svg viewBox="0 0 1400 120" aria-hidden="true" preserveAspectRatio="xMidYMid slice" className="pointer-events-none -my-4 -mr-5 hidden min-w-0 flex-1 self-stretch lg:block">
+        <svg viewBox="0 0 1400 120" aria-hidden="true" preserveAspectRatio="xMidYMid slice" className="pointer-events-none -my-4 -mr-5 hidden min-w-0 flex-1 self-stretch bg-transparent lg:block">
           <g stroke="#94a3b8" strokeOpacity=".35" strokeDasharray="3 4" fill="none">
             <polyline points={COINS.map((c) => `${c.x},${c.y}`).join(" ")} />
             {NODES.map(([x, y]) => {

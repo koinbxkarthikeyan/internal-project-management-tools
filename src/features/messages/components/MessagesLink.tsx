@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import RailTip from "@/components/ui/RailTip";
-import { MailIcon } from "@/components/ui/icons";
+import { ChatIcon } from "@/components/ui/icons";
 import { MESSAGES_HREF, MESSAGES_LABEL } from "@/constants/work";
 import { useToast } from "@/components/ui/Toast";
 import { playPing } from "@/features/notifications/ping";
@@ -63,7 +63,7 @@ export default function MessagesLink() {
         aria-current={active ? "page" : undefined}
         className={`sb-item group relative flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-sm transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-accent ${active ? "bg-accent-soft font-medium text-accent" : "bg-background/60 hover:bg-hover"}`}
       >
-        <MailIcon className="shrink-0 transition-transform duration-200 group-hover:scale-110" />
+        <ChatIcon className="shrink-0 transition-transform duration-200 group-hover:scale-110" />
         <span className="sb-label flex-1 truncate">{MESSAGES_LABEL}</span>
         {unread > 0 && <span className="sb-label rounded-full bg-accent px-2 py-0.5 text-xs font-semibold tabular-nums text-accent-foreground">{unread > 99 ? "99+" : unread}</span>}
       </Link>
